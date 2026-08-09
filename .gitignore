@@ -1,0 +1,4 @@
+# local postgres (machine-specific, not shared)
+postgres/data/
+postgres/logfile
+postgres/sockets/

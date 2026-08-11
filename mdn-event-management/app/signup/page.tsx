@@ -73,7 +73,7 @@ export default function SignupPage() {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Roy Meng"
+              placeholder="Jane Doe"
               className="w-full px-4 py-2.5 rounded-xl bg-slate-950/60 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
             />
           </div>
@@ -87,7 +87,7 @@ export default function SignupPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="roy@example.com"
+              placeholder="jane@example.com"
               className="w-full px-4 py-2.5 rounded-xl bg-slate-950/60 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
             />
           </div>

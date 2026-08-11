@@ -50,7 +50,7 @@ export default function Home() {
             MDN Event Management
           </h1>
           <p className="text-slate-400 text-sm mt-2">
-            Authentication Test Dashboard (Roy's Deliverable)
+            Authentication Test Dashboard
           </p>
         </div>
 

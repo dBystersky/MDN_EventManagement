@@ -1,0 +1,4 @@
+# Just in case omeone ran npm in the root directory...
+package-lock.json
+package.json
+node_modules

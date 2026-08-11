@@ -11,7 +11,7 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
-
+//region TEST -  DELETE WHEN DONE
 model User { 
   id    Int     @id @default(autoincrement()) 
   email String  @unique
@@ -27,3 +27,118 @@ model Post {
   author    User    @relation(fields: [authorId], references: [id]) 
   authorId  Int
 } 
+// endregion
+
+enum MemberRole {
+  Member
+  Manager
+  Admin
+
+  @@map("member_role")
+}
+
+model Member {
+  memberId     Int            @id @default(autoincrement()) @map("member_id")
+  name         String         @db.VarChar
+  role         MemberRole
+  email        String         @db.VarChar
+  password     String         @db.VarChar
+  eventManagers EventManager[]
+  taskManagers  TaskManager[]
+
+  @@map("members")
+}
+
+model EventManager {
+  memberId Int    @map("member_id")
+  eventId  Int    @map("event_id")
+  member   Member @relation(fields: [memberId], references: [memberId])
+  event    Event  @relation(fields: [eventId], references: [eventId])
+
+  @@id([memberId, eventId])
+  @@map("event_managers")
+}
+
+model Event {
+  eventId          Int            @id @default(autoincrement()) @map("event_id")
+  name             String         @db.VarChar
+  description      String?        @db.VarChar
+  date             DateTime       @db.Timestamptz
+  eventLocationId  Int            @map("event_location_id")
+  bookableId       Int            @unique @map("bookable_id")
+  eventManagers    EventManager[]
+  location         Location       @relation(fields: [eventLocationId], references: [locationId])
+  bookable         Bookable       @relation(fields: [bookableId], references: [bookableId])
+
+  @@map("events")
+}
+
+model TaskManager {
+  memberId Int    @map("member_id")
+  taskId   Int    @map("task_id")
+  member   Member @relation(fields: [memberId], references: [memberId])
+  task     Task   @relation(fields: [taskId], references: [taskId])
+
+  @@id([memberId, taskId])
+  @@map("task_managers")
+}
+
+model Task {
+  taskId       Int           @id @default(autoincrement()) @map("task_id")
+  name         String        @db.VarChar
+  description  String?       @db.VarChar
+  deadline     DateTime      @db.Timestamptz
+  bookableId   Int           @unique @map("bookable_id")
+  taskManagers TaskManager[]
+  bookable     Bookable      @relation(fields: [bookableId], references: [bookableId])
+
+  @@map("tasks")
+}
+
+model Resource {
+  resourceId          Int                  @id @default(autoincrement()) @map("resource_id")
+  name                String               @db.VarChar
+  resourceType        Int                  @map("resource_type")
+  resourceTypeRel     ResourceType         @relation(fields: [resourceType], references: [typeId])
+  resourceAllocations ResourceAllocation[]
+
+  @@map("resources")
+}
+
+model ResourceAllocation {
+  allocationId Int      @id @default(autoincrement()) @map("allocation_id")
+  startTime    DateTime @map("start_time") @db.Timestamptz
+  endTime      DateTime @map("end_time") @db.Timestamptz
+  bookableId   Int      @map("bookable_id")
+  resourceId   Int      @map("resource_id")
+  bookable     Bookable @relation(fields: [bookableId], references: [bookableId])
+  resource     Resource @relation(fields: [resourceId], references: [resourceId])
+
+  @@map("resource_allocations")
+}
+
+model Bookable {
+  bookableId          Int                  @id @default(autoincrement()) @map("bookable_id")
+  bookableType        String               @map("bookable_type") @db.VarChar
+  events              Event?
+  tasks               Task?
+  resourceAllocations ResourceAllocation[]
+
+  @@map("bookable")
+}
+
+model Location {
+  locationId Int     @id @default(autoincrement()) @map("location_id")
+  name       String  @db.VarChar
+  events     Event[]
+
+  @@map("locations")
+}
+
+model ResourceType {
+  typeId    Int        @id @default(autoincrement()) @map("type_id")
+  name      String     @db.VarChar
+  resources Resource[]
+
+  @@map("resource_types")
+}

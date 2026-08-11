@@ -2,20 +2,15 @@ import { prisma } from "./lib/prisma";
 
 async function main() {
   // Create a new user with a post
-  const user = await prisma.user.create({
-    data: {
-      name: "Alice",
-      email: "alice@prisma.io",
+  const user = await prisma.user.upsert({
+    where: { email: 'test@example.com' },
+    update: {}, // Leave empty if you don't want to change existing data
+    create: {
+      email: 'test@example.com',
+      name: 'Test User',
       posts: {
-        create: {
-          title: "Hello World",
-          content: "This is my first post!",
-          published: true,
-        },
+        create: { title: 'My First Post' },
       },
-    },
-    include: {
-      posts: true,
     },
   });
   console.log("Created user:", user);

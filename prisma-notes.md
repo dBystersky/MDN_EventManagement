@@ -1,3 +1,5 @@
+# Install
+Not all has to be done.
 ```sh
 npm install typescript tsx @types/node --save-dev
 npx tsc --init
@@ -17,9 +19,14 @@ npx prisma generate
 ```
 
 
-# Update schema
+# Scheme broke
 ```sh
 npx prisma migrate reset
 npx prisma migrate dev --name init
+npx prisma generate
+```
+
+# Update Schema (TBC)
+```sh
 npx prisma generate
 ```

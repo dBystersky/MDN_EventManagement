@@ -1,6 +1,6 @@
 # Update Schema (TBC)
 ```sh
-npx prisma generate
+npx prisma db push
 ```
 
 # Run DB Locally
@@ -8,3 +8,9 @@ npx prisma generate
 npx prisma dev
 ```
 Place the `DATABASE_URL` into env.
+
+# View DB Locally
+
+```sh
+npx prisma studio
+```

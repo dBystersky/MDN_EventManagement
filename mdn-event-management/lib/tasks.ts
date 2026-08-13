@@ -17,6 +17,10 @@ export const taskInclude = {
 } as const;
 
 export function parseTaskId(value: string): number | null {
+  if (!/^\d+$/.test(value)) {
+    return null;
+  }
+
   const taskId = Number.parseInt(value, 10);
   if (!Number.isInteger(taskId) || taskId <= 0) {
     return null;
@@ -46,9 +50,17 @@ export function parseMemberIds(value: unknown): number[] | null {
     return null;
   }
 
-  const memberIds = value.map((id) => Number.parseInt(String(id), 10));
-  if (memberIds.some((id) => !Number.isInteger(id) || id <= 0)) {
-    return null;
+  const memberIds: number[] = [];
+  for (const id of value) {
+    const raw = String(id);
+    if (!/^\d+$/.test(raw)) {
+      return null;
+    }
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      return null;
+    }
+    memberIds.push(parsed);
   }
 
   return [...new Set(memberIds)];

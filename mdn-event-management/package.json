@@ -7,7 +7,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "tsx --test tests/task-parsers.test.ts tests/task-api.test.ts",
+    "test:unit": "tsx --test tests/task-parsers.test.ts",
+    "test:api": "tsx --test tests/task-api.test.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",

@@ -14,3 +14,7 @@ Backend:
 - Typescript
 - Express.js
 - Node.js
+
+## Local DB setup
+
+See [prisma-notes.md](./prisma-notes.md) — each teammate runs Postgres locally (Docker) and applies migrations with `npx prisma migrate dev`.

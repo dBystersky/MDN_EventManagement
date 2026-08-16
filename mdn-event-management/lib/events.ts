@@ -50,6 +50,31 @@ export async function readEvent(eventId: number) {
     })
 }
 
-export async function updateEvent() {}
+type updateEventInput = {
+    name?: string;
+    description?: string | null;
+    date?: Date;
+    locationId?: number;
+}
+
+export async function updateEvent(eventId: number, input: updateEventInput) {
+    return prisma.event.update({
+        where: { eventId },
+        data: {
+            name: input.name,
+            description: input.description,
+            date: input.date,
+            ...(input.locationId !== undefined
+                ? { location: { connect: { locationId: input.locationId }}}
+                : {}
+            )
+        },
+        include: {
+            location: true,
+            bookable: true,
+            eventManagers: { include: { member: true } },
+        }
+    })
+}
 
 export async function deleteEvent() {}

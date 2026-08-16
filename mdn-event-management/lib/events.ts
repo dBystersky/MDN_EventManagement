@@ -77,4 +77,30 @@ export async function updateEvent(eventId: number, input: updateEventInput) {
     })
 }
 
-export async function deleteEvent() {}
+export async function deleteEvent(eventId: number) {
+    // Ensure event exists before delete attempt
+    const event = await prisma.event.findUniqueOrThrow({
+        where: {eventId},
+        select: {
+            bookableId: true,
+        },
+    });
+
+    return prisma.$transaction(async (tx) => {
+        // delete all associated event managers
+        await tx.eventManager.deleteMany({ where: { eventId } });
+
+        // delete all associated allocations that are linked to event
+        await tx.resourceAllocation.deleteMany({ 
+            where: { bookableId: event.bookableId },
+        });
+
+        // delete event itself
+        await tx.event.delete({ where: { eventId } });
+
+        // delete associated bookable object
+        await tx.bookable.delete({
+            where: { bookableId: event.bookableId },
+        });
+    });
+}

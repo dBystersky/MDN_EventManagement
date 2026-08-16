@@ -28,7 +28,27 @@ export async function createEvent(input: createEventInput) {
     });
 }
 
-export async function readEvents() {}
+export async function listEvents() {
+    return prisma.event.findMany({
+        orderBy: { date: "asc" },
+        include: {
+            location: true,
+            bookable: true,
+            eventManagers: { include: { member: true } }
+        }
+    })
+}
+
+export async function readEvent(eventId: number) {
+    return prisma.event.findUnique({
+        where: { eventId },
+        include: {
+            location: true,
+            bookable: true,
+            eventManagers: { include: { member: true } }
+        }
+    })
+}
 
 export async function updateEvent() {}
 

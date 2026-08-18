@@ -12,16 +12,16 @@ export async function GET(request: Request, context: RouteParams) {
     const { eventId } = await context.params;
     const id  = Number(eventId);
 
-    // Get the event from the database
-    const event = await readEvent(id);
+    try {
+        // Get the event from the database
+        const event = await readEvent(id);
 
-    // If the event is not found, return a 404 error
-    if (!event) {
-        return NextResponse.json({ error: "Event not found" }, { status: 404 });
+        // Return the found event
+        return NextResponse.json(event, { status: 200 });
+    } catch (error) {
+        return NextResponse.json({ error: "Event not found" }, { status: 404 }); 
     }
-
-    // Return the found event
-    return NextResponse.json(event, { status: 200 });
+    
 }
 
 export async function PATCH(request: Request, context: RouteParams) {

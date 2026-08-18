@@ -50,8 +50,6 @@ export async function PATCH(request: Request, context: RouteParams) {
             if (error.code === 'P2025') {
                 return NextResponse.json({ error: "Event not found" }, { status: 404 });
             }
-
-            return NextResponse.json({ error: "Failed to update event" }, { status: 500 });
         }
 
         return NextResponse.json({ error: "Failed to update event" }, { status: 500 });
@@ -59,5 +57,22 @@ export async function PATCH(request: Request, context: RouteParams) {
 }
 
 export async function DELETE(request: Request, context: RouteParams){
+    const { eventId } = await context.params;
+    const id = Number(eventId);
 
+    try {
+        // Delete the event
+        await deleteEvent(id);
+
+        // Return a success message
+        return NextResponse.json({ message: "Event deleted successfully" }, { status: 200 });
+
+    } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+            if (error.code === 'P2025') {
+                return NextResponse.json({ error: "Event not found" }, { status: 404 });
+            }
+        }
+        return NextResponse.json({ error: "Failed to delete event" }, { status: 500 });
+    }
 }

@@ -7,7 +7,7 @@ export async function GET() {
         const events = await listEvents();
         return NextResponse.json(events, { status: 200 });
     } catch (error) {
-        return NextResponse.json({ error: "Failed to get events" }, { status: 500 });
+        return NextResponse.json({ error: `Failed to get events: ${error}` }, { status: 500 });
     }
 }
 
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
         return NextResponse.json(newEvent, { status: 201 });
 
     } catch (error) {
-        return NextResponse.json({ error: "Failed to create event" }, { status: 500 });
+        return NextResponse.json({ error: `Failed to create event: ${error}` }, { status: 500 });
     }
     
 }

@@ -19,7 +19,7 @@ export async function GET(request: Request, context: RouteParams) {
         // Return the found event
         return NextResponse.json(event, { status: 200 });
     } catch (error) {
-        return NextResponse.json({ error: "Event not found" }, { status: 404 }); 
+        return NextResponse.json({ error: `Event not found: ${error}` }, { status: 404 }); 
     }
     
 }
@@ -48,11 +48,11 @@ export async function PATCH(request: Request, context: RouteParams) {
             error instanceof Prisma.PrismaClientKnownRequestError
         ) {
             if (error.code === 'P2025') {
-                return NextResponse.json({ error: "Event not found" }, { status: 404 });
+                return NextResponse.json({ error: `Event not found: ${error}` }, { status: 404 });
             }
         }
 
-        return NextResponse.json({ error: "Failed to update event" }, { status: 500 });
+        return NextResponse.json({ error: `Failed to update event: ${error}` }, { status: 500 });
     }
 }
 
@@ -70,9 +70,9 @@ export async function DELETE(request: Request, context: RouteParams){
     } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError) {
             if (error.code === 'P2025') {
-                return NextResponse.json({ error: "Event not found" }, { status: 404 });
+                return NextResponse.json({ error: `Event not found: ${error}` }, { status: 404 });
             }
         }
-        return NextResponse.json({ error: "Failed to delete event" }, { status: 500 });
+        return NextResponse.json({ error: `Failed to delete event ${error}` }, { status: 500 });
     }
 }

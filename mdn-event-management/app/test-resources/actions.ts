@@ -33,8 +33,8 @@ export async function createResource(formData: FormData) {
   if (!name || !resourceTypeId) return;
 
   await prisma.resource.create({
-    data: { 
-      name, 
+    data: {
+      name,
       resourceType: resourceTypeId // Mapping to your relation field
     },
   });
@@ -71,4 +71,35 @@ export async function deleteLocation(id: number) {
   });
 
   revalidatePath("/test-db"); // Refresh the page
+}
+// CREATE: Add a new Resource Allocation
+export async function createAllocation(formData: FormData) {
+  const resourceId = Number(formData.get("resourceId"));
+  const locationId = Number(formData.get("locationId"));
+  const startTime = new Date(formData.get("startTime") as string);
+  const endTime = new Date(formData.get("endTime") as string);
+  const bookableId = Number(formData.get("bookableId"));
+
+  if (!resourceId || !locationId || isNaN(startTime.getTime())) return;
+
+  await prisma.resourceAllocation.create({
+    data: {
+      resourceId,
+      locationId,
+      startTime,
+      endTime,
+      bookableId,
+    },
+  });
+
+  revalidatePath("/test-db");
+}
+
+// DELETE: Remove an Allocation
+export async function deleteAllocation(id: number) {
+  await prisma.resourceAllocation.delete({
+    where: { allocationId: id },
+  });
+
+  revalidatePath("/test-db");
 }

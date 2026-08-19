@@ -1,6 +1,6 @@
 import { ResourceTypeTag } from "@/components/ui/ResourceTypeTag";
 import { prisma } from "@/lib/prisma";
-import { createResourceType, deleteResourceType } from "./actions";
+import { createLocation, createResource, createResourceType, deleteLocation, deleteResource, deleteResourceType } from "./actions";
 
 async function getTestData() {
   // Fetching all required data in parallel to optimize performance
@@ -79,15 +79,53 @@ export default async function TestDatabasePage() {
       </section>
 
 
-      {/* 2. Resources */}
-      <section>
-        <h2 className="text-xl font				semibold text-green-600">2. Resources</h2>
-        <ul className="list-disc ml-5 mt-2 text-gray-700">
+   {/* 2. Resources Section UPDATED */}
+      <section className="border p-6 rounded-lg shadow-sm">
+        <h2 className="text-xl font-semibold text-green-600 mb-4">2. Resources</h2>
+
+        {/* CREATE FORM */}
+        <form action={createResource} className="flex flex-col gap-2 mb-6 max-w-md">
+          <input
+            name="name"
+            placeholder="Resource Name..."
+            className="border p-2 rounded text-sm"
+            required
+          />
+          <select name="resourceTypeId" className="border p-2 rounded text-sm" required>
+            <option value="">Select Type...</option>
+            {data.resourceTypes.map((t) => (
+              <option key={t.typeId} value={t.typeId}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+          <button type="submit" className="bg-green-600 text-white py-2 rounded text-sm font-bold">
+            Add Resource
+          </button>
+        </form>
+
+        {/* LIST WITH DELETE */}
+        <ul className="space-y-3">
           {data.resources.length > 0 ? (
             data.resources.map((r) => (
-              <li key={r.resourceId} className="flex items-center gap-2">
-                {r.name}
-                <ResourceTypeTag name={r.resourceTypeRel.name} />
+              <li key={r.resourceId} className="flex items-center justify-between bg-gray-50 p-2 rounded border">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{r.name}</span>
+                  <ResourceTypeTag name={r.resourceTypeRel.name} />
+                </div>
+
+                {/* DELETE FORM */}
+                <form action={async () => {
+                  "use server";
+                  await deleteResource(r.resourceId);
+                }}>
+                  <button
+                    type="submit"
+                    className="text-red-500 hover:text-red-700 text-xs font-bold uppercase"
+                  >
+                    Delete
+                  </button>
+                </form>
               </li>
             ))
           ) : (
@@ -96,13 +134,46 @@ export default async function TestDatabasePage() {
         </ul>
       </section>
 
-      {/* 3. Locations */}
-      <section>
-        <h2 className="text-xl font-semibold text-purple-600">3. Locations</h2>
-        <ul className="list-disc ml-5 mt-2 text-gray-700">
+  {/* 3. Locations UPDATED */}
+      <section className="border p-6 rounded-lg shadow-sm">
+        <h2 className="text-xl font-semibold text-purple-600 mb-4">3. Locations</h2>
+
+        {/* CREATE FORM */}
+        <form action={createLocation} className="flex gap-2 mb-6 max-w-md">
+          <input
+            name="name"
+            placeholder="New Location Name..."
+            className="border p-2 rounded text-sm flex-grow"
+            required
+          />
+          <button
+            type="submit"
+            className="bg-purple-600 text-white px-4 py-2 rounded text-sm font-bold transition"
+          >
+            Add Location
+          </button>
+        </form>
+
+        {/* LIST WITH DELETE */}
+        <ul className="space-y-3">
           {data.locations.length > 0 ? (
             data.locations.map((l) => (
-              <li key={l.locationId}>{l.name}</li>
+              <li key={l.locationId} className="flex items-center justify-between bg-gray-50 p-2 rounded border">
+                <span className="text-gray-700 font-medium">{l.name}</span>
+
+                {/* DELETE FORM */}
+                <form action={async () => {
+                  "use server"; 
+                  await deleteLocation(l.locationId);
+                }}>
+                  <button
+                    type="submit"
+                    className="text-red-500 hover:text-red-700 text-xs font-bold uppercase"
+                  >
+                    Delete
+                  </button>
+                </form>
+              </li>
             ))
           ) : (
             <p className="text-gray-500 italic">No locations found.</p>

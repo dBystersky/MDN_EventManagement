@@ -32,7 +32,7 @@ export default async function TestDatabasePage() {
       </h1>
 
       {/* 1. Resource Types Section */}
-      <section className="border p-6 rounded-lg bg-white shadow-sm">
+      <section className="border p-6 rounded-lg shadow-sm">
         <h2 className="text-xl font-semibold text-blue-600 mb-4">1. Resource Types</h2>
 
         {/* CREATE FORM */}
@@ -45,7 +45,7 @@ export default async function TestDatabasePage() {
           />
           <button
             type="submit"
-            className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 transition"
+            className="text-white px-4 py-2 rounded text-sm transition"
           >
             Add Type
           </button>
@@ -123,7 +123,7 @@ export default async function TestDatabasePage() {
                 <th className="p-3 text-sm font-semibold text-gray-600 uppercase tracking-wider">Bookable ID</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-200">
               {data.allocations.length > 0 ? (
                 data.allocations.map((a) => (
                   <tr key={a.allocationId} className="hover:bg-gray-50 transition-colors">

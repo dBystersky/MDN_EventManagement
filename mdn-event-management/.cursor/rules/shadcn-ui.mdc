@@ -1,0 +1,16 @@
+---
+description: Require shadcn/ui for all user-facing UI so five contributors do not drift
+globs: "**/*.{tsx,jsx,css}"
+alwaysApply: true
+---
+
+# shadcn/ui is mandatory
+
+All user-facing UI in this project must use **shadcn/ui** from `@/components/ui/*`.
+
+- Buttons, inputs, selects, cards, tables, dialogs, nav, forms, badges, alerts: shadcn only.
+- Missing primitive → `npx shadcn@latest add <component>`, then use it.
+- Do not invent per-feature themes, raw Tailwind control styling, or other UI kits.
+- Demo/test pages follow the same rule.
+
+See `AGENTS.md` and `.agents/skills/shadcn-ui/SKILL.md`.

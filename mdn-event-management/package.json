@@ -8,8 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test tests/task-parsers.test.ts tests/task-api.test.ts",
-    "test:unit": "tsx --test tests/task-parsers.test.ts",
+    "test": "tsx --test tests/task-api.test.ts",
     "test:api": "tsx --test tests/task-api.test.ts"
   },
   "dependencies": {

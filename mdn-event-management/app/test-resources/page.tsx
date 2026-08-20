@@ -2,6 +2,8 @@ import { ResourceTypeTag } from "@/components/ui/ResourceTypeTag";
 import { prisma } from "@/lib/prisma";
 import { createAllocation, createLocation, createResource, createResourceType, deleteAllocation, deleteLocation, deleteResource, deleteResourceType } from "./actions";
 
+export const dynamic = "force-dynamic";
+
 async function getTestData() {
   // Fetching all required data in parallel to optimize performance
   const [resourceTypes, resources, locations, allocations] = await Promise.all([

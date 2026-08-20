@@ -13,7 +13,7 @@ export async function createResourceType(formData: FormData) {
     data: { name },
   });
 
-  revalidatePath("/test-db"); // Refresh the page to show new data
+  revalidatePath("/test-resources"); // Refresh the page to show new data
 }
 
 // DELETE: Remove a Resource Type
@@ -22,7 +22,7 @@ export async function deleteResourceType(id: number) {
     where: { typeId: id },
   });
 
-  revalidatePath("/test-db"); // Refresh the page
+  revalidatePath("/test-resources"); // Refresh the page
 }
 
 
@@ -39,7 +39,7 @@ export async function createResource(formData: FormData) {
     },
   });
 
-  revalidatePath("/test-db");
+  revalidatePath("/test-resources");
 }
 
 // DELETE: Remove a Resource
@@ -48,7 +48,7 @@ export async function deleteResource(id: number) {
     where: { resourceId: id },
   });
 
-  revalidatePath("/test-db");
+  revalidatePath("/test-resources");
 }
 
 export async function createLocation(formData: FormData) {
@@ -61,7 +61,7 @@ export async function createLocation(formData: FormData) {
     data: { name },
   });
 
-  revalidatePath("/test-db"); // Refresh the page to show new data
+  revalidatePath("/test-resources"); // Refresh the page to show new data
 }
 
 // DELETE: Remove a Location
@@ -70,7 +70,7 @@ export async function deleteLocation(id: number) {
     where: { locationId: id },
   });
 
-  revalidatePath("/test-db"); // Refresh the page
+  revalidatePath("/test-resources"); // Refresh the page
 }
 // CREATE: Add a new Resource Allocation
 export async function createAllocation(formData: FormData) {
@@ -80,19 +80,21 @@ export async function createAllocation(formData: FormData) {
   const endTime = new Date(formData.get("endTime") as string);
   const bookableId = Number(formData.get("bookableId"));
 
-  if (!resourceId || !locationId || isNaN(startTime.getTime())) return;
+  if (!resourceId || !bookableId || isNaN(startTime.getTime()) || isNaN(endTime.getTime())) return;
+
+  // locationId is collected by the demo form, but ResourceAllocation has no location column yet.
+  void locationId;
 
   await prisma.resourceAllocation.create({
     data: {
       resourceId,
-      locationId,
       startTime,
       endTime,
       bookableId,
     },
   });
 
-  revalidatePath("/test-db");
+  revalidatePath("/test-resources");
 }
 
 // DELETE: Remove an Allocation
@@ -101,5 +103,5 @@ export async function deleteAllocation(id: number) {
     where: { allocationId: id },
   });
 
-  revalidatePath("/test-db");
+  revalidatePath("/test-resources");
 }

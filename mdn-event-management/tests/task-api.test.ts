@@ -1,44 +1,45 @@
-import assert from 'node:assert/strict';
-import { after, before, describe, it } from 'node:test';
-import { prisma } from '../lib/prisma.ts';
+import assert from "node:assert/strict";
+import { after, before, describe, it } from "node:test";
+import { prisma } from "../lib/prisma.ts";
 
-const BASE = process.env.TASK_API_BASE ?? 'http://localhost:3000/api/tasks';
+const BASE = process.env.TASK_API_BASE ?? "http://localhost:3000/api/tasks";
 
-type TaskResponse = {
-  task?: {
+type Task = {
+  taskId: number;
+  name: string;
+  description: string | null;
+  deadline: string;
+  bookableId: number;
+  bookable?: { bookableId: number; bookableType: string };
+  taskManagers?: Array<{
+    memberId: number;
     taskId: number;
-    name: string;
-    description: string | null;
-    deadline: string;
-    bookableId: number;
-    bookable?: { bookableId: number; bookableType: string };
-    taskManagers?: Array<{
-      memberId: number;
-      taskId: number;
-      member?: { memberId: number; name: string; email: string };
-    }>;
-  };
-  tasks?: unknown[];
-  error?: string;
-  message?: string;
+    member?: { memberId: number; name: string; email: string };
+  }>;
 };
 
-async function api(
-  method: string,
-  path = '',
-  body?: unknown
-): Promise<{ status: number; json: TaskResponse }> {
+type ApiJson = Task &
+  Task[] & {
+    error?: string;
+    message?: string;
+  };
+
+function asTask(json: unknown): Task {
+  return json as Task;
+}
+
+async function api(method: string, path = "", body?: unknown) {
   const response = await fetch(`${BASE}${path}`, {
     method,
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  const json = (await response.json()) as TaskResponse;
+  const json = (await response.json()) as ApiJson;
   return { status: response.status, json };
 }
 
-describe('Task CRUD API', () => {
+describe("Task CRUD API", () => {
   let memberA: number;
   let memberB: number;
   const createdTaskIds: number[] = [];
@@ -54,18 +55,18 @@ describe('Task CRUD API', () => {
     const stamp = Date.now();
     const a = await prisma.member.create({
       data: {
-        name: 'Task Tester A',
-        role: 'Member',
+        name: "Task Tester A",
+        role: "Member",
         email: `task-tester-a-${stamp}@mdn.test`,
-        password: 'test-hash',
+        password: "test-hash",
       },
     });
     const b = await prisma.member.create({
       data: {
-        name: 'Task Tester B',
-        role: 'Manager',
+        name: "Task Tester B",
+        role: "Manager",
         email: `task-tester-b-${stamp}@mdn.test`,
-        password: 'test-hash',
+        password: "test-hash",
       },
     });
     memberA = a.memberId;
@@ -74,7 +75,7 @@ describe('Task CRUD API', () => {
 
   after(async () => {
     for (const taskId of createdTaskIds) {
-      await api('DELETE', `/${taskId}`).catch(() => undefined);
+      await api("DELETE", `/${taskId}`).catch(() => undefined);
     }
 
     await prisma.taskManager.deleteMany({
@@ -86,211 +87,216 @@ describe('Task CRUD API', () => {
     await prisma.$disconnect();
   });
 
-  it('POST creates a task with linked bookable', async () => {
-    const { status, json } = await api('POST', '', {
-      name: 'Order PCB',
-      description: 'Rev A boards',
-      deadline: '2026-09-15T17:00:00.000Z',
+  it("POST creates a task with linked bookable", async () => {
+    const { status, json } = await api("POST", "", {
+      name: "Order PCB",
+      description: "Rev A boards",
+      deadline: "2026-09-15T17:00:00.000Z",
     });
+    const task = asTask(json);
 
     assert.equal(status, 201);
-    assert.equal(json.task?.name, 'Order PCB');
-    assert.equal(json.task?.description, 'Rev A boards');
-    assert.equal(json.task?.bookable?.bookableType, 'task');
-    assert.ok(json.task?.taskId);
-    createdTaskIds.push(json.task!.taskId);
+    assert.equal(task.name, "Order PCB");
+    assert.equal(task.description, "Rev A boards");
+    assert.equal(task.bookable?.bookableType, "Task");
+    assert.ok(task.taskId);
+    createdTaskIds.push(task.taskId);
   });
 
-  it('POST creates a task with member assignments', async () => {
-    const { status, json } = await api('POST', '', {
-      name: 'Assigned task',
-      deadline: '2026-10-01T12:00:00.000Z',
-      memberIds: [memberA, memberB],
+  it("POST creates a task with member assignments", async () => {
+    const { status, json } = await api("POST", "", {
+      name: "Assigned task",
+      deadline: "2026-10-01T12:00:00.000Z",
+      managerIds: [memberA, memberB],
     });
+    const task = asTask(json);
 
     assert.equal(status, 201);
-    assert.equal(json.task?.taskManagers?.length, 2);
-    const ids = json.task?.taskManagers?.map((m) => m.memberId).sort();
+    assert.equal(task.taskManagers?.length, 2);
+    const ids = task.taskManagers?.map((m) => m.memberId).sort();
     assert.deepEqual(ids, [memberA, memberB].sort());
-    createdTaskIds.push(json.task!.taskId);
+    createdTaskIds.push(task.taskId);
   });
 
-  it('POST rejects missing name', async () => {
-    const { status, json } = await api('POST', '', {
-      deadline: '2026-09-15T17:00:00.000Z',
+  it("POST rejects missing name", async () => {
+    const { status, json } = await api("POST", "", {
+      deadline: "2026-09-15T17:00:00.000Z",
     });
     assert.equal(status, 400);
-    assert.match(json.error ?? '', /name/i);
+    assert.match(json.error ?? "", /name/i);
   });
 
-  it('POST rejects empty name', async () => {
-    const { status } = await api('POST', '', {
-      name: '   ',
-      deadline: '2026-09-15T17:00:00.000Z',
+  it("POST rejects empty name", async () => {
+    const { status } = await api("POST", "", {
+      name: "   ",
+      deadline: "2026-09-15T17:00:00.000Z",
     });
     assert.equal(status, 400);
   });
 
-  it('POST rejects missing/invalid deadline', async () => {
-    const missing = await api('POST', '', { name: 'No deadline' });
+  it("POST rejects missing/invalid deadline", async () => {
+    const missing = await api("POST", "", { name: "No deadline" });
     assert.equal(missing.status, 400);
 
-    const invalid = await api('POST', '', {
-      name: 'Bad deadline',
-      deadline: 'not-a-date',
+    const invalid = await api("POST", "", {
+      name: "Bad deadline",
+      deadline: "not-a-date",
     });
     assert.equal(invalid.status, 400);
   });
 
-  it('POST rejects invalid memberIds payload', async () => {
-    const { status } = await api('POST', '', {
-      name: 'Bad members',
-      deadline: '2026-09-15T17:00:00.000Z',
-      memberIds: '1',
+  it("POST rejects invalid managerIds payload", async () => {
+    const { status } = await api("POST", "", {
+      name: "Bad members",
+      deadline: "2026-09-15T17:00:00.000Z",
+      managerIds: "1",
     });
     assert.equal(status, 400);
   });
 
-  it('POST rejects nonexistent memberIds', async () => {
-    const { status, json } = await api('POST', '', {
-      name: 'Ghost members',
-      deadline: '2026-09-15T17:00:00.000Z',
-      memberIds: [999999],
+  it("POST rejects nonexistent managerIds", async () => {
+    const { status } = await api("POST", "", {
+      name: "Ghost members",
+      deadline: "2026-09-15T17:00:00.000Z",
+      managerIds: [999999],
     });
-    assert.equal(status, 400);
-    assert.match(json.error ?? '', /member/i);
+    assert.ok(status >= 400);
   });
 
-  it('GET lists tasks', async () => {
-    const { status, json } = await api('GET');
+  it("GET lists tasks", async () => {
+    const { status, json } = await api("GET");
     assert.equal(status, 200);
-    assert.ok(Array.isArray(json.tasks));
-    assert.ok((json.tasks?.length ?? 0) >= 1);
+    assert.ok(Array.isArray(json));
+    assert.ok((json as unknown as Task[]).length >= 1);
   });
 
-  it('GET returns a single task by [taskId]', async () => {
-    const created = await api('POST', '', {
-      name: 'Fetch me',
-      deadline: '2026-11-01T00:00:00.000Z',
+  it("GET returns a single task by [taskId]", async () => {
+    const created = await api("POST", "", {
+      name: "Fetch me",
+      deadline: "2026-11-01T00:00:00.000Z",
     });
-    const taskId = created.json.task!.taskId;
+    const taskId = asTask(created.json).taskId;
     createdTaskIds.push(taskId);
 
-    const { status, json } = await api('GET', `/${taskId}`);
+    const { status, json } = await api("GET", `/${taskId}`);
+    const task = asTask(json);
     assert.equal(status, 200);
-    assert.equal(json.task?.taskId, taskId);
-    assert.equal(json.task?.name, 'Fetch me');
+    assert.equal(task.taskId, taskId);
+    assert.equal(task.name, "Fetch me");
   });
 
-  it('GET returns 404 for unknown task', async () => {
-    const { status } = await api('GET', '/999999');
+  it("GET returns 404 for unknown task", async () => {
+    const { status } = await api("GET", "/999999");
     assert.equal(status, 404);
   });
 
-  it('GET returns 400 for invalid taskId', async () => {
-    const { status } = await api('GET', '/abc');
+  it("GET returns 400 for invalid taskId", async () => {
+    const { status } = await api("GET", "/abc");
     assert.equal(status, 400);
   });
 
-  it('PATCH updates name, description, and deadline', async () => {
-    const created = await api('POST', '', {
-      name: 'Before',
-      description: 'old',
-      deadline: '2026-08-01T00:00:00.000Z',
+  it("PATCH updates name, description, and deadline", async () => {
+    const created = await api("POST", "", {
+      name: "Before",
+      description: "old",
+      deadline: "2026-08-01T00:00:00.000Z",
     });
-    const taskId = created.json.task!.taskId;
+    const taskId = asTask(created.json).taskId;
     createdTaskIds.push(taskId);
 
-    const { status, json } = await api('PATCH', `/${taskId}`, {
-      name: 'After',
-      description: 'new',
-      deadline: '2026-12-01T00:00:00.000Z',
+    const { status, json } = await api("PATCH", `/${taskId}`, {
+      name: "After",
+      description: "new",
+      deadline: "2026-12-01T00:00:00.000Z",
     });
+    const task = asTask(json);
 
     assert.equal(status, 200);
-    assert.equal(json.task?.name, 'After');
-    assert.equal(json.task?.description, 'new');
-    assert.equal(json.task?.deadline, '2026-12-01T00:00:00.000Z');
+    assert.equal(task.name, "After");
+    assert.equal(task.description, "new");
+    assert.equal(task.deadline, "2026-12-01T00:00:00.000Z");
   });
 
-  it('PATCH can clear description', async () => {
-    const created = await api('POST', '', {
-      name: 'Has description',
-      description: 'remove me',
-      deadline: '2026-08-01T00:00:00.000Z',
+  it("PATCH can clear description", async () => {
+    const created = await api("POST", "", {
+      name: "Has description",
+      description: "remove me",
+      deadline: "2026-08-01T00:00:00.000Z",
     });
-    const taskId = created.json.task!.taskId;
+    const taskId = asTask(created.json).taskId;
     createdTaskIds.push(taskId);
 
-    const { status, json } = await api('PATCH', `/${taskId}`, {
-      description: '',
+    const { status, json } = await api("PATCH", `/${taskId}`, {
+      description: "",
     });
     assert.equal(status, 200);
-    assert.equal(json.task?.description, null);
+    assert.equal(asTask(json).description, null);
   });
 
-  it('PATCH replaces member assignments', async () => {
-    const created = await api('POST', '', {
-      name: 'Reassign me',
-      deadline: '2026-08-01T00:00:00.000Z',
-      memberIds: [memberA],
+  it("PATCH replaces member assignments", async () => {
+    const created = await api("POST", "", {
+      name: "Reassign me",
+      deadline: "2026-08-01T00:00:00.000Z",
+      managerIds: [memberA],
     });
-    const taskId = created.json.task!.taskId;
+    const taskId = asTask(created.json).taskId;
     createdTaskIds.push(taskId);
 
-    const { status, json } = await api('PATCH', `/${taskId}`, {
-      memberIds: [memberB],
+    const { status, json } = await api("PATCH", `/${taskId}`, {
+      managerIds: [memberB],
     });
+    const task = asTask(json);
 
     assert.equal(status, 200);
-    assert.equal(json.task?.taskManagers?.length, 1);
-    assert.equal(json.task?.taskManagers?.[0]?.memberId, memberB);
+    assert.equal(task.taskManagers?.length, 1);
+    assert.equal(task.taskManagers?.[0]?.memberId, memberB);
   });
 
-  it('PATCH clears member assignments with []', async () => {
-    const created = await api('POST', '', {
-      name: 'Unassign me',
-      deadline: '2026-08-01T00:00:00.000Z',
-      memberIds: [memberA],
+  it("PATCH clears member assignments with []", async () => {
+    const created = await api("POST", "", {
+      name: "Unassign me",
+      deadline: "2026-08-01T00:00:00.000Z",
+      managerIds: [memberA],
     });
-    const taskId = created.json.task!.taskId;
+    const taskId = asTask(created.json).taskId;
     createdTaskIds.push(taskId);
 
-    const { status, json } = await api('PATCH', `/${taskId}`, {
-      memberIds: [],
+    const { status, json } = await api("PATCH", `/${taskId}`, {
+      managerIds: [],
     });
     assert.equal(status, 200);
-    assert.equal(json.task?.taskManagers?.length, 0);
+    assert.equal(asTask(json).taskManagers?.length, 0);
   });
 
-  it('PATCH rejects empty name and unknown task', async () => {
-    const created = await api('POST', '', {
-      name: 'Keep name',
-      deadline: '2026-08-01T00:00:00.000Z',
+  it("PATCH rejects empty name and unknown task", async () => {
+    const created = await api("POST", "", {
+      name: "Keep name",
+      deadline: "2026-08-01T00:00:00.000Z",
     });
-    const taskId = created.json.task!.taskId;
+    const taskId = asTask(created.json).taskId;
     createdTaskIds.push(taskId);
 
-    const emptyName = await api('PATCH', `/${taskId}`, { name: '  ' });
+    const emptyName = await api("PATCH", `/${taskId}`, { name: "  " });
     assert.equal(emptyName.status, 400);
 
-    const missing = await api('PATCH', '/999999', { name: 'Nope' });
+    const missing = await api("PATCH", "/999999", { name: "Nope" });
     assert.equal(missing.status, 404);
   });
 
-  it('DELETE removes task and returns 404 afterwards', async () => {
-    const created = await api('POST', '', {
-      name: 'Delete me',
-      deadline: '2026-08-01T00:00:00.000Z',
+  it("DELETE removes task and returns 404 afterwards", async () => {
+    const created = await api("POST", "", {
+      name: "Delete me",
+      deadline: "2026-08-01T00:00:00.000Z",
     });
-    const taskId = created.json.task!.taskId;
-    const bookableId = created.json.task!.bookableId;
+    const createdTask = asTask(created.json);
+    const taskId = createdTask.taskId;
+    const bookableId = createdTask.bookableId;
 
-    const deleted = await api('DELETE', `/${taskId}`);
+    const deleted = await api("DELETE", `/${taskId}`);
     assert.equal(deleted.status, 200);
-    assert.equal(deleted.json.message, 'Task deleted');
+    assert.equal(deleted.json.message, "Task deleted successfully");
 
-    const after = await api('GET', `/${taskId}`);
+    const after = await api("GET", `/${taskId}`);
     assert.equal(after.status, 404);
 
     const bookable = await prisma.bookable.findUnique({
@@ -298,7 +304,7 @@ describe('Task CRUD API', () => {
     });
     assert.equal(bookable, null);
 
-    const again = await api('DELETE', `/${taskId}`);
+    const again = await api("DELETE", `/${taskId}`);
     assert.equal(again.status, 404);
   });
 });

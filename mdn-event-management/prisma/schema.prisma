@@ -23,8 +23,8 @@ enum MemberRole {
 model Member {
   memberId     Int            @id @default(autoincrement()) @map("member_id")
   name         String         @db.VarChar
-  role         MemberRole
-  email        String         @db.VarChar
+  role         MemberRole     @default(Member)
+  email        String         @unique @db.VarChar
   password     String         @db.VarChar
   eventManagers EventManager[]
   taskManagers  TaskManager[]

@@ -6,7 +6,7 @@ export default function DemoLayout({
   children: React.ReactNode;
 }) {
   return (
-    <main className="p-8 font-sans max-w-3xl mx-auto">
+    <main className="min-h-screen p-8 font-sans max-w-3xl mx-auto bg-white text-gray-900">
       <DemoNav />
       {children}
     </main>

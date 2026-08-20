@@ -87,7 +87,7 @@ export default function EventsDemo() {
 
       <ul className="space-y-2">
         {items.map((ev) => (
-          <li key={ev.eventId} className="flex justify-between bg-gray-50 border p-2 rounded text-sm">
+          <li key={ev.eventId} className="flex justify-between bg-gray-50 border border-gray-200 p-2 rounded text-sm text-gray-900">
             <span>#{ev.eventId} {ev.name} ({ev.location?.name})</span>
             <button
               className="text-red-500 text-xs font-bold uppercase"

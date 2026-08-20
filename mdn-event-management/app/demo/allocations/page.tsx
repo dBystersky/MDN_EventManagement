@@ -82,7 +82,7 @@ export default function AllocationsDemo() {
 
       <ul className="space-y-2">
         {items.map((a) => (
-          <li key={a.allocationId} className="flex justify-between bg-gray-50 border p-2 rounded text-sm">
+          <li key={a.allocationId} className="flex justify-between bg-gray-50 border border-gray-200 p-2 rounded text-sm text-gray-900">
             <span>#{a.allocationId} {a.resource?.name} → bookable #{a.bookableId}</span>
             <button
               className="text-red-500 text-xs font-bold uppercase"

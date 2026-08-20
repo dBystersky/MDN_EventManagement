@@ -62,7 +62,7 @@ export default function LocationsDemo() {
 
       <ul className="space-y-2">
         {items.map((l) => (
-          <li key={l.locationId} className="flex justify-between bg-gray-50 border p-2 rounded text-sm">
+          <li key={l.locationId} className="flex justify-between bg-gray-50 border border-gray-200 p-2 rounded text-sm text-gray-900">
             <span>#{l.locationId} {l.name}</span>
             <button
               className="text-red-500 text-xs font-bold uppercase"

@@ -62,7 +62,7 @@ export default function ResourceTypesDemo() {
 
       <ul className="space-y-2">
         {items.map((t) => (
-          <li key={t.typeId} className="flex justify-between bg-gray-50 border p-2 rounded text-sm">
+          <li key={t.typeId} className="flex justify-between bg-gray-50 border border-gray-200 p-2 rounded text-sm text-gray-900">
             <span>#{t.typeId} {t.name}</span>
             <button
               className="text-red-500 text-xs font-bold uppercase"

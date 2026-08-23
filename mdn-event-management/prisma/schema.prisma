@@ -49,9 +49,11 @@ model Event {
   date             DateTime       @db.Timestamptz
   eventLocationId  Int            @map("event_location_id")
   bookableId       Int            @unique @map("bookable_id")
+  totalBudget      Decimal        @default(0) @db.Decimal(10, 2) @map("total_budget")
   eventManagers    EventManager[]
   location         Location       @relation(fields: [eventLocationId], references: [locationId])
   bookable         Bookable       @relation(fields: [bookableId], references: [bookableId])
+  tasks            Task[]
 
   @@map("events")
 }
@@ -72,8 +74,11 @@ model Task {
   description  String?       @db.VarChar
   deadline     DateTime      @db.Timestamptz
   bookableId   Int           @unique @map("bookable_id")
+  eventId      Int?          @map("event_id")
+  budget       Decimal?      @db.Decimal(10, 2)
   taskManagers TaskManager[]
   bookable     Bookable      @relation(fields: [bookableId], references: [bookableId])
+  event        Event?        @relation(fields: [eventId], references: [eventId])
 
   @@map("tasks")
 }

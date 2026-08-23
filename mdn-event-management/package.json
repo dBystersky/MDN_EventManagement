@@ -8,8 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test tests/task-api.test.ts",
-    "test:api": "tsx --test tests/task-api.test.ts"
+    "test": "tsx --test tests/task-api.test.ts tests/task-budget.test.ts",
+    "test:api": "tsx --test tests/task-api.test.ts tests/task-budget.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

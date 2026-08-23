@@ -1,4 +1,19 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
+
+type PrismaTx = Prisma.TransactionClient;
+
+export async function recalculateEventTotalBudget(tx: PrismaTx, eventId: number) {
+    const { _sum } = await tx.task.aggregate({
+        where: { eventId },
+        _sum: { budget: true },
+    });
+
+    return tx.event.update({
+        where: { eventId },
+        data: { totalBudget: _sum.budget ?? 0 },
+    });
+}
 
 type createEventInput = {
     name: string;
@@ -34,7 +49,8 @@ export async function listEvents() {
         include: {
             location: true,
             bookable: true,
-            eventManagers: { include: { member: true } }
+            eventManagers: { include: { member: true } },
+            tasks: true,
         }
     })
 }
@@ -45,7 +61,8 @@ export async function readEvent(eventId: number) {
         include: {
             location: true,
             bookable: true,
-            eventManagers: { include: { member: true } }
+            eventManagers: { include: { member: true } },
+            tasks: true,
         }
     })
 }
@@ -91,9 +108,12 @@ export async function deleteEvent(eventId: number) {
         await tx.eventManager.deleteMany({ where: { eventId } });
 
         // delete all associated allocations that are linked to event
-        await tx.resourceAllocation.deleteMany({ 
+        await tx.resourceAllocation.deleteMany({
             where: { bookableId: event.bookableId },
         });
+
+        // unlink any tasks from this event rather than deleting them
+        await tx.task.updateMany({ where: { eventId }, data: { eventId: null } });
 
         // delete event itself
         await tx.event.delete({ where: { eventId } });

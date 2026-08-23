@@ -42,3 +42,10 @@ yarn-error.log*
 next-env.d.ts
 
 /generated/prisma
+
+# claude code (local settings; shared skills in .claude/skills stay tracked)
+/.claude/settings.json
+/.claude/settings.local.json
+
+# graphify knowledge graph (regenerate with `graphify update .`)
+/graphify-out/

@@ -3,7 +3,15 @@
 import { useEffect, useState } from "react";
 import { apiJson } from "../api";
 
-type EventItem = { eventId: number; name: string; date: string; location?: { name: string } };
+type EventTask = { taskId: number; name: string; budget: string | null };
+type EventItem = {
+  eventId: number;
+  name: string;
+  date: string;
+  location?: { name: string };
+  totalBudget?: string;
+  tasks?: EventTask[];
+};
 type Location = { locationId: number; name: string };
 
 export default function EventsDemo() {
@@ -15,19 +23,36 @@ export default function EventsDemo() {
   const [locationId, setLocationId] = useState("");
   const [editId, setEditId] = useState("");
   const [error, setError] = useState("");
+  const [allTasks, setAllTasks] = useState<{ taskId: number; name: string; eventId: number | null }[]>([]);
+  const [assignSelections, setAssignSelections] = useState<Record<number, string>>({});
 
   async function refresh() {
-    const [events, locs] = await Promise.all([
+    const [events, locs, tasks] = await Promise.all([
       apiJson("/api/events"),
       apiJson("/api/locations"),
+      apiJson("/api/tasks"),
     ]);
     setItems(events);
     setLocations(locs);
+    setAllTasks(tasks);
   }
 
   useEffect(() => {
     refresh().catch((e) => setError(String(e)));
   }, []);
+
+  async function assignTask(eventId: number) {
+    const taskId = assignSelections[eventId];
+    if (!taskId) return;
+    setError("");
+    try {
+      await apiJson(`/api/tasks/${taskId}`, "PATCH", { eventId });
+      setAssignSelections((prev) => ({ ...prev, [eventId]: "" }));
+      await refresh();
+    } catch (err) {
+      setError(String(err));
+    }
+  }
 
   return (
     <section className="space-y-6">
@@ -87,22 +112,62 @@ export default function EventsDemo() {
 
       <ul className="space-y-2">
         {items.map((ev) => (
-          <li key={ev.eventId} className="flex justify-between bg-gray-50 border border-gray-200 p-2 rounded text-sm text-gray-900">
-            <span>#{ev.eventId} {ev.name} ({ev.location?.name})</span>
-            <button
-              className="text-red-500 text-xs font-bold uppercase"
-              onClick={async () => {
-                setError("");
-                try {
-                  await apiJson(`/api/events/${ev.eventId}`, "DELETE");
-                  await refresh();
-                } catch (err) {
-                  setError(String(err));
+          <li key={ev.eventId} className="flex flex-col gap-2 bg-gray-50 border border-gray-200 p-2 rounded text-sm text-gray-900">
+            <div className="flex justify-between">
+              <span>#{ev.eventId} {ev.name} ({ev.location?.name}) · budget ${ev.totalBudget ?? "0"}</span>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  className="text-red-500 text-xs font-bold uppercase"
+                  onClick={async () => {
+                    setError("");
+                    try {
+                      await apiJson(`/api/events/${ev.eventId}`, "DELETE");
+                      await refresh();
+                    } catch (err) {
+                      setError(String(err));
+                    }
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+
+            {ev.tasks && ev.tasks.length > 0 && (
+              <ul className="pl-4 text-xs text-gray-600 space-y-1">
+                {ev.tasks.map((t) => (
+                  <li key={t.taskId}>#{t.taskId} {t.name}{t.budget ? ` · $${t.budget}` : ""}</li>
+                ))}
+              </ul>
+            )}
+
+            <div className="flex gap-2 items-center pl-4">
+              <select
+                className="border p-1 rounded text-xs flex-grow"
+                value={assignSelections[ev.eventId] ?? ""}
+                onChange={(e) =>
+                  setAssignSelections((prev) => ({ ...prev, [ev.eventId]: e.target.value }))
                 }
-              }}
-            >
-              Delete
-            </button>
+              >
+                <option value="">Assign existing task...</option>
+                {allTasks
+                  .filter((t) => t.eventId !== ev.eventId)
+                  .map((t) => (
+                    <option key={t.taskId} value={t.taskId}>
+                      #{t.taskId} {t.name}{t.eventId ? ` (event #${t.eventId})` : " (unassigned)"}
+                    </option>
+                  ))}
+              </select>
+              <button
+                type="button"
+                className="bg-purple-600 text-white px-2 py-1 rounded text-xs disabled:opacity-50"
+                disabled={!assignSelections[ev.eventId]}
+                onClick={() => assignTask(ev.eventId)}
+              >
+                Assign
+              </button>
+            </div>
           </li>
         ))}
       </ul>

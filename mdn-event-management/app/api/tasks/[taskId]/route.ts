@@ -32,12 +32,18 @@ export async function PATCH(request: Request, context: RouteParams) {
     // Extract the params to update task with
     const body = await request.json();
 
+    if (body.budget !== undefined && body.budget !== null && Number(body.budget) < 0) {
+        return NextResponse.json({ error: "budget must not be negative" }, { status: 400 });
+    }
+
     try {
         // Update the task
         const task = await updateTask(id, {
             name: body.name,
             description: body.description,
             deadline: body.deadline !== undefined ? new Date(body.deadline) : undefined,
+            eventId: body.eventId,
+            budget: body.budget,
         });
 
         // Return the updated task

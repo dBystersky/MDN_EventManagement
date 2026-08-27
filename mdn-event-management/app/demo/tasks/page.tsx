@@ -3,13 +3,21 @@
 import { useEffect, useState } from "react";
 import { apiJson } from "../api";
 
-type Task = { taskId: number; name: string; deadline: string; bookableId: number };
+type Task = {
+  taskId: number;
+  name: string;
+  deadline: string;
+  bookableId: number;
+  eventId?: number | null;
+  budget?: string | null;
+};
 
 export default function TasksDemo() {
   const [items, setItems] = useState<Task[]>([]);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [deadline, setDeadline] = useState("");
+  const [budget, setBudget] = useState("");
   const [editId, setEditId] = useState("");
   const [error, setError] = useState("");
 
@@ -36,9 +44,11 @@ export default function TasksDemo() {
               name,
               description,
               deadline: new Date(deadline).toISOString(),
+              budget: budget ? Number(budget) : undefined,
             });
             setName("");
             setDescription("");
+            setBudget("");
             await refresh();
           } catch (err) {
             setError(String(err));
@@ -48,6 +58,7 @@ export default function TasksDemo() {
         <input className="border p-2 rounded text-sm" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} required />
         <input className="border p-2 rounded text-sm" placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
         <input className="border p-2 rounded text-sm" type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} required />
+        <input className="border p-2 rounded text-sm" type="number" step="0.01" min="0" placeholder="Budget" value={budget} onChange={(e) => setBudget(e.target.value)} />
         <button className="bg-blue-600 text-white py-2 rounded text-sm">Create</button>
       </form>
 
@@ -72,7 +83,11 @@ export default function TasksDemo() {
       <ul className="space-y-2">
         {items.map((t) => (
           <li key={t.taskId} className="flex justify-between bg-gray-50 border border-gray-200 p-2 rounded text-sm text-gray-900">
-            <span>#{t.taskId} {t.name} · bookable #{t.bookableId}</span>
+            <span>
+              #{t.taskId} {t.name} · bookable #{t.bookableId}
+              {t.eventId ? ` · event #${t.eventId}` : ""}
+              {t.budget ? ` · budget $${t.budget}` : ""}
+            </span>
             <button
               className="text-red-500 text-xs font-bold uppercase"
               onClick={async () => {

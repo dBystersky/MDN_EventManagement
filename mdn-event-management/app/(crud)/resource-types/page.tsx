@@ -1,26 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiJson } from "../api";
+import { apiJson } from "@/lib/api-json";
 
-type Resource = { resourceId: number; name: string; resourceTypeRel?: { name: string } };
 type ResourceType = { typeId: number; name: string };
 
-export default function ResourcesDemo() {
-  const [items, setItems] = useState<Resource[]>([]);
-  const [types, setTypes] = useState<ResourceType[]>([]);
+export default function ResourceTypesDemo() {
+  const [items, setItems] = useState<ResourceType[]>([]);
   const [name, setName] = useState("");
-  const [resourceTypeId, setResourceTypeId] = useState("");
   const [editId, setEditId] = useState("");
   const [error, setError] = useState("");
 
   async function refresh() {
-    const [resources, resourceTypes] = await Promise.all([
-      apiJson("/api/resources"),
-      apiJson("/api/resource-types"),
-    ]);
-    setItems(resources);
-    setTypes(resourceTypes);
+    setItems(await apiJson("/api/resource-types"));
   }
 
   useEffect(() => {
@@ -29,20 +21,16 @@ export default function ResourcesDemo() {
 
   return (
     <section className="space-y-6">
-      <h1 className="text-2xl font-bold">Resources</h1>
-      <p className="text-xs text-gray-500">Create a resource type first if the dropdown is empty.</p>
+      <h1 className="text-2xl font-bold">Resource types</h1>
       {error && <p className="text-red-600 text-sm">{error}</p>}
 
       <form
-        className="flex flex-col gap-2 max-w-md"
+        className="flex gap-2"
         onSubmit={async (e) => {
           e.preventDefault();
           setError("");
           try {
-            await apiJson("/api/resources", "POST", {
-              name,
-              resourceTypeId: Number(resourceTypeId),
-            });
+            await apiJson("/api/resource-types", "POST", { name });
             setName("");
             await refresh();
           } catch (err) {
@@ -50,14 +38,8 @@ export default function ResourcesDemo() {
           }
         }}
       >
-        <input className="border p-2 rounded text-sm" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} required />
-        <select className="border p-2 rounded text-sm" value={resourceTypeId} onChange={(e) => setResourceTypeId(e.target.value)} required>
-          <option value="">Type...</option>
-          {types.map((t) => (
-            <option key={t.typeId} value={t.typeId}>{t.name}</option>
-          ))}
-        </select>
-        <button className="bg-blue-600 text-white py-2 rounded text-sm">Create</button>
+        <input className="border p-2 rounded text-sm flex-grow" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} required />
+        <button className="bg-blue-600 text-white px-4 py-2 rounded text-sm">Create</button>
       </form>
 
       <form
@@ -66,7 +48,7 @@ export default function ResourcesDemo() {
           e.preventDefault();
           setError("");
           try {
-            await apiJson(`/api/resources/${editId}`, "PATCH", { name });
+            await apiJson(`/api/resource-types/${editId}`, "PATCH", { name });
             await refresh();
           } catch (err) {
             setError(String(err));
@@ -79,15 +61,15 @@ export default function ResourcesDemo() {
       </form>
 
       <ul className="space-y-2">
-        {items.map((r) => (
-          <li key={r.resourceId} className="flex justify-between bg-gray-50 border border-gray-200 p-2 rounded text-sm text-gray-900">
-            <span>#{r.resourceId} {r.name} ({r.resourceTypeRel?.name})</span>
+        {items.map((t) => (
+          <li key={t.typeId} className="flex justify-between bg-gray-50 border border-gray-200 p-2 rounded text-sm text-gray-900">
+            <span>#{t.typeId} {t.name}</span>
             <button
               className="text-red-500 text-xs font-bold uppercase"
               onClick={async () => {
                 setError("");
                 try {
-                  await apiJson(`/api/resources/${r.resourceId}`, "DELETE");
+                  await apiJson(`/api/resource-types/${t.typeId}`, "DELETE");
                   await refresh();
                 } catch (err) {
                   setError(String(err));

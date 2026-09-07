@@ -39,6 +39,12 @@ export async function PATCH(request: Request, context: RouteParams) {
             description: body.description,
             date: body.date !== undefined ? new Date(body.date) : undefined,
             locationId: body.locationId !== undefined ? Number(body.locationId) : undefined,
+            managerIds: Array.isArray(body.managerIds)
+                ? body.managerIds.map(Number)
+                : undefined,
+            resourceIds: Array.isArray(body.resourceIds)
+                ? body.resourceIds.map(Number)
+                : undefined,
         });
 
         // Return the updated event

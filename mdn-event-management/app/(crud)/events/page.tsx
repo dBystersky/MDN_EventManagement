@@ -107,7 +107,7 @@ function AssignmentPicker({
           <SelectTrigger id={id} className="min-w-0 flex-1">
             <SelectValue placeholder={placeholder} />
           </SelectTrigger>
-          <SelectContent className="dark" align="start" alignItemWithTrigger={false}>
+          <SelectContent align="start" alignItemWithTrigger={false}>
             {available.map((option) => (
               <SelectItem key={option.id} value={option.id}>
                 {option.label}
@@ -266,7 +266,7 @@ export default function EventsDemo() {
         )}
 
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
-          <Card className="dark">
+          <Card>
             <CardHeader>
               <CardTitle>{isEditing ? "Update event" : "Event details"}</CardTitle>
               <CardDescription>
@@ -323,11 +323,10 @@ export default function EventsDemo() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="event-date">Date</Label>
-                    <Input
-                      id="event-date"
-                      type="datetime-local"
-                      className="scheme-dark"
-                      value={date}
+                      <Input
+                        id="event-date"
+                        type="datetime-local"
+                        value={date}
                       onChange={(e) => setDate(e.target.value)}
                       required
                     />
@@ -361,7 +360,6 @@ export default function EventsDemo() {
                         <SelectValue placeholder="Location..." />
                       </SelectTrigger>
                       <SelectContent
-                        className="dark"
                         align="start"
                         alignItemWithTrigger={false}
                       >
@@ -437,7 +435,7 @@ export default function EventsDemo() {
             </form>
           </Card>
 
-          <Card className="dark">
+          <Card>
             <CardHeader>
               <CardTitle>Event list</CardTitle>
               <CardDescription>
@@ -534,7 +532,6 @@ export default function EventsDemo() {
                               <SelectValue placeholder="Assign existing task..." />
                             </SelectTrigger>
                             <SelectContent
-                              className="dark"
                               align="start"
                               alignItemWithTrigger={false}
                             >

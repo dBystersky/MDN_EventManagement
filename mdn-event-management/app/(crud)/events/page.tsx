@@ -345,6 +345,14 @@ export default function EventsDemo() {
                     />
                     <Select
                       value={locationId || null}
+                      items={locations.map((l) => ({
+                        value: String(l.locationId),
+                        label: l.name,
+                      }))}
+                      itemToStringLabel={(value) =>
+                        locations.find((l) => String(l.locationId) === String(value))
+                          ?.name ?? ""
+                      }
                       onValueChange={(value) =>
                         setLocationId(value == null ? "" : String(value))
                       }

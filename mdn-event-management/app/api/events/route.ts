@@ -22,7 +22,12 @@ export async function POST(request: Request) {
             description: body.description,
             date: new Date(body.date),
             locationId: Number(body.locationId),
-            managerIds: body.managerIds,
+            managerIds: Array.isArray(body.managerIds)
+                ? body.managerIds.map(Number)
+                : undefined,
+            resourceIds: Array.isArray(body.resourceIds)
+                ? body.resourceIds.map(Number)
+                : undefined,
         });
     
         return NextResponse.json(newEvent, { status: 201 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CircleAlertIcon } from "lucide-react";
+import { CircleAlertIcon, XIcon } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -27,42 +27,190 @@ import { Textarea } from "@/components/ui/textarea";
 import { apiJson } from "../api";
 
 type EventTask = { taskId: number; name: string; budget: string | null };
+type Location = { locationId: number; name: string };
+type Member = { memberId: number; name: string; email: string };
+type Resource = {
+  resourceId: number;
+  name: string;
+  resourceTypeRel?: { name: string };
+};
 type EventItem = {
   eventId: number;
   name: string;
+  description?: string | null;
   date: string;
-  location?: { name: string };
+  location?: { locationId: number; name: string };
   totalBudget?: string;
   tasks?: EventTask[];
+  eventManagers?: { memberId: number; member?: Member }[];
+  bookable?: {
+    resourceAllocations?: { resourceId: number; resource?: { name: string } }[];
+  };
 };
-type Location = { locationId: number; name: string };
+
+function toDatetimeLocal(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const local = new Date(parsed.getTime() - parsed.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
+function formatEventDate(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function AssignmentPicker({
+  id,
+  label,
+  placeholder,
+  options,
+  selectedIds,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  placeholder: string;
+  options: { id: string; label: string }[];
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [pendingId, setPendingId] = useState("");
+  const available = options.filter((option) => !selectedIds.includes(option.id));
+  const selectItems = options.map((option) => ({
+    value: option.id,
+    label: option.label,
+  }));
+
+  function labelFor(id: string) {
+    return options.find((option) => option.id === id)?.label ?? "";
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <div className="flex gap-2">
+        <Select
+          value={pendingId || null}
+          items={selectItems}
+          itemToStringLabel={(value) => labelFor(String(value))}
+          onValueChange={(value) => setPendingId(value == null ? "" : String(value))}
+        >
+          <SelectTrigger id={id} className="min-w-0 flex-1">
+            <SelectValue placeholder={placeholder} />
+          </SelectTrigger>
+          <SelectContent className="dark" align="start" alignItemWithTrigger={false}>
+            {available.map((option) => (
+              <SelectItem key={option.id} value={option.id}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={!pendingId}
+          onClick={() => {
+            if (!pendingId || selectedIds.includes(pendingId)) return;
+            onChange([...selectedIds, pendingId]);
+            setPendingId("");
+          }}
+        >
+          Add
+        </Button>
+      </div>
+      {selectedIds.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selectedIds.map((selectedId) => (
+              <Badge key={selectedId} variant="secondary" className="gap-1 pr-1">
+                {labelFor(selectedId) || "Unknown"}
+                <Button
+                  type="button"
+                  size="icon-xs"
+                  variant="ghost"
+                  aria-label={`Remove ${labelFor(selectedId) || selectedId}`}
+                  onClick={() => onChange(selectedIds.filter((id) => id !== selectedId))}
+                >
+                  <XIcon />
+                </Button>
+              </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function EventsDemo() {
   const [items, setItems] = useState<EventItem[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
   const [locationId, setLocationId] = useState("");
-  const [editId, setEditId] = useState("");
+  const [members, setMembers] = useState<Member[]>([]);
+  const [managerIds, setManagerIds] = useState<string[]>([]);
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [resourceIds, setResourceIds] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [allTasks, setAllTasks] = useState<{ taskId: number; name: string; eventId: number | null }[]>([]);
   const [assignSelections, setAssignSelections] = useState<Record<number, string>>({});
 
   async function refresh() {
-    const [events, locs, tasks] = await Promise.all([
+    const [events, locs, tasks, memberList, resourceList] = await Promise.all([
       apiJson("/api/events"),
       apiJson("/api/locations"),
       apiJson("/api/tasks"),
+      apiJson("/api/members"),
+      apiJson("/api/resources"),
     ]);
     setItems(events);
     setLocations(locs);
     setAllTasks(tasks);
+    setMembers(memberList);
+    setResources(resourceList);
   }
 
   useEffect(() => {
     refresh().catch((e) => setError(String(e)));
   }, []);
+
+  function resetForm() {
+    setSelectedId(null);
+    setName("");
+    setDescription("");
+    setDate("");
+    setLocationId("");
+    setManagerIds([]);
+    setResourceIds([]);
+  }
+
+  function selectEvent(ev: EventItem) {
+    setSelectedId(ev.eventId);
+    setName(ev.name);
+    setDescription(ev.description ?? "");
+    setDate(toDatetimeLocal(ev.date));
+    setLocationId(ev.location?.locationId != null ? String(ev.location.locationId) : "");
+    setManagerIds(
+      (ev.eventManagers ?? []).map((em) => String(em.memberId)),
+    );
+    setResourceIds(
+      (ev.bookable?.resourceAllocations ?? []).map((allocation) =>
+        String(allocation.resourceId),
+      ),
+    );
+    setError("");
+  }
 
   async function assignTask(eventId: number) {
     const taskId = assignSelections[eventId];
@@ -77,19 +225,36 @@ export default function EventsDemo() {
     }
   }
 
+  const isEditing = selectedId != null;
+
+  function managerNamesFor(ev?: EventItem) {
+    return (ev?.eventManagers ?? [])
+      .map(
+        (em) =>
+          em.member?.name ??
+          members.find((member) => member.memberId === em.memberId)?.name,
+      )
+      .filter((name): name is string => Boolean(name));
+  }
+
+  function resourceNamesFor(ev?: EventItem) {
+    return (ev?.bookable?.resourceAllocations ?? [])
+      .map(
+        (allocation) =>
+          allocation.resource?.name ??
+          resources.find((resource) => resource.resourceId === allocation.resourceId)
+            ?.name,
+      )
+      .filter((name): name is string => Boolean(name));
+  }
+
   return (
     <section className="relative left-1/2 w-screen -translate-x-1/2 -my-8 min-h-[calc(100vh-3.25rem)] bg-linear-to-b from-primary from-0% via-primary via-[45%] to-secondary px-6 py-8 md:px-10">
       <div className="mx-auto max-w-6xl space-y-6">
-        <header className="space-y-2">
-          <p className="text-xs font-medium tracking-wide text-primary-foreground/75 uppercase">
-            Programme
-          </p>
+        <header>
           <h1 className="font-heading text-3xl font-medium tracking-tight text-primary-foreground">
-            Create event
+            Events
           </h1>
-          <p className="text-sm text-primary-foreground/80">
-            Create a location first if the dropdown is empty.
-          </p>
         </header>
 
         {error && (
@@ -101,156 +266,174 @@ export default function EventsDemo() {
         )}
 
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Event details</CardTitle>
-                <CardDescription>
-                  Name the event, add a brief, then pick a time and venue.
-                </CardDescription>
-              </CardHeader>
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  setError("");
-                  try {
-                    await apiJson("/api/events", "POST", {
-                      name,
-                      description,
-                      date: new Date(date).toISOString(),
-                      locationId: Number(locationId),
-                    });
-                    setName("");
-                    setDescription("");
-                    await refresh();
-                  } catch (err) {
-                    setError(String(err));
+          <Card className="dark">
+            <CardHeader>
+              <CardTitle>{isEditing ? "Update event" : "Event details"}</CardTitle>
+              <CardDescription>
+                {isEditing
+                  ? "Change the selected event, then save."
+                  : "Name the event, add a brief, then pick a time and venue."}
+              </CardDescription>
+            </CardHeader>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setError("");
+                try {
+                  const payload = {
+                    name,
+                    description,
+                    date: new Date(date).toISOString(),
+                    locationId: Number(locationId),
+                    managerIds: managerIds.map(Number),
+                    resourceIds: resourceIds.map(Number),
+                  };
+                  if (isEditing) {
+                    await apiJson(`/api/events/${selectedId}`, "PATCH", payload);
+                  } else {
+                    await apiJson("/api/events", "POST", payload);
+                    resetForm();
                   }
-                }}
-              >
-                <CardContent className="space-y-4">
+                  await refresh();
+                } catch (err) {
+                  setError(String(err));
+                }
+              }}
+            >
+              <CardContent className="space-y-4 pb-4">
+                <div className="space-y-2">
+                  <Label htmlFor="event-name">Event name</Label>
+                  <Input
+                    id="event-name"
+                    placeholder="Name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="event-description">Description</Label>
+                  <Textarea
+                    id="event-description"
+                    placeholder="Description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="event-name">Event name</Label>
+                    <Label htmlFor="event-date">Date</Label>
                     <Input
-                      id="event-name"
-                      placeholder="Name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
+                      id="event-date"
+                      type="datetime-local"
+                      className="scheme-dark"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="event-description">Description</Label>
-                    <Textarea
-                      id="event-description"
-                      placeholder="Description"
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
+                    <Label htmlFor="event-location">Location</Label>
+                    <input
+                      id="event-location"
+                      className="sr-only"
+                      tabIndex={-1}
+                      value={locationId}
+                      onChange={() => undefined}
+                      required
+                      readOnly
                     />
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="event-date">Date</Label>
-                      <Input
-                        id="event-date"
-                        type="datetime-local"
-                        value={date}
-                        onChange={(e) => setDate(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="event-location">Location</Label>
-                      <input
-                        id="event-location"
-                        className="sr-only"
-                        tabIndex={-1}
-                        value={locationId}
-                        onChange={() => undefined}
-                        required
-                        readOnly
-                      />
-                      <Select
-                        value={locationId || null}
-                        onValueChange={(value) =>
-                          setLocationId(value == null ? "" : String(value))
-                        }
+                    <Select
+                      value={locationId || null}
+                      onValueChange={(value) =>
+                        setLocationId(value == null ? "" : String(value))
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Location..." />
+                      </SelectTrigger>
+                      <SelectContent
+                        className="dark"
+                        align="start"
+                        alignItemWithTrigger={false}
                       >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Location..." />
-                        </SelectTrigger>
-                        <SelectContent align="start" alignItemWithTrigger={false}>
-                          {locations.map((l) => (
-                            <SelectItem key={l.locationId} value={String(l.locationId)}>
-                              {l.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                        {locations.map((l) => (
+                          <SelectItem key={l.locationId} value={String(l.locationId)}>
+                            {l.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                </CardContent>
-                <CardFooter className="justify-end">
-                  <Button type="submit">Create</Button>
-                </CardFooter>
-              </form>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Update event</CardTitle>
-                <CardDescription>
-                  Enter an event id and a new name, then save.
-                </CardDescription>
-              </CardHeader>
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  setError("");
-                  try {
-                    await apiJson(`/api/events/${editId}`, "PATCH", { name });
-                    await refresh();
-                  } catch (err) {
-                    setError(String(err));
-                  }
-                }}
-              >
-                <CardContent className="grid gap-4 sm:grid-cols-[6rem_minmax(0,1fr)]">
-                  <div className="space-y-2">
-                    <Label htmlFor="event-edit-id">id</Label>
-                    <Input
-                      id="event-edit-id"
-                      placeholder="id"
-                      value={editId}
-                      onChange={(e) => setEditId(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="event-edit-name">New name</Label>
-                    <Input
-                      id="event-edit-name"
-                      placeholder="New name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                    />
-                  </div>
-                </CardContent>
-                <CardFooter className="justify-end">
-                  <Button type="submit" variant="secondary">
-                    Update
+                </div>
+                <AssignmentPicker
+                  key={`managers-${selectedId ?? "new"}`}
+                  id="event-manager"
+                  label="Event managers"
+                  placeholder="Select a member..."
+                  selectedIds={managerIds}
+                  onChange={setManagerIds}
+                  options={[
+                    ...members.map((m) => ({
+                      id: String(m.memberId),
+                      label: m.name,
+                    })),
+                    ...(items.find((ev) => ev.eventId === selectedId)?.eventManagers ?? [])
+                      .filter(
+                        (em) =>
+                          em.member?.name &&
+                          !members.some((m) => m.memberId === em.memberId),
+                      )
+                      .map((em) => ({
+                        id: String(em.memberId),
+                        label: em.member!.name,
+                      })),
+                  ]}
+                />
+                <AssignmentPicker
+                  key={`resources-${selectedId ?? "new"}`}
+                  id="event-resource"
+                  label="Resources"
+                  placeholder="Select a resource..."
+                  selectedIds={resourceIds}
+                  onChange={setResourceIds}
+                  options={[
+                    ...resources.map((r) => ({
+                      id: String(r.resourceId),
+                      label: r.name,
+                    })),
+                    ...(
+                      items.find((ev) => ev.eventId === selectedId)?.bookable
+                        ?.resourceAllocations ?? []
+                    )
+                      .filter(
+                        (allocation) =>
+                          allocation.resource?.name &&
+                          !resources.some((r) => r.resourceId === allocation.resourceId),
+                      )
+                      .map((allocation) => ({
+                        id: String(allocation.resourceId),
+                        label: allocation.resource!.name,
+                      })),
+                  ]}
+                />
+              </CardContent>
+              <CardFooter className="justify-end gap-2">
+                {isEditing && (
+                  <Button type="button" variant="ghost" onClick={resetForm}>
+                    Cancel
                   </Button>
-                </CardFooter>
-              </form>
-            </Card>
-          </div>
+                )}
+                <Button type="submit">{isEditing ? "Update" : "Create"}</Button>
+              </CardFooter>
+            </form>
+          </Card>
 
-          <Card>
+          <Card className="dark">
             <CardHeader>
               <CardTitle>Event list</CardTitle>
               <CardDescription>
-                Scheduled events, budgets, and assigned tasks.
+                Select an event to edit it in the form.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -261,25 +444,40 @@ export default function EventsDemo() {
               ) : (
                 <ul className="space-y-3">
                   {items.map((ev) => {
-                    const selected = editId === String(ev.eventId);
+                    const selected = selectedId === ev.eventId;
+                    const managerNames = managerNamesFor(ev);
+                    const resourceNames = resourceNamesFor(ev);
                     return (
                       <li
                         key={ev.eventId}
                         className={
                           selected
-                            ? "flex flex-col gap-3 rounded-xl bg-card p-3 ring-2 ring-primary"
-                            : "flex flex-col gap-3 rounded-xl bg-card p-3 ring-1 ring-foreground/10"
+                            ? "flex cursor-pointer flex-col gap-3 rounded-xl bg-muted p-3 ring-2 ring-primary"
+                            : "flex cursor-pointer flex-col gap-3 rounded-xl bg-muted p-3 ring-1 ring-foreground/10 transition-colors hover:bg-accent/50 hover:ring-2 hover:ring-primary"
                         }
                       >
                         <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 space-y-1">
+                          <button
+                            type="button"
+                            className="min-w-0 flex-1 text-left"
+                            onClick={() => selectEvent(ev)}
+                          >
                             <p className="font-medium">
                               #{ev.eventId} {ev.name}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              ({ev.location?.name}) · budget ${ev.totalBudget ?? "0"}
+                              {formatEventDate(ev.date)}
                             </p>
-                          </div>
+                            <p className="text-xs text-muted-foreground">
+                              Event Manager(s):{" "}
+                              {managerNames.length > 0 ? managerNames.join(", ") : "None"}
+                            </p>
+                            {resourceNames.length > 0 && (
+                              <p className="text-xs text-muted-foreground">
+                                Resources: {resourceNames.join(", ")}
+                              </p>
+                            )}
+                          </button>
                           <div className="flex shrink-0 flex-col items-end gap-1">
                             <Badge variant="secondary">{ev.location?.name ?? "No venue"}</Badge>
                             <Badge variant="outline">${ev.totalBudget ?? "0"}</Badge>
@@ -291,6 +489,7 @@ export default function EventsDemo() {
                                 setError("");
                                 try {
                                   await apiJson(`/api/events/${ev.eventId}`, "DELETE");
+                                  if (selectedId === ev.eventId) resetForm();
                                   await refresh();
                                 } catch (err) {
                                   setError(String(err));
@@ -326,7 +525,11 @@ export default function EventsDemo() {
                             <SelectTrigger className="min-w-0 flex-1">
                               <SelectValue placeholder="Assign existing task..." />
                             </SelectTrigger>
-                            <SelectContent align="start" alignItemWithTrigger={false}>
+                            <SelectContent
+                              className="dark"
+                              align="start"
+                              alignItemWithTrigger={false}
+                            >
                               {allTasks
                                 .filter((t) => t.eventId !== ev.eventId)
                                 .map((t) => (

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CircleAlertIcon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
+import { CalendarClockIcon, CircleAlertIcon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -42,9 +42,21 @@ import {
 import { fetchSessionRole, resourcePermissions, type Capabilities } from "@/lib/permissions";
 import { resourceTypeStyle } from "@/lib/resourceTypeColor";
 import { searchResources, typeNameOf } from "@/lib/fuzzyResources";
+import type { Booking } from "@/lib/timeline";
+import { ResourceTimeline } from "./resource-timeline";
 import { apiJson } from "../api";
 
 type ResourceType = { typeId: number; name: string };
+type Allocation = {
+  allocationId: number;
+  resourceId: number;
+  bookableId: number;
+  startTime: string;
+  endTime: string;
+  bookable?: { bookableId: number; bookableType: string };
+};
+type Task = { taskId: number; name: string; bookableId: number };
+type EventItem = { eventId: number; name: string; bookableId: number };
 type Resource = {
   resourceId: number;
   name: string;
@@ -62,16 +74,30 @@ export default function ResourcesDemo() {
   const [pending, setPending] = useState(false);
   const [query, setQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [allocations, setAllocations] = useState<Allocation[]>([]);
+  const [bookableNames, setBookableNames] = useState<Map<number, string>>(new Map());
+  const [timelineFor, setTimelineFor] = useState<Resource | null>(null);
   const [can, setCan] = useState<Capabilities>(() => resourcePermissions(null));
 
   async function refresh() {
-    const [resources, resourceTypes, role] = await Promise.all([
-      apiJson("/api/resources"),
-      apiJson("/api/resource-types"),
-      fetchSessionRole(),
-    ]);
+    const [resources, resourceTypes, allocationList, tasks, events, role] =
+      await Promise.all([
+        apiJson("/api/resources"),
+        apiJson("/api/resource-types"),
+        apiJson("/api/resource-allocations"),
+        apiJson("/api/tasks"),
+        apiJson("/api/events"),
+        fetchSessionRole(),
+      ]);
     setItems(resources);
     setTypes(resourceTypes);
+    setAllocations(allocationList);
+    setBookableNames(
+      new Map<number, string>([
+        ...(tasks as Task[]).map((t) => [t.bookableId, t.name] as [number, string]),
+        ...(events as EventItem[]).map((e) => [e.bookableId, e.name] as [number, string]),
+      ]),
+    );
     setCan(resourcePermissions(role));
   }
 
@@ -110,6 +136,22 @@ export default function ResourcesDemo() {
       setError("");
     }
   }
+
+  /** Bookings for whichever resource the timeline is open on. */
+  const timelineBookings: Booking[] = useMemo(() => {
+    if (!timelineFor) return [];
+    return allocations
+      .filter((a) => a.resourceId === timelineFor.resourceId)
+      .map((a) => ({
+        allocationId: a.allocationId,
+        startTime: a.startTime,
+        endTime: a.endTime,
+        label:
+          bookableNames.get(a.bookableId) ??
+          `${a.bookable?.bookableType ?? "Booking"} #${a.bookableId}`,
+        kind: a.bookable?.bookableType,
+      }));
+  }, [timelineFor, allocations, bookableNames]);
 
   const isEditing = selectedId != null;
   const canSubmit = isEditing ? can.edit : can.create;
@@ -214,9 +256,9 @@ export default function ResourcesDemo() {
                           <TableCell>
                             <button
                               type="button"
-                              className="w-full text-left font-medium hover:underline disabled:cursor-not-allowed disabled:no-underline"
-                              disabled={!can.edit}
-                              onClick={() => openEdit(resource)}
+                              className="w-full text-left font-medium hover:underline"
+                              title={`Show when ${resource.name} is booked`}
+                              onClick={() => setTimelineFor(resource)}
                             >
                               {nameMatch
                                 ? nameMatch.highlight((match, i) => (
@@ -242,6 +284,26 @@ export default function ResourcesDemo() {
                             )}
                           </TableCell>
                           <TableCell className="text-right">
+                            <span className="flex justify-end gap-1">
+                            <Button
+                              type="button"
+                              size="xs"
+                              variant="ghost"
+                              aria-label={`Show bookings for ${resource.name}`}
+                              disabled={pending}
+                              onClick={() => setTimelineFor(resource)}
+                            >
+                              <CalendarClockIcon />
+                            </Button>
+                            <Button
+                              type="button"
+                              size="xs"
+                              variant="secondary"
+                              disabled={pending || !can.edit}
+                              onClick={() => openEdit(resource)}
+                            >
+                              Edit
+                            </Button>
                             <Button
                               type="button"
                               size="xs"
@@ -266,6 +328,7 @@ export default function ResourcesDemo() {
                             >
                               Delete
                             </Button>
+                            </span>
                           </TableCell>
                         </TableRow>
                       );
@@ -277,6 +340,60 @@ export default function ResourcesDemo() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog
+        open={timelineFor != null}
+        onOpenChange={(open) => {
+          if (!open) setTimelineFor(null);
+        }}
+      >
+        {/* Wider than the edit dialog's default: a time axis needs room. */}
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex flex-wrap items-center gap-2">
+              {timelineFor?.name}
+              {timelineFor &&
+                (() => {
+                  const typeName = typeNameOf(timelineFor, types);
+                  return typeName ? (
+                    <Badge
+                      variant="outline"
+                      className="type-swatch"
+                      style={resourceTypeStyle(typeName)}
+                    >
+                      {typeName}
+                    </Badge>
+                  ) : null;
+                })()}
+            </DialogTitle>
+            <DialogDescription>When this resource is booked.</DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2">
+            <ResourceTimeline
+              bookings={timelineBookings}
+              typeName={timelineFor ? typeNameOf(timelineFor, types) : undefined}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => setTimelineFor(null)}>
+              Close
+            </Button>
+            <Button
+              type="button"
+              disabled={!can.edit}
+              onClick={() => {
+                const target = timelineFor;
+                setTimelineFor(null);
+                if (target) openEdit(target);
+              }}
+            >
+              Edit resource
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
         <DialogContent>

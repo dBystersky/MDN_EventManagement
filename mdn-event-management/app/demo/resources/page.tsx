@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CircleAlertIcon, SearchIcon, XIcon } from "lucide-react";
+import { CircleAlertIcon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -11,10 +11,17 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -54,6 +61,7 @@ export default function ResourcesDemo() {
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [query, setQuery] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [can, setCan] = useState<Capabilities>(() => resourcePermissions(null));
 
   async function refresh() {
@@ -77,12 +85,30 @@ export default function ResourcesDemo() {
     setResourceTypeId("");
   }
 
-  function selectResource(resource: Resource) {
+  function openCreate() {
+    if (!can.create) return;
+    resetForm();
+    setError("");
+    setDialogOpen(true);
+  }
+
+  function openEdit(resource: Resource) {
     if (!can.edit) return;
     setSelectedId(resource.resourceId);
     setName(resource.name);
     setResourceTypeId(String(resource.resourceType));
     setError("");
+    setDialogOpen(true);
+  }
+
+  /** Closing by any route — Cancel, Escape, backdrop, the X — clears the form so
+   *  the next open never inherits the last edit. */
+  function handleOpenChange(open: boolean) {
+    setDialogOpen(open);
+    if (!open) {
+      resetForm();
+      setError("");
+    }
   }
 
   const isEditing = selectedId != null;
@@ -102,259 +128,271 @@ export default function ResourcesDemo() {
           </h1>
         </header>
 
-        {error && (
+        {/* While the dialog is open its own alert carries the message, so this
+            one would be hidden behind the backdrop. */}
+        {error && !dialogOpen && (
           <Alert variant="destructive">
             <CircleAlertIcon />
-            <AlertTitle>Could not save</AlertTitle>
+            <AlertTitle>Something went wrong</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(18rem,0.8fr)_minmax(0,1.2fr)]">
-          <Card>
-            <CardHeader>
-              <CardTitle>{isEditing ? "Update resource" : "Resource details"}</CardTitle>
-              <CardDescription>
+        <Card>
+          <CardHeader>
+            <CardTitle>Resource list</CardTitle>
+            <CardDescription>
+              Search by resource or type name, then select a row to edit it.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative min-w-0 flex-1">
+                <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="resource-search"
+                  type="search"
+                  placeholder="Search resources..."
+                  aria-label="Search resources"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="w-full pl-8"
+                />
+              </div>
+              {query && (
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label="Clear search"
+                  onClick={() => setQuery("")}
+                >
+                  <XIcon />
+                </Button>
+              )}
+              <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                {query ? `${matches.length} of ${items.length}` : `${items.length} total`}
+              </span>
+              <Button type="button" size="sm" disabled={!can.create} onClick={openCreate}>
+                <PlusIcon />
+                New resource
+              </Button>
+            </div>
+
+            {items.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No resources yet. Create one to see it listed here.
+              </p>
+            ) : matches.length === 0 ? (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  No resources match &ldquo;{query}&rdquo;.
+                </p>
+                <Button type="button" size="sm" variant="secondary" onClick={() => setQuery("")}>
+                  Clear search
+                </Button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">ID</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead className="w-0 text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {matches.map(({ resource, nameMatch }) => {
+                      const typeName = typeNameOf(resource, types);
+                      return (
+                        <TableRow key={resource.resourceId}>
+                          <TableCell className="text-xs text-muted-foreground tabular-nums">
+                            {resource.resourceId}
+                          </TableCell>
+                          <TableCell>
+                            <button
+                              type="button"
+                              className="w-full text-left font-medium hover:underline disabled:cursor-not-allowed disabled:no-underline"
+                              disabled={!can.edit}
+                              onClick={() => openEdit(resource)}
+                            >
+                              {nameMatch
+                                ? nameMatch.highlight((match, i) => (
+                                    <mark
+                                      key={i}
+                                      className="rounded-xs bg-primary/20 text-foreground"
+                                    >
+                                      {match}
+                                    </mark>
+                                  ))
+                                : resource.name}
+                            </button>
+                          </TableCell>
+                          <TableCell>
+                            {typeName && (
+                              <Badge
+                                variant="outline"
+                                className="type-swatch"
+                                style={resourceTypeStyle(typeName)}
+                              >
+                                {typeName}
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              type="button"
+                              size="xs"
+                              variant="destructive"
+                              disabled={pending || !can.delete}
+                              onClick={async () => {
+                                setError("");
+                                setPending(true);
+                                try {
+                                  await apiJson(
+                                    `/api/resources/${resource.resourceId}`,
+                                    "DELETE",
+                                  );
+                                  if (selectedId === resource.resourceId) resetForm();
+                                  await refresh();
+                                } catch (err) {
+                                  setError(String(err));
+                                } finally {
+                                  setPending(false);
+                                }
+                              }}
+                            >
+                              Delete
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
+        <DialogContent>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setError("");
+              if (!resourceTypeId) {
+                setError("Pick a resource type before saving.");
+                return;
+              }
+              setPending(true);
+              try {
+                const payload = { name, resourceTypeId: Number(resourceTypeId) };
+                if (isEditing) {
+                  await apiJson(`/api/resources/${selectedId}`, "PATCH", payload);
+                } else {
+                  await apiJson("/api/resources", "POST", payload);
+                }
+                handleOpenChange(false);
+                await refresh();
+              } catch (err) {
+                setError(String(err));
+              } finally {
+                setPending(false);
+              }
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>{isEditing ? "Update resource" : "New resource"}</DialogTitle>
+              <DialogDescription>
                 {isEditing
                   ? "Change the selected resource, then save."
                   : "Name the resource, then pick the type it belongs to."}
-              </CardDescription>
-            </CardHeader>
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                setError("");
-                if (!resourceTypeId) {
-                  setError("Pick a resource type before saving.");
-                  return;
-                }
-                setPending(true);
-                try {
-                  const payload = { name, resourceTypeId: Number(resourceTypeId) };
-                  if (isEditing) {
-                    await apiJson(`/api/resources/${selectedId}`, "PATCH", payload);
-                  } else {
-                    await apiJson("/api/resources", "POST", payload);
-                  }
-                  resetForm();
-                  await refresh();
-                } catch (err) {
-                  setError(String(err));
-                } finally {
-                  setPending(false);
-                }
-              }}
-            >
-              <CardContent className="space-y-4 pb-4">
-                <div className="space-y-2">
-                  <Label htmlFor="resource-name">Resource name</Label>
-                  <Input
-                    id="resource-name"
-                    placeholder="Name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    disabled={!canSubmit}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="resource-type">Resource type</Label>
-                  <Select
-                    value={resourceTypeId || null}
-                    items={types.map((type) => ({
-                      value: String(type.typeId),
-                      label: type.name,
-                    }))}
-                    itemToStringLabel={(value) =>
-                      types.find((type) => String(type.typeId) === String(value))?.name ?? ""
-                    }
-                    onValueChange={(value) =>
-                      setResourceTypeId(value == null ? "" : String(value))
-                    }
-                  >
-                    <SelectTrigger id="resource-type" className="w-full" disabled={!canSubmit}>
-                      <SelectValue placeholder="Type..." />
-                    </SelectTrigger>
-                    <SelectContent align="start" alignItemWithTrigger={false}>
-                      {types.map((type) => (
-                        <SelectItem key={type.typeId} value={String(type.typeId)}>
-                          <span className="flex items-center gap-2">
-                            <span
-                              className="type-dot size-2.5 shrink-0 rounded-full"
-                              style={resourceTypeStyle(type.name)}
-                            />
-                            {type.name}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {types.length === 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      No types exist yet.{" "}
-                      <Link
-                        href="/demo/resource-types"
-                        className="text-primary underline underline-offset-4"
-                      >
-                        Create a resource type
-                      </Link>{" "}
-                      first.
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-              <CardFooter className="justify-end gap-2">
-                {isEditing && (
-                  <Button type="button" variant="ghost" onClick={resetForm}>
-                    Cancel
-                  </Button>
-                )}
-                <Button type="submit" disabled={pending || !canSubmit || types.length === 0}>
-                  {isEditing ? "Update" : "Create"}
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
+              </DialogDescription>
+            </DialogHeader>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Resource list</CardTitle>
-              <CardDescription>
-                Search by resource or type name, then select a row to edit it.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="relative min-w-0 flex-1">
-                  <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="resource-search"
-                    type="search"
-                    placeholder="Search resources..."
-                    aria-label="Search resources"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    className="w-full pl-8"
-                  />
-                </div>
-                {query && (
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="ghost"
-                    aria-label="Clear search"
-                    onClick={() => setQuery("")}
-                  >
-                    <XIcon />
-                  </Button>
-                )}
-                <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                  {query ? `${matches.length} of ${items.length}` : `${items.length} total`}
-                </span>
+            <div className="space-y-4 py-4">
+              {error && (
+                <Alert variant="destructive">
+                  <CircleAlertIcon />
+                  <AlertTitle>Could not save</AlertTitle>
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="resource-name">Resource name</Label>
+                <Input
+                  id="resource-name"
+                  placeholder="Name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={!canSubmit}
+                  required
+                />
               </div>
 
-              {items.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No resources yet. Create one to see it listed here.
-                </p>
-              ) : matches.length === 0 ? (
-                <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    No resources match &ldquo;{query}&rdquo;.
+              <div className="space-y-2">
+                <Label htmlFor="resource-type">Resource type</Label>
+                <Select
+                  value={resourceTypeId || null}
+                  items={types.map((type) => ({
+                    value: String(type.typeId),
+                    label: type.name,
+                  }))}
+                  itemToStringLabel={(value) =>
+                    types.find((type) => String(type.typeId) === String(value))?.name ?? ""
+                  }
+                  onValueChange={(value) =>
+                    setResourceTypeId(value == null ? "" : String(value))
+                  }
+                >
+                  <SelectTrigger id="resource-type" className="w-full" disabled={!canSubmit}>
+                    <SelectValue placeholder="Type..." />
+                  </SelectTrigger>
+                  <SelectContent align="start" alignItemWithTrigger={false}>
+                    {types.map((type) => (
+                      <SelectItem key={type.typeId} value={String(type.typeId)}>
+                        <span className="flex items-center gap-2">
+                          <span
+                            className="type-dot size-2.5 shrink-0 rounded-full"
+                            style={resourceTypeStyle(type.name)}
+                          />
+                          {type.name}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {types.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    No types exist yet.{" "}
+                    <Link
+                      href="/demo/resource-types"
+                      className="text-primary underline underline-offset-4"
+                    >
+                      Create a resource type
+                    </Link>{" "}
+                    first.
                   </p>
-                  <Button type="button" size="sm" variant="secondary" onClick={() => setQuery("")}>
-                    Clear search
-                  </Button>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-12">ID</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead className="w-0 text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {matches.map(({ resource, nameMatch }) => {
-                        const selected = selectedId === resource.resourceId;
-                        const typeName = typeNameOf(resource, types);
-                        return (
-                          <TableRow
-                            key={resource.resourceId}
-                            className={selected ? "bg-muted" : undefined}
-                          >
-                            <TableCell className="text-xs text-muted-foreground tabular-nums">
-                              {resource.resourceId}
-                            </TableCell>
-                            <TableCell>
-                              <button
-                                type="button"
-                                className="w-full text-left font-medium hover:underline"
-                                onClick={() => selectResource(resource)}
-                              >
-                                {nameMatch
-                                  ? nameMatch.highlight((match, i) => (
-                                      <mark
-                                        key={i}
-                                        className="rounded-xs bg-primary/20 text-foreground"
-                                      >
-                                        {match}
-                                      </mark>
-                                    ))
-                                  : resource.name}
-                              </button>
-                            </TableCell>
-                            <TableCell>
-                              {typeName && (
-                                <Badge
-                                  variant="outline"
-                                  className="type-swatch"
-                                  style={resourceTypeStyle(typeName)}
-                                >
-                                  {typeName}
-                                </Badge>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                type="button"
-                                size="xs"
-                                variant="destructive"
-                                disabled={pending || !can.delete}
-                                onClick={async () => {
-                                  setError("");
-                                  setPending(true);
-                                  try {
-                                    await apiJson(
-                                      `/api/resources/${resource.resourceId}`,
-                                      "DELETE",
-                                    );
-                                    if (selectedId === resource.resourceId) resetForm();
-                                    await refresh();
-                                  } catch (err) {
-                                    setError(String(err));
-                                  } finally {
-                                    setPending(false);
-                                  }
-                                }}
-                              >
-                                Delete
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={pending || !canSubmit || types.length === 0}>
+                {isEditing ? "Update" : "Create"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

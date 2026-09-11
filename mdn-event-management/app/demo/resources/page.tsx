@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { fetchSessionRole, resourcePermissions, type Capabilities } from "@/lib/permissions";
+import { resourceTypeStyle } from "@/lib/resourceTypeColor";
 import { apiJson } from "../api";
 
 type ResourceType = { typeId: number; name: string };
@@ -169,7 +170,13 @@ export default function ResourcesDemo() {
                     <SelectContent align="start" alignItemWithTrigger={false}>
                       {types.map((type) => (
                         <SelectItem key={type.typeId} value={String(type.typeId)}>
-                          {type.name}
+                          <span className="flex items-center gap-2">
+                            <span
+                              className="type-dot size-2.5 shrink-0 rounded-full"
+                              style={resourceTypeStyle(type.name)}
+                            />
+                            {type.name}
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -236,7 +243,15 @@ export default function ResourcesDemo() {
                             </p>
                           </button>
                           <div className="flex shrink-0 flex-col items-end gap-1">
-                            {typeName && <Badge variant="secondary">{typeName}</Badge>}
+                            {typeName && (
+                              <Badge
+                                variant="outline"
+                                className="type-swatch"
+                                style={resourceTypeStyle(typeName)}
+                              >
+                                {typeName}
+                              </Badge>
+                            )}
                             <Button
                               type="button"
                               size="xs"

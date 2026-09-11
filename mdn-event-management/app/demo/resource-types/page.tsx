@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { fetchSessionRole, resourceTypePermissions, type Capabilities } from "@/lib/permissions";
+import { resourceTypeStyle } from "@/lib/resourceTypeColor";
 import { apiJson } from "../api";
 
 type ResourceType = { typeId: number; name: string };
@@ -139,6 +140,18 @@ export default function ResourceTypesDemo() {
                     disabled={isEditing ? !can.edit : !can.create}
                     required
                   />
+                  {name.trim() && (
+                    <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                      Colour:
+                      <Badge
+                        variant="outline"
+                        className="type-swatch"
+                        style={resourceTypeStyle(name)}
+                      >
+                        {name}
+                      </Badge>
+                    </p>
+                  )}
                 </div>
               </CardContent>
               <CardFooter className="justify-end gap-2">
@@ -185,8 +198,15 @@ export default function ResourceTypesDemo() {
                             className="min-w-0 flex-1 text-left"
                             onClick={() => selectType(type)}
                           >
-                            <p className="font-medium">
-                              #{type.typeId} {type.name}
+                            <p className="flex flex-wrap items-center gap-2 font-medium">
+                              <span className="text-muted-foreground">#{type.typeId}</span>
+                              <Badge
+                                variant="outline"
+                                className="type-swatch"
+                                style={resourceTypeStyle(type.name)}
+                              >
+                                {type.name}
+                              </Badge>
                             </p>
                           </button>
                           <div className="flex shrink-0 flex-col items-end gap-1">

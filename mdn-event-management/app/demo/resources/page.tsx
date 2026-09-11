@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CircleAlertIcon } from "lucide-react";
+import { CircleAlertIcon, SearchIcon, XIcon } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -24,8 +24,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { fetchSessionRole, resourcePermissions, type Capabilities } from "@/lib/permissions";
 import { resourceTypeStyle } from "@/lib/resourceTypeColor";
+import { searchResources, typeNameOf } from "@/lib/fuzzyResources";
 import { apiJson } from "../api";
 
 type ResourceType = { typeId: number; name: string };
@@ -44,6 +53,7 @@ export default function ResourcesDemo() {
   const [resourceTypeId, setResourceTypeId] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [query, setQuery] = useState("");
   const [can, setCan] = useState<Capabilities>(() => resourcePermissions(null));
 
   async function refresh() {
@@ -75,15 +85,13 @@ export default function ResourcesDemo() {
     setError("");
   }
 
-  function typeNameFor(resource: Resource) {
-    return (
-      resource.resourceTypeRel?.name ??
-      types.find((type) => type.typeId === resource.resourceType)?.name
-    );
-  }
-
   const isEditing = selectedId != null;
   const canSubmit = isEditing ? can.edit : can.create;
+
+  const matches = useMemo(
+    () => searchResources(query, items, types),
+    [query, items, types],
+  );
 
   return (
     <section className="relative left-1/2 w-screen -translate-x-1/2 -my-8 min-h-[calc(100vh-3.25rem)] bg-linear-to-b from-primary from-0% via-primary via-[45%] to-secondary px-6 py-8 md:px-10">
@@ -102,7 +110,7 @@ export default function ResourcesDemo() {
           </Alert>
         )}
 
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(18rem,0.8fr)_minmax(0,1.2fr)]">
           <Card>
             <CardHeader>
               <CardTitle>{isEditing ? "Update resource" : "Resource details"}</CardTitle>
@@ -211,77 +219,137 @@ export default function ResourcesDemo() {
           <Card>
             <CardHeader>
               <CardTitle>Resource list</CardTitle>
-              <CardDescription>Select a resource to edit it in the form.</CardDescription>
+              <CardDescription>
+                Search by resource or type name, then select a row to edit it.
+              </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="resource-search"
+                    type="search"
+                    placeholder="Search resources..."
+                    aria-label="Search resources"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    className="w-full pl-8"
+                  />
+                </div>
+                {query && (
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    aria-label="Clear search"
+                    onClick={() => setQuery("")}
+                  >
+                    <XIcon />
+                  </Button>
+                )}
+                <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                  {query ? `${matches.length} of ${items.length}` : `${items.length} total`}
+                </span>
+              </div>
+
               {items.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   No resources yet. Create one to see it listed here.
                 </p>
+              ) : matches.length === 0 ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    No resources match &ldquo;{query}&rdquo;.
+                  </p>
+                  <Button type="button" size="sm" variant="secondary" onClick={() => setQuery("")}>
+                    Clear search
+                  </Button>
+                </div>
               ) : (
-                <ul className="space-y-3">
-                  {items.map((resource) => {
-                    const selected = selectedId === resource.resourceId;
-                    const typeName = typeNameFor(resource);
-                    return (
-                      <li
-                        key={resource.resourceId}
-                        className={
-                          selected
-                            ? "flex cursor-pointer flex-col gap-3 rounded-xl bg-muted p-3 ring-2 ring-primary"
-                            : "flex cursor-pointer flex-col gap-3 rounded-xl bg-muted p-3 ring-1 ring-foreground/10 transition-colors hover:bg-accent/50 hover:ring-2 hover:ring-primary"
-                        }
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <button
-                            type="button"
-                            className="min-w-0 flex-1 text-left"
-                            onClick={() => selectResource(resource)}
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12">ID</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead className="w-0 text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {matches.map(({ resource, nameMatch }) => {
+                        const selected = selectedId === resource.resourceId;
+                        const typeName = typeNameOf(resource, types);
+                        return (
+                          <TableRow
+                            key={resource.resourceId}
+                            className={selected ? "bg-muted" : undefined}
                           >
-                            <p className="font-medium">
-                              #{resource.resourceId} {resource.name}
-                            </p>
-                          </button>
-                          <div className="flex shrink-0 flex-col items-end gap-1">
-                            {typeName && (
-                              <Badge
-                                variant="outline"
-                                className="type-swatch"
-                                style={resourceTypeStyle(typeName)}
+                            <TableCell className="text-xs text-muted-foreground tabular-nums">
+                              {resource.resourceId}
+                            </TableCell>
+                            <TableCell>
+                              <button
+                                type="button"
+                                className="w-full text-left font-medium hover:underline"
+                                onClick={() => selectResource(resource)}
                               >
-                                {typeName}
-                              </Badge>
-                            )}
-                            <Button
-                              type="button"
-                              size="xs"
-                              variant="destructive"
-                              disabled={pending || !can.delete}
-                              onClick={async () => {
-                                setError("");
-                                setPending(true);
-                                try {
-                                  await apiJson(
-                                    `/api/resources/${resource.resourceId}`,
-                                    "DELETE",
-                                  );
-                                  if (selectedId === resource.resourceId) resetForm();
-                                  await refresh();
-                                } catch (err) {
-                                  setError(String(err));
-                                } finally {
-                                  setPending(false);
-                                }
-                              }}
-                            >
-                              Delete
-                            </Button>
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
+                                {nameMatch
+                                  ? nameMatch.highlight((match, i) => (
+                                      <mark
+                                        key={i}
+                                        className="rounded-xs bg-primary/20 text-foreground"
+                                      >
+                                        {match}
+                                      </mark>
+                                    ))
+                                  : resource.name}
+                              </button>
+                            </TableCell>
+                            <TableCell>
+                              {typeName && (
+                                <Badge
+                                  variant="outline"
+                                  className="type-swatch"
+                                  style={resourceTypeStyle(typeName)}
+                                >
+                                  {typeName}
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                type="button"
+                                size="xs"
+                                variant="destructive"
+                                disabled={pending || !can.delete}
+                                onClick={async () => {
+                                  setError("");
+                                  setPending(true);
+                                  try {
+                                    await apiJson(
+                                      `/api/resources/${resource.resourceId}`,
+                                      "DELETE",
+                                    );
+                                    if (selectedId === resource.resourceId) resetForm();
+                                    await refresh();
+                                  } catch (err) {
+                                    setError(String(err));
+                                  } finally {
+                                    setPending(false);
+                                  }
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>

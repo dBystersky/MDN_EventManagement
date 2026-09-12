@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createEvent, listEvents } from "@/lib/events";
+import { createEvent, listEvents, parseEventSubtasks } from "@/lib/events";
 import { Prisma } from "@/generated/prisma/client";
 
 // Function to get all events from the API
@@ -28,12 +28,19 @@ export async function POST(request: Request) {
             resourceIds: Array.isArray(body.resourceIds)
                 ? body.resourceIds.map(Number)
                 : undefined,
+            taskIds: Array.isArray(body.taskIds)
+                ? body.taskIds.map(Number)
+                : undefined,
+            subtasks: parseEventSubtasks(body.subtasks),
         });
     
         return NextResponse.json(newEvent, { status: 201 });
 
     } catch (error) {
         console.error(error);
+        if (error instanceof Error && /subtasks/.test(error.message)) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
+        }
         if (error instanceof Prisma.PrismaClientKnownRequestError) {
             return NextResponse.json(
                 {

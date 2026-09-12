@@ -21,7 +21,18 @@ const eventInclude = {
         },
     },
     eventManagers: { include: { member: { select: memberPublicSelect } } },
-    tasks: true,
+    tasks: {
+        include: {
+            taskManagers: { include: { member: { select: memberPublicSelect } } },
+            bookable: {
+                include: {
+                    resourceAllocations: {
+                        include: { resource: true },
+                    },
+                },
+            },
+        },
+    },
 } satisfies Prisma.EventInclude;
 
 export async function recalculateEventTotalBudget(tx: PrismaTx, eventId: number) {
@@ -36,6 +47,60 @@ export async function recalculateEventTotalBudget(tx: PrismaTx, eventId: number)
     });
 }
 
+export type EventSubtaskInput = {
+    name: string;
+    description?: string;
+    deadline: Date;
+    managerIds?: number[];
+    resourceIds?: number[];
+    budget?: number | null;
+}
+
+export function parseEventSubtasks(value: unknown): EventSubtaskInput[] | undefined {
+    if (value === undefined) return undefined;
+    if (!Array.isArray(value)) {
+        throw new Error("subtasks must be an array");
+    }
+
+    return value.map((item, index) => {
+        if (!item || typeof item !== "object") {
+            throw new Error(`subtasks[${index}] must be an object`);
+        }
+        const row = item as Record<string, unknown>;
+        const name = String(row.name ?? "").trim();
+        const deadline = new Date(String(row.deadline ?? ""));
+        if (!name) {
+            throw new Error(`subtasks[${index}] needs a name`);
+        }
+        if (Number.isNaN(deadline.getTime())) {
+            throw new Error(`subtasks[${index}] needs a valid deadline`);
+        }
+        const budget =
+            row.budget === undefined || row.budget === null
+                ? undefined
+                : Number(row.budget);
+        if (budget !== undefined && Number.isNaN(budget)) {
+            throw new Error(`subtasks[${index}] has an invalid budget`);
+        }
+        if (budget !== undefined && budget < 0) {
+            throw new Error("budget must not be negative");
+        }
+
+        return {
+            name,
+            description: row.description == null ? "" : String(row.description),
+            deadline,
+            managerIds: Array.isArray(row.managerIds)
+                ? row.managerIds.map(Number).filter((id) => Number.isFinite(id))
+                : undefined,
+            resourceIds: Array.isArray(row.resourceIds)
+                ? row.resourceIds.map(Number).filter((id) => Number.isFinite(id))
+                : undefined,
+            budget,
+        };
+    });
+}
+
 type createEventInput = {
     name: string;
     description: string;
@@ -43,36 +108,128 @@ type createEventInput = {
     locationId: number;
     managerIds?: number[];
     resourceIds?: number[];
+    taskIds?: number[];
+    subtasks?: EventSubtaskInput[];
+}
+
+async function syncEventTasks(tx: PrismaTx, eventId: number, taskIds: number[]) {
+    const uniqueIds = [...new Set(taskIds)];
+    const affectedEventIds = new Set<number>([eventId]);
+
+    if (uniqueIds.length) {
+        const incoming = await tx.task.findMany({
+            where: { taskId: { in: uniqueIds } },
+            select: { taskId: true, eventId: true },
+        });
+        if (incoming.length !== uniqueIds.length) {
+            throw new Error("One or more tasks were not found");
+        }
+        for (const task of incoming) {
+            if (task.eventId != null && task.eventId !== eventId) {
+                affectedEventIds.add(task.eventId);
+            }
+        }
+    }
+
+    await tx.event.update({
+        where: { eventId },
+        data: {
+            tasks: {
+                set: uniqueIds.map((taskId) => ({ taskId })),
+            },
+        },
+    });
+
+    for (const id of affectedEventIds) {
+        await recalculateEventTotalBudget(tx, id);
+    }
+}
+
+async function createEventSubtasks(
+    tx: PrismaTx,
+    eventId: number,
+    subtasks: EventSubtaskInput[],
+) {
+    for (const subtask of subtasks) {
+        const window = eventAllocationWindow(subtask.deadline);
+        await tx.task.create({
+            data: {
+                name: subtask.name,
+                description: subtask.description ?? "",
+                deadline: subtask.deadline,
+                budget: subtask.budget ?? undefined,
+                event: { connect: { eventId } },
+                bookable: {
+                    create: {
+                        bookableType: "Task",
+                        resourceAllocations: subtask.resourceIds?.length
+                            ? {
+                                create: [...new Set(subtask.resourceIds)].map((resourceId) => ({
+                                    resourceId,
+                                    startTime: window.startTime,
+                                    endTime: window.endTime,
+                                })),
+                            }
+                            : undefined,
+                    },
+                },
+                taskManagers: subtask.managerIds?.length
+                    ? { create: subtask.managerIds.map((memberId) => ({ memberId })) }
+                    : undefined,
+            },
+        });
+    }
+
+    if (subtasks.length) {
+        await recalculateEventTotalBudget(tx, eventId);
+    }
 }
 
 export async function createEvent(input: createEventInput) {
     const window = eventAllocationWindow(input.date);
 
-    return prisma.event.create({
-        data: {
-            name: input.name,
-            description: input.description,
-            date: input.date,
-            location: { connect: { locationId: input.locationId }},
-            bookable: {
-                create: {
-                    bookableType: "Event",
-                    resourceAllocations: input.resourceIds?.length
-                        ? {
-                            create: [...new Set(input.resourceIds)].map((resourceId) => ({
-                                resourceId,
-                                startTime: window.startTime,
-                                endTime: window.endTime,
-                            })),
-                        }
-                        : undefined,
+    return prisma.$transaction(async (tx) => {
+        const event = await tx.event.create({
+            data: {
+                name: input.name,
+                description: input.description,
+                date: input.date,
+                location: { connect: { locationId: input.locationId }},
+                bookable: {
+                    create: {
+                        bookableType: "Event",
+                        resourceAllocations: input.resourceIds?.length
+                            ? {
+                                create: [...new Set(input.resourceIds)].map((resourceId) => ({
+                                    resourceId,
+                                    startTime: window.startTime,
+                                    endTime: window.endTime,
+                                })),
+                            }
+                            : undefined,
+                    },
                 },
+                eventManagers: input.managerIds?.length
+                    ? { create: input.managerIds.map((memberId: number) => ({ memberId }))}
+                    : undefined,
             },
-            eventManagers: input.managerIds?.length
-                ? { create: input.managerIds.map((memberId: number) => ({ memberId }))}
-                : undefined,
-        },
-        include: eventInclude,
+            include: eventInclude,
+        });
+
+        if (input.taskIds !== undefined) {
+            await syncEventTasks(tx, event.eventId, input.taskIds);
+        }
+        if (input.subtasks?.length) {
+            await createEventSubtasks(tx, event.eventId, input.subtasks);
+        }
+        if (input.taskIds === undefined && !input.subtasks?.length) {
+            return event;
+        }
+
+        return tx.event.findUniqueOrThrow({
+            where: { eventId: event.eventId },
+            include: eventInclude,
+        });
     });
 }
 
@@ -97,6 +254,8 @@ type updateEventInput = {
     locationId?: number;
     managerIds?: number[];
     resourceIds?: number[];
+    taskIds?: number[];
+    subtasks?: EventSubtaskInput[];
 }
 
 export async function updateEvent(eventId: number, input: updateEventInput) {
@@ -139,6 +298,13 @@ export async function updateEvent(eventId: number, input: updateEventInput) {
             );
         } else if (input.date !== undefined) {
             await rescheduleBookableAllocations(tx, existing.bookableId, nextDate);
+        }
+
+        if (input.taskIds !== undefined) {
+            await syncEventTasks(tx, eventId, input.taskIds);
+        }
+        if (input.subtasks?.length) {
+            await createEventSubtasks(tx, eventId, input.subtasks);
         }
 
         return tx.event.findUniqueOrThrow({

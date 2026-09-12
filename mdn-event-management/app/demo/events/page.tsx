@@ -26,13 +26,36 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { apiJson } from "../api";
 
-type EventTask = { taskId: number; name: string; budget: string | null };
-type Location = { locationId: number; name: string };
 type Member = { memberId: number; name: string; email: string };
+type EventTask = {
+  taskId: number;
+  name: string;
+  budget: string | null;
+  deadline?: string;
+  taskManagers?: { memberId: number; member?: Member }[];
+  bookable?: {
+    resourceAllocations?: { resourceId: number; resource?: { name: string } }[];
+  };
+};
+type Location = { locationId: number; name: string };
 type Resource = {
   resourceId: number;
   name: string;
   resourceTypeRel?: { name: string };
+};
+type CatalogTask = {
+  taskId: number;
+  name: string;
+  eventId: number | null;
+  deadline?: string;
+  taskManagers?: { memberId: number; member?: Member }[];
+};
+type DraftSubtask = {
+  key: string;
+  name: string;
+  assigneeId: string;
+  deadline: string;
+  resourceIds: string[];
 };
 type EventItem = {
   eventId: number;
@@ -75,6 +98,7 @@ function AssignmentPicker({
   options,
   selectedIds,
   onChange,
+  showSelected = true,
 }: {
   id: string;
   label: string;
@@ -82,6 +106,7 @@ function AssignmentPicker({
   options: { id: string; label: string }[];
   selectedIds: string[];
   onChange: (ids: string[]) => void;
+  showSelected?: boolean;
 }) {
   const [pendingId, setPendingId] = useState("");
   const available = options.filter((option) => !selectedIds.includes(option.id));
@@ -128,7 +153,7 @@ function AssignmentPicker({
           Add
         </Button>
       </div>
-      {selectedIds.length > 0 && (
+      {showSelected && selectedIds.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {selectedIds.map((selectedId) => (
               <Badge key={selectedId} variant="secondary" className="gap-1 pr-1">
@@ -150,6 +175,117 @@ function AssignmentPicker({
   );
 }
 
+function formatSubtaskDate(value: string) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function ResourceSearch({
+  resources,
+  selectedIds,
+  onChange,
+}: {
+  resources: Resource[];
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const matches = q
+    ? resources.filter((resource) => {
+        if (selectedIds.includes(String(resource.resourceId))) return false;
+        const typeName = resource.resourceTypeRel?.name ?? "";
+        return (
+          resource.name.toLowerCase().includes(q) ||
+          typeName.toLowerCase().includes(q)
+        );
+      })
+    : [];
+
+  function labelFor(id: string) {
+    const resource = resources.find((item) => String(item.resourceId) === id);
+    if (!resource) return "Unknown";
+    return resource.resourceTypeRel?.name
+      ? `${resource.name} · ${resource.resourceTypeRel.name}`
+      : resource.name;
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor="subtask-resource-search" className="text-xs font-medium tracking-wide uppercase">
+        Resources & equipment
+      </Label>
+      <p className="text-xs text-muted-foreground">
+        Search to attach inventory for this subtask.
+      </p>
+      <Input
+        id="subtask-resource-search"
+        placeholder="Search by name or type..."
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+      {matches.length > 0 && (
+        <div className="rounded-lg border bg-background p-1">
+          {matches.slice(0, 6).map((resource) => (
+            <Button
+              key={resource.resourceId}
+              type="button"
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => {
+                onChange([...selectedIds, String(resource.resourceId)]);
+                setQuery("");
+              }}
+            >
+              {resource.name}
+              {resource.resourceTypeRel?.name
+                ? ` · ${resource.resourceTypeRel.name}`
+                : ""}
+            </Button>
+          ))}
+        </div>
+      )}
+      {selectedIds.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {selectedIds.map((selectedId) => (
+            <Badge key={selectedId} variant="secondary" className="gap-1 pr-1">
+              {labelFor(selectedId)}
+              <Button
+                type="button"
+                size="icon-xs"
+                variant="ghost"
+                aria-label={`Remove ${labelFor(selectedId)}`}
+                onClick={() =>
+                  onChange(selectedIds.filter((id) => id !== selectedId))
+                }
+              >
+                <XIcon />
+              </Button>
+            </Badge>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          No resources assigned yet — search above to add.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function EventsDemo() {
   const [items, setItems] = useState<EventItem[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -163,8 +299,13 @@ export default function EventsDemo() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [resourceIds, setResourceIds] = useState<string[]>([]);
   const [error, setError] = useState("");
-  const [allTasks, setAllTasks] = useState<{ taskId: number; name: string; eventId: number | null }[]>([]);
-  const [assignSelections, setAssignSelections] = useState<Record<number, string>>({});
+  const [allTasks, setAllTasks] = useState<CatalogTask[]>([]);
+  const [taskIds, setTaskIds] = useState<string[]>([]);
+  const [draftSubtasks, setDraftSubtasks] = useState<DraftSubtask[]>([]);
+  const [subtaskTitle, setSubtaskTitle] = useState("");
+  const [subtaskAssigneeId, setSubtaskAssigneeId] = useState("");
+  const [subtaskDeadline, setSubtaskDeadline] = useState("");
+  const [subtaskResourceIds, setSubtaskResourceIds] = useState<string[]>([]);
 
   async function refresh() {
     const [events, locs, tasks, memberList, resourceList] = await Promise.all([
@@ -193,6 +334,12 @@ export default function EventsDemo() {
     setLocationId("");
     setManagerIds([]);
     setResourceIds([]);
+    setTaskIds([]);
+    setDraftSubtasks([]);
+    setSubtaskTitle("");
+    setSubtaskAssigneeId("");
+    setSubtaskDeadline("");
+    setSubtaskResourceIds([]);
   }
 
   function selectEvent(ev: EventItem) {
@@ -209,20 +356,13 @@ export default function EventsDemo() {
         String(allocation.resourceId),
       ),
     );
+    setTaskIds((ev.tasks ?? []).map((task) => String(task.taskId)));
+    setDraftSubtasks([]);
+    setSubtaskTitle("");
+    setSubtaskAssigneeId("");
+    setSubtaskDeadline("");
+    setSubtaskResourceIds([]);
     setError("");
-  }
-
-  async function assignTask(eventId: number) {
-    const taskId = assignSelections[eventId];
-    if (!taskId) return;
-    setError("");
-    try {
-      await apiJson(`/api/tasks/${taskId}`, "PATCH", { eventId });
-      setAssignSelections((prev) => ({ ...prev, [eventId]: "" }));
-      await refresh();
-    } catch (err) {
-      setError(String(err));
-    }
   }
 
   const isEditing = selectedId != null;
@@ -246,6 +386,45 @@ export default function EventsDemo() {
             ?.name,
       )
       .filter((name): name is string => Boolean(name));
+  }
+
+  function existingSubtaskDetails(taskId: string) {
+    const fromEvent = items
+      .find((ev) => ev.eventId === selectedId)
+      ?.tasks?.find((task) => String(task.taskId) === taskId);
+    const fromCatalog = allTasks.find((task) => String(task.taskId) === taskId);
+    const assigneeNames = (fromEvent?.taskManagers ?? fromCatalog?.taskManagers ?? [])
+      .map((tm) => tm.member?.name)
+      .filter((name): name is string => Boolean(name));
+    const assignedResources = (fromEvent?.bookable?.resourceAllocations ?? [])
+      .map((allocation) => allocation.resource?.name)
+      .filter((name): name is string => Boolean(name));
+
+    return {
+      name: fromEvent?.name ?? fromCatalog?.name ?? `Task #${taskId}`,
+      deadline: fromEvent?.deadline ?? fromCatalog?.deadline,
+      assignee: assigneeNames.length > 0 ? assigneeNames.join(", ") : "Unassigned",
+      resources: assignedResources.join(", "),
+    };
+  }
+
+  function addDraftSubtask() {
+    const title = subtaskTitle.trim();
+    if (!title || !subtaskDeadline) return;
+    setDraftSubtasks((current) => [
+      ...current,
+      {
+        key: crypto.randomUUID(),
+        name: title,
+        assigneeId: subtaskAssigneeId,
+        deadline: subtaskDeadline,
+        resourceIds: subtaskResourceIds,
+      },
+    ]);
+    setSubtaskTitle("");
+    setSubtaskAssigneeId("");
+    setSubtaskDeadline("");
+    setSubtaskResourceIds([]);
   }
 
   return (
@@ -287,9 +466,23 @@ export default function EventsDemo() {
                     locationId: Number(locationId),
                     managerIds: managerIds.map(Number),
                     resourceIds: resourceIds.map(Number),
+                    taskIds: taskIds.map(Number),
+                    subtasks: draftSubtasks.map((subtask) => ({
+                      name: subtask.name,
+                      deadline: new Date(subtask.deadline).toISOString(),
+                      managerIds: subtask.assigneeId
+                        ? [Number(subtask.assigneeId)]
+                        : [],
+                      resourceIds: subtask.resourceIds.map(Number),
+                    })),
                   };
                   if (isEditing) {
-                    await apiJson(`/api/events/${selectedId}`, "PATCH", payload);
+                    const saved = await apiJson(
+                      `/api/events/${selectedId}`,
+                      "PATCH",
+                      payload,
+                    );
+                    selectEvent(saved);
                   } else {
                     await apiJson("/api/events", "POST", payload);
                     resetForm();
@@ -423,6 +616,194 @@ export default function EventsDemo() {
                       })),
                   ]}
                 />
+                <div className="space-y-4 rounded-xl border bg-muted/30 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <p className="text-sm font-medium">Event subtasks</p>
+                    <p className="text-xs text-muted-foreground">
+                      Create assignments scoped to this event.
+                    </p>
+                  </div>
+
+                  <AssignmentPicker
+                    key={`tasks-${selectedId ?? "new"}`}
+                    id="event-task"
+                    label="Attach existing task"
+                    placeholder="Select a task..."
+                    showSelected={false}
+                    selectedIds={taskIds}
+                    onChange={setTaskIds}
+                    options={[
+                      ...allTasks.map((task) => ({
+                        id: String(task.taskId),
+                        label:
+                          task.eventId && task.eventId !== selectedId
+                            ? `${task.name} (event #${task.eventId})`
+                            : task.name,
+                      })),
+                      ...(items.find((ev) => ev.eventId === selectedId)?.tasks ?? [])
+                        .filter(
+                          (task) => !allTasks.some((t) => t.taskId === task.taskId),
+                        )
+                        .map((task) => ({
+                          id: String(task.taskId),
+                          label: task.name,
+                        })),
+                    ]}
+                  />
+
+                  <div className="space-y-2">
+                    <Label htmlFor="subtask-title">Subtask title</Label>
+                    <Input
+                      id="subtask-title"
+                      placeholder="e.g. Finish slides for the welcome talk"
+                      value={subtaskTitle}
+                      onChange={(e) => setSubtaskTitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="subtask-assignee">Assignee</Label>
+                      <Select
+                        value={subtaskAssigneeId || null}
+                        items={members.map((member) => ({
+                          value: String(member.memberId),
+                          label: member.name,
+                        }))}
+                        itemToStringLabel={(value) =>
+                          members.find((member) => String(member.memberId) === String(value))
+                            ?.name ?? ""
+                        }
+                        onValueChange={(value) =>
+                          setSubtaskAssigneeId(value == null ? "" : String(value))
+                        }
+                      >
+                        <SelectTrigger id="subtask-assignee" className="w-full">
+                          <SelectValue placeholder="Select a member..." />
+                        </SelectTrigger>
+                        <SelectContent align="start" alignItemWithTrigger={false}>
+                          {members.map((member) => (
+                            <SelectItem
+                              key={member.memberId}
+                              value={String(member.memberId)}
+                            >
+                              {member.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="subtask-deadline">Due date</Label>
+                      <Input
+                        id="subtask-deadline"
+                        type="date"
+                        value={subtaskDeadline}
+                        onChange={(e) => setSubtaskDeadline(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <ResourceSearch
+                    resources={resources}
+                    selectedIds={subtaskResourceIds}
+                    onChange={setSubtaskResourceIds}
+                  />
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      disabled={!subtaskTitle.trim() || !subtaskDeadline}
+                      onClick={addDraftSubtask}
+                    >
+                      Add subtask
+                    </Button>
+                  </div>
+
+                  {taskIds.length === 0 && draftSubtasks.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No subtasks yet. Break this event into concrete assignments above.
+                    </p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {taskIds.map((taskId) => {
+                        const details = existingSubtaskDetails(taskId);
+                        return (
+                          <li
+                            key={`existing-${taskId}`}
+                            className="flex items-start justify-between gap-3 rounded-lg border bg-background p-3"
+                          >
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium">{details.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {details.assignee}
+                                {details.deadline
+                                  ? ` · due ${formatSubtaskDate(details.deadline)}`
+                                  : ""}
+                                {details.resources
+                                  ? ` · ${details.resources}`
+                                  : ""}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              size="icon-xs"
+                              variant="ghost"
+                              aria-label={`Remove ${details.name}`}
+                              onClick={() =>
+                                setTaskIds((current) =>
+                                  current.filter((id) => id !== taskId),
+                                )
+                              }
+                            >
+                              <XIcon />
+                            </Button>
+                          </li>
+                        );
+                      })}
+                      {draftSubtasks.map((subtask) => {
+                        const assignee =
+                          members.find(
+                            (member) => String(member.memberId) === subtask.assigneeId,
+                          )?.name ?? "Unassigned";
+                        const resourceLabels = subtask.resourceIds
+                          .map(
+                            (id) =>
+                              resources.find(
+                                (resource) => String(resource.resourceId) === id,
+                              )?.name,
+                          )
+                          .filter((label): label is string => Boolean(label));
+                        return (
+                          <li
+                            key={subtask.key}
+                            className="flex items-start justify-between gap-3 rounded-lg border bg-background p-3"
+                          >
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium">{subtask.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {assignee} · due {formatSubtaskDate(subtask.deadline)}
+                                {resourceLabels.length > 0
+                                  ? ` · ${resourceLabels.join(", ")}`
+                                  : ""}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              size="icon-xs"
+                              variant="ghost"
+                              aria-label={`Remove ${subtask.name}`}
+                              onClick={() =>
+                                setDraftSubtasks((current) =>
+                                  current.filter((item) => item.key !== subtask.key),
+                                )
+                              }
+                            >
+                              <XIcon />
+                            </Button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
               </CardContent>
               <CardFooter className="justify-end gap-2">
                 {isEditing && (
@@ -483,6 +864,17 @@ export default function EventsDemo() {
                                 Resources: {resourceNames.join(", ")}
                               </p>
                             )}
+                            {ev.tasks && ev.tasks.length > 0 && (
+                              <p className="text-xs text-muted-foreground">
+                                Tasks:{" "}
+                                {ev.tasks
+                                  .map(
+                                    (t) =>
+                                      `${t.name}${t.budget ? ` ($${t.budget})` : ""}`,
+                                  )
+                                  .join(", ")}
+                              </p>
+                            )}
                           </button>
                           <div className="flex shrink-0 flex-col items-end gap-1">
                             <Badge variant="secondary">{ev.location?.name ?? "No venue"}</Badge>
@@ -505,55 +897,6 @@ export default function EventsDemo() {
                               Delete
                             </Button>
                           </div>
-                        </div>
-
-                        {ev.tasks && ev.tasks.length > 0 && (
-                          <ul className="space-y-1 text-xs text-muted-foreground">
-                            {ev.tasks.map((t) => (
-                              <li key={t.taskId}>
-                                #{t.taskId} {t.name}
-                                {t.budget ? ` · $${t.budget}` : ""}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-
-                        <div className="flex items-center gap-2">
-                          <Select
-                            value={assignSelections[ev.eventId] || null}
-                            onValueChange={(value) =>
-                              setAssignSelections((prev) => ({
-                                ...prev,
-                                [ev.eventId]: value == null ? "" : String(value),
-                              }))
-                            }
-                          >
-                            <SelectTrigger className="min-w-0 flex-1">
-                              <SelectValue placeholder="Assign existing task..." />
-                            </SelectTrigger>
-                            <SelectContent
-                              align="start"
-                              alignItemWithTrigger={false}
-                            >
-                              {allTasks
-                                .filter((t) => t.eventId !== ev.eventId)
-                                .map((t) => (
-                                  <SelectItem key={t.taskId} value={String(t.taskId)}>
-                                    #{t.taskId} {t.name}
-                                    {t.eventId ? ` (event #${t.eventId})` : " (unassigned)"}
-                                  </SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="secondary"
-                            disabled={!assignSelections[ev.eventId]}
-                            onClick={() => assignTask(ev.eventId)}
-                          >
-                            Assign
-                          </Button>
                         </div>
                       </li>
                     );

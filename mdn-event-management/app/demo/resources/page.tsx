@@ -25,12 +25,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Combobox,
+  ComboboxCollection,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxList,
+  ComboboxItem,
+} from "@/components/ui/combobox";
 import {
   Table,
   TableBody,
@@ -41,6 +43,7 @@ import {
 } from "@/components/ui/table";
 import { fetchSessionRole, resourcePermissions, type Capabilities } from "@/lib/permissions";
 import { resourceTypeStyle } from "@/lib/resourceTypeColor";
+import { fuzzyMatches } from "@/lib/fuzzyFilter";
 import { searchResources, typeNameOf } from "@/lib/fuzzyResources";
 import type { Booking } from "@/lib/timeline";
 import { ResourceTimeline } from "./resource-timeline";
@@ -152,6 +155,12 @@ export default function ResourcesDemo() {
         kind: a.bookable?.bookableType,
       }));
   }, [timelineFor, allocations, bookableNames]);
+
+  const typeOptions = useMemo(
+    () => types.map((type) => ({ id: String(type.typeId), name: type.name })),
+    [types],
+  );
+  const selectedType = typeOptions.find((o) => o.id === resourceTypeId) ?? null;
 
   const isEditing = selectedId != null;
   const canSubmit = isEditing ? can.edit : can.create;
@@ -457,36 +466,40 @@ export default function ResourcesDemo() {
 
               <div className="space-y-2">
                 <Label htmlFor="resource-type">Resource type</Label>
-                <Select
-                  value={resourceTypeId || null}
-                  items={types.map((type) => ({
-                    value: String(type.typeId),
-                    label: type.name,
-                  }))}
-                  itemToStringLabel={(value) =>
-                    types.find((type) => String(type.typeId) === String(value))?.name ?? ""
-                  }
-                  onValueChange={(value) =>
-                    setResourceTypeId(value == null ? "" : String(value))
-                  }
+                <Combobox
+                  items={typeOptions}
+                  value={selectedType}
+                  onValueChange={(option) => setResourceTypeId(option ? option.id : "")}
+                  itemToStringLabel={(option) => option.name}
+                  isItemEqualToValue={(a, b) => a?.id === b?.id}
+                  filter={(item, query) => fuzzyMatches(item.name, query)}
                 >
-                  <SelectTrigger id="resource-type" className="w-full" disabled={!canSubmit}>
-                    <SelectValue placeholder="Type..." />
-                  </SelectTrigger>
-                  <SelectContent align="start" alignItemWithTrigger={false}>
-                    {types.map((type) => (
-                      <SelectItem key={type.typeId} value={String(type.typeId)}>
-                        <span className="flex items-center gap-2">
-                          <span
-                            className="type-dot size-2.5 shrink-0 rounded-full"
-                            style={resourceTypeStyle(type.name)}
-                          />
-                          {type.name}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <ComboboxInput
+                    id="resource-type"
+                    placeholder="Search types..."
+                    disabled={!canSubmit}
+                    showClear
+                    className="w-full"
+                  />
+                  <ComboboxContent>
+                    <ComboboxEmpty>No types match.</ComboboxEmpty>
+                    <ComboboxList>
+                      <ComboboxCollection>
+                        {(option: (typeof typeOptions)[number]) => (
+                          <ComboboxItem key={option.id} value={option}>
+                            <span className="flex min-w-0 flex-1 items-center gap-2">
+                              <span
+                                className="type-dot size-2.5 shrink-0 rounded-full"
+                                style={resourceTypeStyle(option.name)}
+                              />
+                              <span className="truncate">{option.name}</span>
+                            </span>
+                          </ComboboxItem>
+                        )}
+                      </ComboboxCollection>
+                    </ComboboxList>
+                  </ComboboxContent>
+                </Combobox>
                 {types.length === 0 && (
                   <p className="text-xs text-muted-foreground">
                     No types exist yet.{" "}

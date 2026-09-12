@@ -24,12 +24,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Combobox,
+  ComboboxCollection,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxList,
+  ComboboxItem,
+} from "@/components/ui/combobox";
 import {
   Table,
   TableBody,
@@ -41,6 +43,7 @@ import {
 import { formatDateTime, formatDuration, toDatetimeLocal } from "@/lib/datetime";
 import { allocationPermissions, fetchSessionRole, type Capabilities } from "@/lib/permissions";
 import { resourceTypeStyle } from "@/lib/resourceTypeColor";
+import { fuzzyMatches } from "@/lib/fuzzyFilter";
 import { searchAllocations } from "@/lib/fuzzyAllocations";
 import { apiJson } from "../api";
 
@@ -166,6 +169,35 @@ export default function AllocationsDemo() {
       setError("");
     }
   }
+
+  /** Combobox options. `search` is what the fuzzy filter reads, so a resource
+   *  is findable by its type as well as its name. */
+  const resourceOptions = useMemo(
+    () =>
+      resources.map((r) => ({
+        id: String(r.resourceId),
+        name: r.name,
+        typeName: r.resourceTypeRel?.name,
+        search: `${r.name} ${r.resourceTypeRel?.name ?? ""}`,
+      })),
+    [resources],
+  );
+
+  const bookableOptions = useMemo(
+    () =>
+      bookables.map((b) => ({
+        id: String(b.id),
+        name: b.name,
+        kind: b.kind,
+        search: `${b.kind} ${b.name}`,
+      })),
+    [bookables],
+  );
+
+  const selectedResource =
+    resourceOptions.find((o) => o.id === resourceId) ?? null;
+  const selectedBookable =
+    bookableOptions.find((o) => o.id === bookableId) ?? null;
 
   const isEditing = selectedId != null;
   const canSubmit = isEditing ? can.edit : can.create;
@@ -428,63 +460,91 @@ export default function AllocationsDemo() {
 
               <div className="space-y-2">
                 <Label htmlFor="allocation-resource">Resource</Label>
-                <Select
-                  value={resourceId || null}
-                  items={resources.map((r) => ({
-                    value: String(r.resourceId),
-                    label: r.name,
-                  }))}
-                  itemToStringLabel={(value) =>
-                    resources.find((r) => String(r.resourceId) === String(value))?.name ?? ""
-                  }
-                  onValueChange={(value) =>
-                    setResourceId(value == null ? "" : String(value))
-                  }
+                <Combobox
+                  items={resourceOptions}
+                  value={selectedResource}
+                  onValueChange={(option) => setResourceId(option ? option.id : "")}
+                  itemToStringLabel={(option) => option.name}
+                  isItemEqualToValue={(a, b) => a?.id === b?.id}
+                  filter={(item, query) => fuzzyMatches(item.search, query)}
                 >
-                  <SelectTrigger id="allocation-resource" className="w-full" disabled={!canSubmit}>
-                    <SelectValue placeholder="Resource..." />
-                  </SelectTrigger>
-                  <SelectContent align="start" alignItemWithTrigger={false}>
-                    {resources.map((r) => (
-                      <SelectItem key={r.resourceId} value={String(r.resourceId)}>
-                        <span className="flex items-center gap-2">
-                          {r.resourceTypeRel?.name && (
-                            <span
-                              className="type-dot size-2.5 shrink-0 rounded-full"
-                              style={resourceTypeStyle(r.resourceTypeRel.name)}
-                            />
-                          )}
-                          {r.name}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <ComboboxInput
+                    id="allocation-resource"
+                    placeholder="Search resources..."
+                    disabled={!canSubmit}
+                    showClear
+                    className="w-full"
+                  />
+                  <ComboboxContent>
+                    <ComboboxEmpty>No resources match.</ComboboxEmpty>
+                    <ComboboxList>
+                      <ComboboxCollection>
+                        {(option: (typeof resourceOptions)[number]) => (
+                          <ComboboxItem key={option.id} value={option}>
+                            <span className="flex min-w-0 flex-1 items-center gap-2">
+                              {option.typeName && (
+                                <span
+                                  className="type-dot size-2.5 shrink-0 rounded-full"
+                                  style={resourceTypeStyle(option.typeName)}
+                                />
+                              )}
+                              <span className="truncate">{option.name}</span>
+                              {option.typeName && (
+                                <Badge
+                                  variant="outline"
+                                  className="type-swatch ml-auto shrink-0"
+                                  style={resourceTypeStyle(option.typeName)}
+                                >
+                                  {option.typeName}
+                                </Badge>
+                              )}
+                            </span>
+                          </ComboboxItem>
+                        )}
+                      </ComboboxCollection>
+                    </ComboboxList>
+                  </ComboboxContent>
+                </Combobox>
+                <p className="text-xs text-muted-foreground">
+                  Search by resource name or type.
+                </p>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="allocation-bookable">Booked for</Label>
-                <Select
-                  value={bookableId || null}
-                  items={bookables.map((b) => ({ value: String(b.id), label: b.label }))}
-                  itemToStringLabel={(value) =>
-                    bookables.find((b) => String(b.id) === String(value))?.label ?? ""
-                  }
-                  onValueChange={(value) =>
-                    setBookableId(value == null ? "" : String(value))
-                  }
+                <Combobox
+                  items={bookableOptions}
+                  value={selectedBookable}
+                  onValueChange={(option) => setBookableId(option ? option.id : "")}
+                  itemToStringLabel={(option) => option.name}
+                  isItemEqualToValue={(a, b) => a?.id === b?.id}
+                  filter={(item, query) => fuzzyMatches(item.search, query)}
                 >
-                  <SelectTrigger id="allocation-bookable" className="w-full" disabled={!canSubmit}>
-                    <SelectValue placeholder="Event or task..." />
-                  </SelectTrigger>
-                  <SelectContent align="start" alignItemWithTrigger={false}>
-                    {bookables.map((b) => (
-                      <SelectItem key={b.id} value={String(b.id)}>
-                        {b.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <ComboboxInput
+                    id="allocation-bookable"
+                    placeholder="Search events and tasks..."
+                    disabled={!canSubmit}
+                    showClear
+                    className="w-full"
+                  />
+                  <ComboboxContent>
+                    <ComboboxEmpty>No events or tasks match.</ComboboxEmpty>
+                    <ComboboxList>
+                      <ComboboxCollection>
+                        {(option: (typeof bookableOptions)[number]) => (
+                          <ComboboxItem key={option.id} value={option}>
+                            <span className="flex min-w-0 flex-1 items-center gap-2">
+                              <Badge variant="secondary" className="shrink-0">
+                                {option.kind}
+                              </Badge>
+                              <span className="truncate">{option.name}</span>
+                            </span>
+                          </ComboboxItem>
+                        )}
+                      </ComboboxCollection>
+                    </ComboboxList>
+                  </ComboboxContent>
+                </Combobox>
                 {bookables.length === 0 && (
                   <p className="text-xs text-muted-foreground">
                     No events or tasks exist yet — create one first.

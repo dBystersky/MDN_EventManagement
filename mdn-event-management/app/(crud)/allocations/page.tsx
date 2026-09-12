@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiJson } from "../api";
+import { apiJson } from "@/lib/api-json";
 
 type Allocation = { allocationId: number; bookableId: number; startTime: string; endTime: string; resource?: { name: string } };
 type Resource = { resourceId: number; name: string };

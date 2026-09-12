@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiJson } from "../api";
+import { apiJson } from "@/lib/api-json";
 
 type Task = {
   taskId: number;

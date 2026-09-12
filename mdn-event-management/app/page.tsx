@@ -88,10 +88,10 @@ export default function Home() {
 
             <div className="mt-6 pt-6 border-t border-slate-800 flex justify-between">
               <Link
-                href="/demo"
+                href="/events"
                 className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm rounded-xl transition duration-200 shadow-md"
               >
-                CRUD demo
+                Manage events
               </Link>
               <button
                 onClick={handleLogout}

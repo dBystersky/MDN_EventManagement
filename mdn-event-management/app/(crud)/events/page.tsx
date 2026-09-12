@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiJson } from "../api";
+import { apiJson } from "@/lib/api-json";
 
 type EventTask = { taskId: number; name: string; budget: string | null };
 type EventItem = {

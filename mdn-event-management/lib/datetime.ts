@@ -1,7 +1,7 @@
 /**
  * Date helpers shared by the demo pages.
  *
- * Lifted from the inline copies in `app/demo/events/page.tsx`; the events page
+ * Lifted from the inline copies in `app/(crud)/events/page.tsx`; the events page
  * keeps its own for now so its diff stays at zero, and can adopt these later.
  */
 

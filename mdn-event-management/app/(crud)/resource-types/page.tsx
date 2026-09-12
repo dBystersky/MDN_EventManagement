@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { fetchSessionRole, resourceTypePermissions, type Capabilities } from "@/lib/permissions";
 import { resourceTypeStyle } from "@/lib/resourceTypeColor";
-import { apiJson } from "../api";
+import { apiJson } from "@/lib/api-json";
 
 type ResourceType = { typeId: number; name: string };
 type Resource = { resourceId: number; resourceType: number };

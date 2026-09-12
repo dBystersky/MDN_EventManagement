@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { apiJson } from "../api";
+import { apiJson } from "@/lib/api-json";
 
 type EventTask = { taskId: number; name: string; budget: string | null };
 type Location = { locationId: number; name: string };

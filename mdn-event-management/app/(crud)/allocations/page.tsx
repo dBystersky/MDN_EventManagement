@@ -45,7 +45,7 @@ import { allocationPermissions, fetchSessionRole, type Capabilities } from "@/li
 import { resourceTypeStyle } from "@/lib/resourceTypeColor";
 import { fuzzyMatches } from "@/lib/fuzzyFilter";
 import { searchAllocations } from "@/lib/fuzzyAllocations";
-import { apiJson } from "../api";
+import { apiJson } from "@/lib/api-json";
 
 type Allocation = {
   allocationId: number;

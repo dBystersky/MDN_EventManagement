@@ -47,7 +47,7 @@ import { fuzzyMatches } from "@/lib/fuzzyFilter";
 import { searchResources, typeNameOf } from "@/lib/fuzzyResources";
 import type { Booking } from "@/lib/timeline";
 import { ResourceTimeline } from "./resource-timeline";
-import { apiJson } from "../api";
+import { apiJson } from "@/lib/api-json";
 
 type ResourceType = { typeId: number; name: string };
 type Allocation = {
@@ -504,7 +504,7 @@ export default function ResourcesDemo() {
                   <p className="text-xs text-muted-foreground">
                     No types exist yet.{" "}
                     <Link
-                      href="/demo/resource-types"
+                      href="/resource-types"
                       className="text-primary underline underline-offset-4"
                     >
                       Create a resource type

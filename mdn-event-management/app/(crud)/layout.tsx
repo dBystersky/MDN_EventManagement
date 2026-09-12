@@ -1,13 +1,13 @@
-import { DemoNav } from "./nav";
+import { CrudNav } from "./nav";
 
-export default function DemoLayout({
+export default function CrudLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
     <div className="min-h-screen bg-white font-sans text-gray-900">
-      <DemoNav />
+      <CrudNav />
       <main className="mx-auto max-w-3xl p-8">{children}</main>
     </div>
   );

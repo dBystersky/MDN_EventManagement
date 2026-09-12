@@ -67,6 +67,38 @@
     border-color: oklch(0.44 0.07 var(--type-hue, 0));
   }
 
+  /*
+   * Horizontal scroller for the booking timeline. Browsers that use overlay
+   * scrollbars hide the affordance until you scroll, so the thumb is styled
+   * explicitly and the gutter reserved to stop the plot shifting when it
+   * appears. min-width:0 lets it clip inside grid/flex parents.
+   */
+  .timeline-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    min-width: 0;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: var(--muted-foreground) transparent;
+  }
+
+  .timeline-scroll::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  .timeline-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .timeline-scroll::-webkit-scrollbar-thumb {
+    background-color: var(--muted-foreground);
+    border-radius: 4px;
+  }
+
+  .timeline-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: var(--foreground);
+  }
+
   /* Saturated variant, for a small solid dot rather than a filled label. */
   .type-dot {
     background-color: oklch(0.62 0.16 var(--type-hue, 0));

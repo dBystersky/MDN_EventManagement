@@ -55,6 +55,57 @@ function tickLabel(time: number, spanMs: number): string {
   return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
+/** Narrowest a bar may get before it stops being readable or clickable. */
+const MIN_BAR_PX = 28;
+/**
+ * Safety net only. MIN_WIDTH_PCT already floors the narrowest bar at 0.75%, so
+ * the computed width cannot currently exceed ~3734px and this never binds — it
+ * exists so lowering that floor cannot produce an absurd canvas.
+ */
+const MAX_PLOT_PX = 4000;
+
+/**
+ * How wide the plot needs to be for the *shortest* booking to stay legible.
+ *
+ * A shared linear axis means one long booking compresses every short one — a
+ * 20-day booking beside a 3-hour one squeezes the latter below a pixel. Rather
+ * than distort the axis, widen the canvas and let it scroll.
+ *
+ * Returns 0 when the natural width is fine, i.e. no widening needed.
+ */
+export function plotWidthPx(model: TimelineModel): number {
+  if (model.bookings.length === 0) return 0;
+  const smallestPct = Math.min(...model.bookings.map((b) => b.widthPct));
+  if (smallestPct <= 0) return 0;
+  const needed = Math.ceil((MIN_BAR_PX * 100) / smallestPct);
+  return Math.min(needed, MAX_PLOT_PX);
+}
+
+/** Roughly one axis label per 220px, so a wide plot is not under-labelled. */
+export function tickCountFor(plotWidth: number): number {
+  return Math.max(4, Math.min(12, Math.round(plotWidth / 220)));
+}
+
+/**
+ * Where "now" falls on the plot, as a percentage of the domain.
+ *
+ * Deliberately NOT clamped to 0-100: a value outside that range is how the
+ * caller knows the current time sits outside this resource's booked window, and
+ * which side of it.
+ */
+export function nowPct(model: TimelineModel, now: number): number {
+  const span = model.domainEnd - model.domainStart;
+  if (span <= 0) return 0;
+  return ((now - model.domainStart) / span) * 100;
+}
+
+/** Whether "now" is inside the plotted window, i.e. worth drawing a marker for. */
+export function isNowVisible(model: TimelineModel, now: number): boolean {
+  return (
+    model.bookings.length > 0 && now >= model.domainStart && now <= model.domainEnd
+  );
+}
+
 export function buildTimeline(bookings: readonly Booking[], tickCount = 4): TimelineModel {
   const parsed = bookings
     .map((b) => ({

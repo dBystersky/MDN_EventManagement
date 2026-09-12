@@ -369,7 +369,10 @@ export default function ResourcesDemo() {
             <DialogDescription>When this resource is booked.</DialogDescription>
           </DialogHeader>
 
-          <div className="py-2">
+          {/* min-w-0: DialogContent is a grid, and a grid item defaults to
+              min-width:auto — without this it stretches to the plot's full
+              intrinsic width instead of letting the scroller clip it. */}
+          <div className="min-w-0 py-2">
             <ResourceTimeline
               bookings={timelineBookings}
               typeName={timelineFor ? typeNameOf(timelineFor, types) : undefined}

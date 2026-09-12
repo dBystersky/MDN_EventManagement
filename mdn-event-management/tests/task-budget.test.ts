@@ -181,6 +181,130 @@ describe("Task budget -> Event total rollup", () => {
     assert.equal(Number(eventB.totalBudget), 25);
   });
 
+  it("creating an event with taskIds assigns those tasks and rolls up budget", async () => {
+    const createdTask = await tasksApi("POST", "", {
+      name: "Assigned at event create",
+      description: "",
+      deadline: "2026-08-27T00:00:00.000Z",
+      budget: 40,
+    });
+    assert.equal(createdTask.status, 201);
+    const taskId = asTask(createdTask.json).taskId;
+    createdTaskIds.push(taskId);
+
+    const createdEvent = await eventsApi("POST", "", {
+      name: "Event with tasks at create",
+      description: "",
+      date: "2026-09-06T00:00:00.000Z",
+      locationId,
+      taskIds: [taskId],
+    });
+    assert.equal(createdEvent.status, 201);
+    const created = asEvent(createdEvent.json);
+    assert.equal(Number(created.totalBudget), 40);
+
+    const task = asTask((await tasksApi("GET", `/${taskId}`)).json);
+    assert.equal(task.eventId, created.eventId);
+
+    await eventsApi("DELETE", `/${created.eventId}`);
+  });
+
+  it("creating an event with subtasks stores them as assigned tasks", async () => {
+    const createdEvent = await eventsApi("POST", "", {
+      name: "Event with inline subtasks",
+      description: "",
+      date: "2026-09-08T00:00:00.000Z",
+      locationId,
+      subtasks: [
+        {
+          name: "Print programmes",
+          deadline: "2026-09-01T00:00:00.000Z",
+          budget: 30,
+        },
+        {
+          name: "Brief volunteers",
+          deadline: "2026-09-02T00:00:00.000Z",
+        },
+      ],
+    });
+    assert.equal(createdEvent.status, 201);
+    const created = createdEvent.json as Event & {
+      eventId: number;
+      totalBudget: string;
+      tasks: Array<{ taskId: number; name: string; eventId: number | null }>;
+    };
+    assert.equal(Number(created.totalBudget), 30);
+    assert.equal(created.tasks.length, 2);
+    assert.deepEqual(
+      created.tasks.map((task) => task.name).sort(),
+      ["Brief volunteers", "Print programmes"],
+    );
+    for (const task of created.tasks) {
+      createdTaskIds.push(task.taskId);
+      assert.equal(task.eventId, created.eventId);
+    }
+
+    const updated = await eventsApi("PATCH", `/${created.eventId}`, {
+      subtasks: [
+        {
+          name: "Set up signage",
+          deadline: "2026-09-03T00:00:00.000Z",
+        },
+      ],
+    });
+    assert.equal(updated.status, 200);
+    const updatedEvent = updated.json as {
+      tasks: Array<{ taskId: number; name: string; eventId: number }>;
+    };
+    const createdNames = updatedEvent.tasks.map((task) => task.name);
+    assert.ok(createdNames.includes("Set up signage"));
+    assert.ok(createdNames.includes("Print programmes"));
+    for (const task of updatedEvent.tasks) {
+      if (!createdTaskIds.includes(task.taskId)) {
+        createdTaskIds.push(task.taskId);
+      }
+    }
+
+    await eventsApi("DELETE", `/${created.eventId}`);
+  });
+
+  it("updating an event taskIds list assigns and unassigns tasks", async () => {
+    const keep = await tasksApi("POST", "", {
+      name: "Keep on event",
+      description: "",
+      deadline: "2026-08-28T00:00:00.000Z",
+      budget: 12,
+    });
+    const drop = await tasksApi("POST", "", {
+      name: "Drop from event",
+      description: "",
+      deadline: "2026-08-28T00:00:00.000Z",
+      budget: 8,
+    });
+    const keepId = asTask(keep.json).taskId;
+    const dropId = asTask(drop.json).taskId;
+    createdTaskIds.push(keepId, dropId);
+
+    const createdEvent = await eventsApi("POST", "", {
+      name: "Event task sync",
+      description: "",
+      date: "2026-09-07T00:00:00.000Z",
+      locationId,
+      taskIds: [keepId, dropId],
+    });
+    assert.equal(createdEvent.status, 201);
+    const eventId = asEvent(createdEvent.json).eventId;
+    assert.equal(Number(asEvent(createdEvent.json).totalBudget), 20);
+
+    const updated = await eventsApi("PATCH", `/${eventId}`, { taskIds: [keepId] });
+    assert.equal(updated.status, 200);
+    assert.equal(Number(asEvent(updated.json).totalBudget), 12);
+    assert.equal(asTask((await tasksApi("GET", `/${keepId}`)).json).eventId, eventId);
+    assert.equal(asTask((await tasksApi("GET", `/${dropId}`)).json).eventId, null);
+
+    await eventsApi("DELETE", `/${eventId}`);
+  });
+
   it("rejects a negative budget on create", async () => {
     const { status } = await tasksApi("POST", "", {
       name: "Invalid budget task",

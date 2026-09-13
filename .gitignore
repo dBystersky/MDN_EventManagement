@@ -3,5 +3,5 @@ package-lock.json
 package.json
 node_modules
 
-# local Postgres data dir (each teammate runs their own — see prisma-notes.md)
+# local Postgres data dir (each teammate runs their own — see docs/setup.md)
 /postgres/

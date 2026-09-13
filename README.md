@@ -15,6 +15,17 @@ Backend:
 - Express.js
 - Node.js
 
-## Local DB setup
+## Docs
 
-See [prisma-notes.md](./prisma-notes.md) — each teammate runs Postgres locally (Docker) and applies migrations with `npx prisma migrate dev`.
+- [Setup (Docker / podman)](./docs/setup.md) — first-time local setup: Postgres container, `.env`, migrations
+- [Updating the DB schema](./docs/database.md) — the Prisma migration workflow
+- [Running the test server](./docs/dev-server.md) — start/stop the dev server, run the test suite
+
+## Quickstart
+
+Already set up? Start the two servers:
+
+```bash
+docker start mdn-postgres        # or: podman start mdn-postgres
+cd mdn-event-management && npm run dev
+```

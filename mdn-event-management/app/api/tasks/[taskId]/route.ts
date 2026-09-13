@@ -44,6 +44,9 @@ export async function PATCH(request: Request, context: RouteParams) {
             deadline: body.deadline !== undefined ? new Date(body.deadline) : undefined,
             eventId: body.eventId,
             budget: body.budget,
+            managerIds: Array.isArray(body.managerIds)
+                ? body.managerIds.map(Number).filter((memberId: number) => Number.isFinite(memberId))
+                : undefined,
         });
 
         // Return the updated task

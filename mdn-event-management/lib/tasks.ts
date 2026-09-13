@@ -1,5 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { recalculateEventTotalBudget } from "@/lib/events";
+import { memberPublicSelect } from "@/lib/members";
+
+const taskInclude = {
+    bookable: true,
+    taskManagers: { include: { member: { select: memberPublicSelect } } },
+} as const;
 
 type createTaskInput = {
     name: string;
@@ -24,10 +30,7 @@ export async function createTask(input: createTaskInput) {
                     ? { create: input.managerIds.map((memberId: number) => ({ memberId }))}
                     : undefined,
             },
-            include: {
-                bookable: true,
-                taskManagers: { include: { member: true } }
-            }
+            include: taskInclude,
         });
 
         if (input.eventId) {
@@ -42,20 +45,14 @@ export async function listTasks(filter?: { eventId?: number }) {
     return prisma.task.findMany({
         where: filter?.eventId !== undefined ? { eventId: filter.eventId } : undefined,
         orderBy: { deadline: "asc" },
-        include: {
-            bookable: true,
-            taskManagers: { include: { member: true } }
-        }
+        include: taskInclude,
     })
 }
 
 export async function readTask(taskId: number) {
     return prisma.task.findUnique({
         where: { taskId },
-        include: {
-            bookable: true,
-            taskManagers: { include: { member: true } }
-        }
+        include: taskInclude,
     })
 }
 
@@ -65,6 +62,7 @@ type updateTaskInput = {
     deadline?: Date;
     eventId?: number | null;
     budget?: number | null;
+    managerIds?: number[];
 }
 
 export async function updateTask(taskId: number, input: updateTaskInput) {
@@ -86,11 +84,16 @@ export async function updateTask(taskId: number, input: updateTaskInput) {
                     : input.eventId === null
                         ? { disconnect: true }
                         : { connect: { eventId: input.eventId } },
+                ...(input.managerIds !== undefined
+                    ? {
+                        taskManagers: {
+                            deleteMany: {},
+                            create: input.managerIds.map((memberId) => ({ memberId })),
+                        },
+                    }
+                    : {}),
             },
-            include: {
-                bookable: true,
-                taskManagers: { include: { member: true } },
-            }
+            include: taskInclude,
         });
 
         const budgetOrEventChanged = input.budget !== undefined || input.eventId !== undefined;

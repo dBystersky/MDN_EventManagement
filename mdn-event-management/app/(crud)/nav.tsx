@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/resource-types", label: "Resource types" },
   { href: "/resources", label: "Resources" },
   { href: "/allocations", label: "Allocations" },
+  { href: "/members", label: "Members" },
 ];
 
 const navLinkClass = cn(

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { CircleAlertIcon } from 'lucide-react';
 
@@ -19,7 +18,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -40,11 +38,13 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to log in');
+        throw new Error(data.error || 'Incorrect email or password');
       }
 
-      router.push('/events');
-      router.refresh();
+      // Use full navigation instead of client-side routing so the
+      // browser picks up the newly-set auth cookie reliably
+      // (fixes redirect issues when accessing over network/IP)
+      window.location.href = '/events';
     } catch (err: any) {
       setError(err.message);
     } finally {

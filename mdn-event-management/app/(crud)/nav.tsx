@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { LogoutButton } from "./logout-button";
 
 const LINKS = [
   { href: "/locations", label: "Locations" },
@@ -65,7 +66,7 @@ export function CrudNav({ user }: CrudNavProps) {
         </Link>
       )}
 
-      <nav className="mt-8 flex flex-row flex-wrap gap-1 md:flex-col">
+      <nav className="mt-8 flex flex-row flex-wrap gap-1 md:flex-col md:flex-1">
         {LINKS.map((l) => {
           const active = pathname === l.href || pathname.startsWith(`${l.href}/`);
           return (
@@ -85,6 +86,7 @@ export function CrudNav({ user }: CrudNavProps) {
             </Link>
           );
         })}
+        {user && <LogoutButton className="ml-auto md:mt-auto md:ml-0 md:w-full md:justify-start md:rounded-full md:px-4 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground" />}
       </nav>
     </aside>
   );

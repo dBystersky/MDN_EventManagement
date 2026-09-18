@@ -193,10 +193,10 @@ export default function TasksDemo() {
   }
 
   return (
-    <section className="relative left-1/2 w-screen -translate-x-1/2 -my-8 min-h-[calc(100vh-3.25rem)] bg-linear-to-b from-primary from-0% via-primary via-[45%] to-secondary px-6 py-8 md:px-10">
-      <div className="mx-auto max-w-6xl space-y-6">
+    <section>
+      <div className="space-y-6">
         <header>
-          <h1 className="font-heading text-3xl font-medium tracking-tight text-primary-foreground">
+          <h1 className="text-2xl font-bold">
             Tasks
           </h1>
         </header>

@@ -134,6 +134,25 @@ describe("Task CRUD API", () => {
     assert.equal(task.deadline, "2026-12-01T00:00:00.000Z");
   });
 
+  it("PATCH replaces manager assignments", async () => {
+    const created = await api("POST", "", {
+      name: "Needs a manager",
+      description: "",
+      deadline: "2026-09-01T00:00:00.000Z",
+    });
+    const taskId = asTask(created.json).taskId;
+    createdTaskIds.push(taskId);
+
+    const assigned = await api("PATCH", `/${taskId}`, { managerIds: [memberA] });
+    assert.equal(assigned.status, 200);
+    assert.equal(asTask(assigned.json).taskManagers?.length, 1);
+    assert.equal(asTask(assigned.json).taskManagers?.[0]?.memberId, memberA);
+
+    const cleared = await api("PATCH", `/${taskId}`, { managerIds: [] });
+    assert.equal(cleared.status, 200);
+    assert.equal(asTask(cleared.json).taskManagers?.length, 0);
+  });
+
   it("PATCH returns 404 for unknown task", async () => {
     const { status } = await api("PATCH", "/999999", { name: "Nope" });
     assert.equal(status, 404);

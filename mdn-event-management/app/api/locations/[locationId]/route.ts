@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAuthSession, isGuest } from "@/lib/auth";
 import { getLocation, updateLocation, deleteLocation } from "@/lib/locations";
 
 type RouteParams = {
@@ -6,6 +7,10 @@ type RouteParams = {
 }
 
 export async function GET(request: Request, context: RouteParams) {
+    if (isGuest(await getAuthSession())) {
+        return NextResponse.json({ error: "Forbidden — guests have read-only calendar access" }, { status: 403 });
+    }
+
         // Extract the locationId from the URL parameters
         const { locationId } = await context.params;
         const id  = Number(locationId);
@@ -22,6 +27,10 @@ export async function GET(request: Request, context: RouteParams) {
 }
 
 export async function PATCH(request: Request, context: RouteParams, ) {
+    if (isGuest(await getAuthSession())) {
+        return NextResponse.json({ error: "Forbidden — guests have read-only calendar access" }, { status: 403 });
+    }
+
     const { locationId } = await context.params;
     const id = Number(locationId);
     
@@ -38,6 +47,10 @@ export async function PATCH(request: Request, context: RouteParams, ) {
 }
 
 export async function DELETE(request: Request, context: RouteParams) {
+    if (isGuest(await getAuthSession())) {
+        return NextResponse.json({ error: "Forbidden — guests have read-only calendar access" }, { status: 403 });
+    }
+
     const { locationId } = await context.params;
     const id = Number(locationId);
 

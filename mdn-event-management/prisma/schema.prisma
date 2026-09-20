@@ -16,6 +16,7 @@ enum MemberRole {
   Member
   Manager
   Admin
+  Guest
 
   @@map("member_role")
 }

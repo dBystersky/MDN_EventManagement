@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'mdn_event_management_secret_key_change_in_production_2026';
 export const AUTH_COOKIE_NAME = 'mdn_auth_token';
@@ -37,4 +38,18 @@ export async function getAuthSession(): Promise<UserSession | null> {
   const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
   if (!token) return null;
   return verifyToken(token);
+}
+
+/** Guests are external, read-only visitors — calendar access only. */
+export function isGuest(session: UserSession | null): boolean {
+  return session?.role === 'Guest';
+}
+
+/** Server Component page guard: bounces guests to the one page they're allowed on. */
+export async function requireNonGuestPage(): Promise<UserSession | null> {
+  const session = await getAuthSession();
+  if (isGuest(session)) {
+    redirect('/calendar');
+  }
+  return session;
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createEvent, listEvents, parseEventSubtasks } from "@/lib/events";
 import { Prisma } from "@/generated/prisma/client";
+import { getAuthSession, isGuest } from "@/lib/auth";
 
 // Function to get all events from the API
 export async function GET() {
@@ -14,6 +15,10 @@ export async function GET() {
 
 // Function to create a new event
 export async function POST(request: Request) {
+    if (isGuest(await getAuthSession())) {
+        return NextResponse.json({ error: "Forbidden — guests have read-only calendar access" }, { status: 403 });
+    }
+
     const body = await request.json();
 
     try {

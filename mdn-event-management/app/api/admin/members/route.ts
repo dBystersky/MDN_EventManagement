@@ -41,6 +41,7 @@ export async function POST(request: Request) {
     let memberRole: MemberRole = MemberRole.Member;
     if (role === 'Manager') memberRole = MemberRole.Manager;
     if (role === 'Admin') memberRole = MemberRole.Admin;
+    if (role === 'Guest') memberRole = MemberRole.Guest;
 
     const member = await prisma.member.create({
       data: {

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAuthSession, isGuest } from "@/lib/auth";
 import { getResourceType, updateResourceType, deleteResourceType } from "@/lib/resourceTypes";
 import { Prisma } from "@/generated/prisma/client";
 
@@ -7,6 +8,10 @@ type RouteParams = {
 }
 
 export async function GET(request: Request, context: RouteParams) {
+    if (isGuest(await getAuthSession())) {
+        return NextResponse.json({ error: "Forbidden — guests have read-only calendar access" }, { status: 403 });
+    }
+
     const { typeId } = await context.params;
     const id  = Number(typeId);
 
@@ -19,6 +24,10 @@ export async function GET(request: Request, context: RouteParams) {
 }
 
 export async function PATCH(request: Request, context: RouteParams) {
+    if (isGuest(await getAuthSession())) {
+        return NextResponse.json({ error: "Forbidden — guests have read-only calendar access" }, { status: 403 });
+    }
+
     const { typeId } = await context.params;
     const id = Number(typeId);
     const body = await request.json();
@@ -35,6 +44,10 @@ export async function PATCH(request: Request, context: RouteParams) {
 }
 
 export async function DELETE(request: Request, context: RouteParams) {
+    if (isGuest(await getAuthSession())) {
+        return NextResponse.json({ error: "Forbidden — guests have read-only calendar access" }, { status: 403 });
+    }
+
     const { typeId } = await context.params;
     const id = Number(typeId);
 

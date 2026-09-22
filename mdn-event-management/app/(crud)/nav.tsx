@@ -20,7 +20,7 @@ const LINKS = [
 ];
 
 type CrudNavProps = {
-  user: { email: string; role: string } | null;
+  user: { name: string; email: string; role: string } | null;
 };
 
 export function CrudNav({ user }: CrudNavProps) {
@@ -45,14 +45,19 @@ export function CrudNav({ user }: CrudNavProps) {
       </Link>
 
       {user ? (
-        <div className="mt-6 flex min-w-0 items-center gap-2 px-1">
-          <span className="truncate text-xs text-primary-foreground/80">{user.email}</span>
-          <Badge
-            variant="outline"
-            className="border-primary-foreground/40 bg-primary-foreground/15 text-primary-foreground uppercase"
-          >
-            {user.role}
-          </Badge>
+        <div className="mt-6 min-w-0 px-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-sm font-medium text-white">{user.name}</span>
+            <Badge
+              variant="outline"
+              className="border-primary-foreground/40 bg-primary-foreground/15 text-primary-foreground uppercase"
+            >
+              {user.role}
+            </Badge>
+          </div>
+          <span className="mt-0.5 block truncate text-xs text-primary-foreground/80">
+            {user.email}
+          </span>
         </div>
       ) : (
         <Link

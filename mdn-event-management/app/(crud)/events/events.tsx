@@ -230,7 +230,6 @@ export default function Events() {
             items={items}
             selectedId={selectedId}
             members={members}
-            resources={resources}
             onSelect={selectEvent}
             onDelete={async (eventId) => {
               setError("");

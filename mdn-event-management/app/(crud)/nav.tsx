@@ -10,12 +10,12 @@ import { cn } from "@/lib/utils";
 import { LogoutButton } from "./logout-button";
 
 const LINKS = [
-  { href: "/locations", label: "Locations" },
   { href: "/events", label: "Events" },
   { href: "/tasks", label: "Tasks" },
-  { href: "/resource-types", label: "Resource types" },
-  { href: "/resources", label: "Resources" },
   { href: "/allocations", label: "Allocations" },
+  { href: "/locations", label: "Locations" },
+  { href: "/resources", label: "Resources" },
+  { href: "/resource-types", label: "Resource types" },
   { href: "/members", label: "Members" },
 ];
 

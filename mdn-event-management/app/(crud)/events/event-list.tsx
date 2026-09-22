@@ -11,21 +11,19 @@ import {
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-import { formatEventDate, managerNamesFor, resourceNamesFor } from "./helpers";
-import type { EventItem, Member, Resource } from "./types";
+import { formatEventDate, managerNamesFor } from "./helpers";
+import type { EventItem, Member } from "./types";
 
 export function EventList({
   items,
   selectedId,
   members,
-  resources,
   onSelect,
   onDelete,
 }: {
   items: EventItem[];
   selectedId: number | null;
   members: Member[];
-  resources: Resource[];
   onSelect: (event: EventItem) => void;
   onDelete: (eventId: number) => Promise<void>;
 }) {
@@ -45,7 +43,6 @@ export function EventList({
             {items.map((ev) => {
               const selected = selectedId === ev.eventId;
               const managerNames = managerNamesFor(ev, members);
-              const resourceNames = resourceNamesFor(ev, resources);
               return (
                 <li
                   key={ev.eventId}
@@ -72,22 +69,6 @@ export function EventList({
                         Event Manager(s):{" "}
                         {managerNames.length > 0 ? managerNames.join(", ") : "None"}
                       </p>
-                      {resourceNames.length > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          Resources: {resourceNames.join(", ")}
-                        </p>
-                      )}
-                      {ev.tasks && ev.tasks.length > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          Tasks:{" "}
-                          {ev.tasks
-                            .map(
-                              (task) =>
-                                `${task.name}${task.budget ? ` ($${task.budget})` : ""}`,
-                            )
-                            .join(", ")}
-                        </p>
-                      )}
                     </button>
                     <div className="flex shrink-0 flex-col items-end gap-1">
                       <Badge variant="secondary">

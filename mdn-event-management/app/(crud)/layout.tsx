@@ -12,9 +12,13 @@ export default async function CrudLayout({
   return (
     <div className="flex min-h-svh flex-col bg-background font-sans text-foreground md:flex-row">
       <CrudNav
-        user={session ? { email: session.email, role: session.role } : null}
+        user={
+          session
+            ? { name: session.name, email: session.email, role: session.role }
+            : null
+        }
       />
-      <main className="mx-auto w-full min-w-0 max-w-3xl flex-1 p-8">{children}</main>
+      <main className="min-w-0 w-full flex-1 p-8">{children}</main>
     </div>
   );
 }

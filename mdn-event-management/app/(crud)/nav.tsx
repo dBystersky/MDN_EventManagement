@@ -10,24 +10,24 @@ import { cn } from "@/lib/utils";
 import { LogoutButton } from "./logout-button";
 
 const LINKS = [
-  { href: "/locations", label: "Locations" },
   { href: "/events", label: "Events" },
   { href: "/tasks", label: "Tasks" },
-  { href: "/resource-types", label: "Resource types" },
-  { href: "/resources", label: "Resources" },
   { href: "/allocations", label: "Allocations" },
+  { href: "/locations", label: "Locations" },
+  { href: "/resources", label: "Resources" },
+  { href: "/resource-types", label: "Resource types" },
   { href: "/members", label: "Members" },
 ];
 
 type CrudNavProps = {
-  user: { email: string; role: string } | null;
+  user: { name: string; email: string; role: string } | null;
 };
 
 export function CrudNav({ user }: CrudNavProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="flex w-full shrink-0 flex-col overflow-y-auto bg-primary px-4 py-6 text-primary-foreground md:sticky md:top-0 md:h-svh md:w-72">
+    <aside className="flex w-full shrink-0 flex-col overflow-y-auto bg-linear-to-b from-primary from-0% via-primary via-[45%] to-secondary px-4 py-6 text-primary-foreground md:sticky md:top-0 md:h-svh md:w-72">
       <Link href="/events" className="flex items-center gap-2.5 px-1">
         <Image
           src="/mdn_logo.webp"
@@ -45,14 +45,19 @@ export function CrudNav({ user }: CrudNavProps) {
       </Link>
 
       {user ? (
-        <div className="mt-6 flex min-w-0 items-center gap-2 px-1">
-          <span className="truncate text-xs text-primary-foreground/80">{user.email}</span>
-          <Badge
-            variant="outline"
-            className="border-primary-foreground/40 bg-primary-foreground/15 text-primary-foreground uppercase"
-          >
-            {user.role}
-          </Badge>
+        <div className="mt-6 min-w-0 px-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-sm font-medium text-white">{user.name}</span>
+            <Badge
+              variant="outline"
+              className="border-primary-foreground/40 bg-primary-foreground/15 text-primary-foreground uppercase"
+            >
+              {user.role}
+            </Badge>
+          </div>
+          <span className="mt-0.5 block truncate text-xs text-primary-foreground/80">
+            {user.email}
+          </span>
         </div>
       ) : (
         <Link

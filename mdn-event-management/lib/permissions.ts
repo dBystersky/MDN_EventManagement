@@ -30,6 +30,7 @@ const RESOURCE_MANAGERS: readonly Role[] = ["Member", "Manager", "Admin"];
 const RESOURCE_TYPE_MANAGERS: readonly Role[] = ["Member", "Manager", "Admin"];
 const ALLOCATION_MANAGERS: readonly Role[] = ["Member", "Manager", "Admin"];
 const TASK_MANAGERS: readonly Role[] = ["Member", "Manager", "Admin"];
+const LOCATION_MANAGERS: readonly Role[] = ["Member", "Manager", "Admin"];
 
 const FULL_ACCESS: Capabilities = { create: true, edit: true, delete: true };
 
@@ -57,6 +58,10 @@ export function allocationPermissions(role: string | null | undefined): Capabili
 
 export function taskPermissions(role: string | null | undefined): Capabilities {
   return capabilitiesFor(role, TASK_MANAGERS);
+}
+
+export function locationPermissions(role: string | null | undefined): Capabilities {
+  return capabilitiesFor(role, LOCATION_MANAGERS);
 }
 
 /**

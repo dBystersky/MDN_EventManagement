@@ -14,7 +14,7 @@ export default async function CrudLayout({
       <CrudNav
         user={session ? { email: session.email, role: session.role } : null}
       />
-      <main className="mx-auto w-full min-w-0 max-w-3xl flex-1 p-8">{children}</main>
+      <main className="min-w-0 w-full flex-1 p-8">{children}</main>
     </div>
   );
 }

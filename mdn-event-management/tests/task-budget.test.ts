@@ -1,6 +1,14 @@
+import "dotenv/config";
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
+import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.ts";
+
+const authToken = jwt.sign(
+  { member_id: 1, email: "budget-test@mdn.test", name: "Budget Test", role: "Admin" },
+  process.env.JWT_SECRET || "mdn_event_management_secret_key_change_in_production_2026",
+  { expiresIn: "1h" },
+);
 
 const TASKS_BASE = process.env.TASK_API_BASE ?? "http://localhost:3000/api/tasks";
 const EVENTS_BASE = process.env.EVENT_API_BASE ?? "http://localhost:3000/api/events";
@@ -14,6 +22,7 @@ type Task = {
 type Event = {
   eventId: number;
   totalBudget: string;
+  budget?: string | null;
 };
 
 function asTask(json: unknown): Task {
@@ -27,7 +36,10 @@ function asEvent(json: unknown): Event {
 async function api(base: string, method: string, path = "", body?: unknown) {
   const response = await fetch(`${base}${path}`, {
     method,
-    headers: body ? { "Content-Type": "application/json" } : undefined,
+    headers: {
+      Cookie: `mdn_auth_token=${authToken}`,
+      ...(body ? { "Content-Type": "application/json" } : {}),
+    },
     body: body ? JSON.stringify(body) : undefined,
   });
   const json = await response.json();
@@ -57,6 +69,7 @@ describe("Task budget -> Event total rollup", () => {
         name: "Budget Test Event A",
         description: "",
         date: new Date("2026-09-01T00:00:00.000Z"),
+        budget: 10000,
         location: { connect: { locationId } },
         bookable: { create: { bookableType: "Event" } },
       },
@@ -68,6 +81,7 @@ describe("Task budget -> Event total rollup", () => {
         name: "Budget Test Event B",
         description: "",
         date: new Date("2026-09-02T00:00:00.000Z"),
+        budget: 10000,
         location: { connect: { locationId } },
         bookable: { create: { bookableType: "Event" } },
       },
@@ -197,6 +211,7 @@ describe("Task budget -> Event total rollup", () => {
       description: "",
       date: "2026-09-06T00:00:00.000Z",
       locationId,
+      budget: 100,
       taskIds: [taskId],
     });
     assert.equal(createdEvent.status, 201);
@@ -215,6 +230,7 @@ describe("Task budget -> Event total rollup", () => {
       description: "",
       date: "2026-09-08T00:00:00.000Z",
       locationId,
+      budget: 100,
       subtasks: [
         {
           name: "Print programmes",
@@ -290,6 +306,7 @@ describe("Task budget -> Event total rollup", () => {
       description: "",
       date: "2026-09-07T00:00:00.000Z",
       locationId,
+      budget: 100,
       taskIds: [keepId, dropId],
     });
     assert.equal(createdEvent.status, 201);
@@ -336,6 +353,7 @@ describe("Task budget -> Event total rollup", () => {
         name: "Temp Event To Delete",
         description: "",
         date: new Date("2026-09-05T00:00:00.000Z"),
+        budget: 100,
         location: { connect: { locationId: location.locationId } },
         bookable: { create: { bookableType: "Event" } },
       },
@@ -358,5 +376,156 @@ describe("Task budget -> Event total rollup", () => {
     assert.equal(asTask(json).eventId, null);
 
     await prisma.location.deleteMany({ where: { locationId: location.locationId } });
+  });
+
+  it("stores an event budget separately from the allocated task total", async () => {
+    const createdEvent = await eventsApi("POST", "", {
+      name: "Capped event",
+      description: "",
+      date: "2026-09-12T00:00:00.000Z",
+      locationId,
+      budget: 100,
+    });
+    assert.equal(createdEvent.status, 201);
+    const eventId = asEvent(createdEvent.json).eventId;
+    assert.equal(Number(asEvent(createdEvent.json).budget), 100);
+    assert.equal(Number(asEvent(createdEvent.json).totalBudget), 0);
+
+    const created = await tasksApi("POST", "", {
+      name: "Within the cap",
+      description: "",
+      deadline: "2026-09-01T00:00:00.000Z",
+      eventId,
+      budget: 40,
+    });
+    assert.equal(created.status, 201);
+    createdTaskIds.push(asTask(created.json).taskId);
+
+    const event = asEvent((await eventsApi("GET", `/${eventId}`)).json);
+    assert.equal(Number(event.budget), 100);
+    assert.equal(Number(event.totalBudget), 40);
+
+    await eventsApi("DELETE", `/${eventId}`);
+  });
+
+  it("rejects a task whose budget would exceed the event budget", async () => {
+    const createdEvent = await eventsApi("POST", "", {
+      name: "Tight budget event",
+      description: "",
+      date: "2026-09-13T00:00:00.000Z",
+      locationId,
+      budget: 50,
+    });
+    assert.equal(createdEvent.status, 201);
+    const eventId = asEvent(createdEvent.json).eventId;
+
+    const over = await tasksApi("POST", "", {
+      name: "Too expensive",
+      description: "",
+      deadline: "2026-09-01T00:00:00.000Z",
+      eventId,
+      budget: 75,
+    });
+    assert.equal(over.status, 400);
+    assert.match(String(over.json.error), /exceed the event budget/);
+
+    const event = asEvent((await eventsApi("GET", `/${eventId}`)).json);
+    assert.equal(Number(event.totalBudget), 0);
+
+    await eventsApi("DELETE", `/${eventId}`);
+  });
+
+  it("rejects raising a task budget or lowering the event budget past the cap", async () => {
+    const createdEvent = await eventsApi("POST", "", {
+      name: "Adjustable cap",
+      description: "",
+      date: "2026-09-14T00:00:00.000Z",
+      locationId,
+      budget: 80,
+    });
+    const eventId = asEvent(createdEvent.json).eventId;
+
+    const created = await tasksApi("POST", "", {
+      name: "Grow later",
+      description: "",
+      deadline: "2026-09-01T00:00:00.000Z",
+      eventId,
+      budget: 30,
+    });
+    assert.equal(created.status, 201);
+    const taskId = asTask(created.json).taskId;
+    createdTaskIds.push(taskId);
+
+    const raised = await tasksApi("PATCH", `/${taskId}`, { budget: 90 });
+    assert.equal(raised.status, 400);
+
+    const still = asEvent((await eventsApi("GET", `/${eventId}`)).json);
+    assert.equal(Number(still.totalBudget), 30);
+    assert.equal(Number(still.budget), 80);
+
+    const lowered = await eventsApi("PATCH", `/${eventId}`, { budget: 20 });
+    assert.equal(lowered.status, 400);
+    assert.equal(Number(asEvent((await eventsApi("GET", `/${eventId}`)).json).budget), 80);
+
+    await eventsApi("DELETE", `/${eventId}`);
+  });
+
+  it("rejects assigning existing tasks whose budgets exceed the event budget", async () => {
+    const createdTask = await tasksApi("POST", "", {
+      name: "Already priced",
+      description: "",
+      deadline: "2026-09-01T00:00:00.000Z",
+      budget: 60,
+    });
+    assert.equal(createdTask.status, 201);
+    const taskId = asTask(createdTask.json).taskId;
+    createdTaskIds.push(taskId);
+
+    const createdEvent = await eventsApi("POST", "", {
+      name: "Cannot absorb priced task",
+      description: "",
+      date: "2026-09-15T00:00:00.000Z",
+      locationId,
+      budget: 25,
+      taskIds: [taskId],
+    });
+    assert.equal(createdEvent.status, 400);
+    assert.equal(asTask((await tasksApi("GET", `/${taskId}`)).json).eventId, null);
+  });
+
+  it("treats a blank event budget as zero", async () => {
+    const createdEvent = await eventsApi("POST", "", {
+      name: "Blank budget event",
+      description: "",
+      date: "2026-09-17T00:00:00.000Z",
+      locationId,
+      budget: "",
+    });
+    assert.equal(createdEvent.status, 201);
+    const eventId = asEvent(createdEvent.json).eventId;
+    assert.equal(Number(asEvent(createdEvent.json).budget), 0);
+
+    const over = await tasksApi("POST", "", {
+      name: "Needs a budget",
+      description: "",
+      deadline: "2026-09-01T00:00:00.000Z",
+      eventId,
+      budget: 1,
+    });
+    assert.equal(over.status, 400);
+    assert.match(String(over.json.error), /exceed the event budget/);
+
+    await eventsApi("DELETE", `/${eventId}`);
+  });
+
+  it("rejects a negative event budget", async () => {
+    const { status } = await eventsApi("POST", "", {
+      name: "Negative budget event",
+      description: "",
+      date: "2026-09-16T00:00:00.000Z",
+      locationId,
+      budget: -10,
+    });
+    assert.equal(status, 400);
   });
 });

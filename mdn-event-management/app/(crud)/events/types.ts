@@ -26,6 +26,7 @@ export type EventItem = {
   description?: string | null;
   date: string;
   location?: { locationId: number; name: string };
+  budget?: string | number | null;
   totalBudget?: string;
   tasks?: Task[];
   eventManagers?: { memberId: number; member?: Member }[];
@@ -41,6 +42,7 @@ export type DraftSubtask = {
   assigneeId: string;
   deadline: string;
   resourceIds: string[];
+  budget: string;
 };
 
 export type Option = { id: string; label: string };

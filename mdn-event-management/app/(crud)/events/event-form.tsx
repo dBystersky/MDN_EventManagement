@@ -25,6 +25,9 @@ export function EventForm({
   onDescriptionChange,
   date,
   onDateChange,
+  budget,
+  onBudgetChange,
+  assignedTotal,
   locationId,
   onLocationIdChange,
   locationOptions,
@@ -45,6 +48,8 @@ export function EventForm({
   onSubtaskAssigneeIdChange,
   subtaskDeadline,
   onSubtaskDeadlineChange,
+  subtaskBudget,
+  onSubtaskBudgetChange,
   subtaskResourceIds,
   onSubtaskResourceIdsChange,
   memberOptions,
@@ -63,6 +68,9 @@ export function EventForm({
   onDescriptionChange: (value: string) => void;
   date: string;
   onDateChange: (value: string) => void;
+  budget: string;
+  onBudgetChange: (value: string) => void;
+  assignedTotal: number;
   locationId: string;
   onLocationIdChange: (value: string) => void;
   locationOptions: Option[];
@@ -83,6 +91,8 @@ export function EventForm({
   onSubtaskAssigneeIdChange: (value: string) => void;
   subtaskDeadline: string;
   onSubtaskDeadlineChange: (value: string) => void;
+  subtaskBudget: string;
+  onSubtaskBudgetChange: (value: string) => void;
   subtaskResourceIds: string[];
   onSubtaskResourceIdsChange: (ids: string[]) => void;
   memberOptions: Option[];
@@ -93,6 +103,11 @@ export function EventForm({
   onCancel: () => void;
   onSubmit: () => Promise<void>;
 }) {
+  const parsedBudget = budget.trim() === "" ? 0 : Number(budget);
+  const overBudget =
+    Number.isFinite(parsedBudget) &&
+    Math.round(assignedTotal * 100) > Math.round(parsedBudget * 100);
+
   return (
     <Card>
       <CardHeader>
@@ -156,6 +171,24 @@ export function EventForm({
               />
             </Field>
           </div>
+          <Field id="event-budget" label="Budget">
+            <Input
+              id="event-budget"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0"
+              value={budget}
+              onChange={(e) => onBudgetChange(e.target.value)}
+            />
+          </Field>
+          <p className={overBudget ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>
+            {overBudget
+              ? `Assigned task budgets ($${assignedTotal.toFixed(2)}) exceed this event budget.`
+              : `Task budgets assigned to this event cannot exceed this amount.${
+                  assignedTotal > 0 ? ` Assigned so far: $${assignedTotal.toFixed(2)}.` : ""
+                }`}
+          </p>
           <AssignmentPicker
             key={`managers-${selectedId ?? "new"}`}
             id="event-manager"
@@ -187,6 +220,8 @@ export function EventForm({
             onSubtaskAssigneeIdChange={onSubtaskAssigneeIdChange}
             subtaskDeadline={subtaskDeadline}
             onSubtaskDeadlineChange={onSubtaskDeadlineChange}
+            subtaskBudget={subtaskBudget}
+            onSubtaskBudgetChange={onSubtaskBudgetChange}
             subtaskResourceIds={subtaskResourceIds}
             onSubtaskResourceIdsChange={onSubtaskResourceIdsChange}
             memberOptions={memberOptions}

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { readEvent, deleteEvent, parseEventSubtasks, updateEvent } from "@/lib/events";
+import { readEvent, deleteEvent, eventBudgetErrorMessage, parseEventBudget, parseEventSubtasks, updateEvent } from "@/lib/events";
 import { Prisma } from "@/generated/prisma/client";
 
 type RouteParams = {
@@ -39,6 +39,7 @@ export async function PATCH(request: Request, context: RouteParams) {
             description: body.description,
             date: body.date !== undefined ? new Date(body.date) : undefined,
             locationId: body.locationId !== undefined ? Number(body.locationId) : undefined,
+            budget: parseEventBudget(body.budget),
             managerIds: Array.isArray(body.managerIds)
                 ? body.managerIds.map(Number)
                 : undefined,
@@ -54,6 +55,10 @@ export async function PATCH(request: Request, context: RouteParams) {
         // Return the updated event
         return NextResponse.json(event, { status: 200 });
     } catch (error) {
+        const budgetError = eventBudgetErrorMessage(error);
+        if (budgetError) {
+            return NextResponse.json({ error: budgetError }, { status: 400 });
+        }
         if (error instanceof Error && /subtasks/.test(error.message)) {
             return NextResponse.json({ error: error.message }, { status: 400 });
         }

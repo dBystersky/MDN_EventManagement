@@ -51,6 +51,8 @@ export function EventSubtasks({
   onSubtaskAssigneeIdChange,
   subtaskDeadline,
   onSubtaskDeadlineChange,
+  subtaskBudget,
+  onSubtaskBudgetChange,
   subtaskResourceIds,
   onSubtaskResourceIdsChange,
   memberOptions,
@@ -71,6 +73,8 @@ export function EventSubtasks({
   onSubtaskAssigneeIdChange: (value: string) => void;
   subtaskDeadline: string;
   onSubtaskDeadlineChange: (value: string) => void;
+  subtaskBudget: string;
+  onSubtaskBudgetChange: (value: string) => void;
   subtaskResourceIds: string[];
   onSubtaskResourceIdsChange: (ids: string[]) => void;
   memberOptions: Option[];
@@ -108,7 +112,7 @@ export function EventSubtasks({
           onChange={(e) => onSubtaskTitleChange(e.target.value)}
         />
       </Field>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Field id="subtask-assignee" label="Assignee">
           <OptionSelect
             id="subtask-assignee"
@@ -124,6 +128,17 @@ export function EventSubtasks({
             type="date"
             value={subtaskDeadline}
             onChange={(e) => onSubtaskDeadlineChange(e.target.value)}
+          />
+        </Field>
+        <Field id="subtask-budget" label="Budget">
+          <Input
+            id="subtask-budget"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="0"
+            value={subtaskBudget}
+            onChange={(e) => onSubtaskBudgetChange(e.target.value)}
           />
         </Field>
       </div>
@@ -180,6 +195,7 @@ export function EventSubtasks({
                 detail={[
                   assignee,
                   `due ${formatSubtaskDate(subtask.deadline)}`,
+                  subtask.budget ? `$${subtask.budget}` : "",
                   resourceNames.join(", "),
                 ]
                   .filter(Boolean)

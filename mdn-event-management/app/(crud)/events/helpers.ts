@@ -33,6 +33,12 @@ export function formatSubtaskDate(value: string) {
   });
 }
 
+export function budgetAmount(value: string | number | null | undefined): number {
+  if (value == null || value === "") return 0;
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount >= 0 ? amount : 0;
+}
+
 export function names(values: Array<string | undefined | null>) {
   return values.filter((value): value is string => Boolean(value));
 }
@@ -98,12 +104,14 @@ export function existingSubtaskDetails(
     ),
   );
   const deadline = fromEvent?.deadline ?? fromCatalog?.deadline;
+  const budget = fromEvent?.budget ?? fromCatalog?.budget;
 
   return {
     name: fromEvent?.name ?? fromCatalog?.name ?? `Task #${taskId}`,
     detail: [
       assignees.join(", ") || "Unassigned",
       deadline ? `due ${formatSubtaskDate(deadline)}` : "",
+      budget != null && budget !== "" ? `$${budget}` : "",
       assignedResources.join(", "),
     ]
       .filter(Boolean)
@@ -158,10 +166,13 @@ export function taskPickerOptions(
   return [
     ...allTasks.map((task) => ({
       id: String(task.taskId),
-      label:
-        task.eventId && task.eventId !== selectedId
-          ? `${task.name} (event #${task.eventId})`
-          : task.name,
+      label: [
+        task.name,
+        task.budget != null && task.budget !== "" ? `$${task.budget}` : "",
+        task.eventId && task.eventId !== selectedId ? `event #${task.eventId}` : "",
+      ]
+        .filter(Boolean)
+        .join(" · "),
     })),
     ...orphanOptions(
       selectedEvent?.tasks,

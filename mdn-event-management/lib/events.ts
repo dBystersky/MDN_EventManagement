@@ -9,6 +9,49 @@ import {
 
 type PrismaTx = Prisma.TransactionClient;
 
+export class EventBudgetExceededError extends Error {
+    constructor(allocated: number, limit: number) {
+        super(
+            `Assigned task budgets ($${allocated.toFixed(2)}) exceed the event budget ($${limit.toFixed(2)})`,
+        );
+        this.name = "EventBudgetExceededError";
+    }
+}
+
+export function eventBudgetErrorMessage(error: unknown): string | null {
+    if (error instanceof EventBudgetExceededError) return error.message;
+    if (
+        error instanceof Error &&
+        (error.message === "budget must not be negative" ||
+            error.message === "budget must be a number" ||
+            error.message.includes("invalid budget"))
+    ) {
+        return error.message;
+    }
+    return null;
+}
+
+/** Undefined leaves the stored budget unchanged. Blank means $0. */
+export function parseEventBudget(value: unknown): number | undefined {
+    if (value === undefined) return undefined;
+    if (value === null || value === "") return 0;
+    const budget = Number(value);
+    if (!Number.isFinite(budget)) {
+        throw new Error("budget must be a number");
+    }
+    if (budget < 0) {
+        throw new Error("budget must not be negative");
+    }
+    return budget;
+}
+
+function moneyToCents(value: unknown): number {
+    if (value == null || value === "") return 0;
+    const numeric = Number(String(value));
+    if (!Number.isFinite(numeric)) return 0;
+    return Math.round(numeric * 100);
+}
+
 const eventInclude = {
     location: true,
     bookable: {
@@ -36,14 +79,26 @@ const eventInclude = {
 } satisfies Prisma.EventInclude;
 
 export async function recalculateEventTotalBudget(tx: PrismaTx, eventId: number) {
+    const event = await tx.event.findUniqueOrThrow({
+        where: { eventId },
+        select: { budget: true },
+    });
+
     const { _sum } = await tx.task.aggregate({
         where: { eventId },
         _sum: { budget: true },
     });
 
+    const allocated = _sum.budget ?? 0;
+    const allocatedCents = moneyToCents(allocated);
+    const limitCents = moneyToCents(event.budget ?? 0);
+    if (allocatedCents > limitCents) {
+        throw new EventBudgetExceededError(allocatedCents / 100, limitCents / 100);
+    }
+
     return tx.event.update({
         where: { eventId },
-        data: { totalBudget: _sum.budget ?? 0 },
+        data: { totalBudget: allocated },
     });
 }
 
@@ -106,6 +161,7 @@ type createEventInput = {
     description: string;
     date: Date;
     locationId: number;
+    budget?: number | null;
     managerIds?: number[];
     resourceIds?: number[];
     taskIds?: number[];
@@ -194,6 +250,7 @@ export async function createEvent(input: createEventInput) {
                 name: input.name,
                 description: input.description,
                 date: input.date,
+                budget: input.budget ?? 0,
                 location: { connect: { locationId: input.locationId }},
                 bookable: {
                     create: {
@@ -252,6 +309,7 @@ type updateEventInput = {
     description?: string | null;
     date?: Date;
     locationId?: number;
+    budget?: number | null;
     managerIds?: number[];
     resourceIds?: number[];
     taskIds?: number[];
@@ -273,6 +331,7 @@ export async function updateEvent(eventId: number, input: updateEventInput) {
                 name: input.name,
                 description: input.description,
                 date: input.date,
+                ...(input.budget !== undefined ? { budget: input.budget ?? 0 } : {}),
                 ...(input.locationId !== undefined
                     ? { location: { connect: { locationId: input.locationId }}}
                     : {}
@@ -300,11 +359,15 @@ export async function updateEvent(eventId: number, input: updateEventInput) {
             await rescheduleBookableAllocations(tx, existing.bookableId, nextDate);
         }
 
+        const tasksChanged = input.taskIds !== undefined || Boolean(input.subtasks?.length);
         if (input.taskIds !== undefined) {
             await syncEventTasks(tx, eventId, input.taskIds);
         }
         if (input.subtasks?.length) {
             await createEventSubtasks(tx, eventId, input.subtasks);
+        }
+        if (input.budget !== undefined && !tasksChanged) {
+            await recalculateEventTotalBudget(tx, eventId);
         }
 
         return tx.event.findUniqueOrThrow({

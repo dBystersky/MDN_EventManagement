@@ -49,6 +49,7 @@ model Event {
   date             DateTime       @db.Timestamptz
   eventLocationId  Int            @map("event_location_id")
   bookableId       Int            @unique @map("bookable_id")
+  budget           Decimal?       @db.Decimal(10, 2)
   totalBudget      Decimal        @default(0) @db.Decimal(10, 2) @map("total_budget")
   eventManagers    EventManager[]
   location         Location       @relation(fields: [eventLocationId], references: [locationId])

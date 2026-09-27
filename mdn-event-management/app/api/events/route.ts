@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createEvent, listEvents, parseEventSubtasks } from "@/lib/events";
+import { createEvent, eventBudgetErrorMessage, listEvents, parseEventBudget, parseEventSubtasks } from "@/lib/events";
 import { Prisma } from "@/generated/prisma/client";
 
 // Function to get all events from the API
@@ -22,6 +22,7 @@ export async function POST(request: Request) {
             description: body.description,
             date: new Date(body.date),
             locationId: Number(body.locationId),
+            budget: parseEventBudget(body.budget),
             managerIds: Array.isArray(body.managerIds)
                 ? body.managerIds.map(Number)
                 : undefined,
@@ -38,6 +39,10 @@ export async function POST(request: Request) {
 
     } catch (error) {
         console.error(error);
+        const budgetError = eventBudgetErrorMessage(error);
+        if (budgetError) {
+            return NextResponse.json({ error: budgetError }, { status: 400 });
+        }
         if (error instanceof Error && /subtasks/.test(error.message)) {
             return NextResponse.json({ error: error.message }, { status: 400 });
         }

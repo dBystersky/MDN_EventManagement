@@ -49,7 +49,12 @@ import { eventNameOf, managerNamesOf, searchTasks } from "@/lib/fuzzyTasks";
 import { apiJson } from "@/lib/api-json";
 
 type Member = { memberId: number; name: string; email: string };
-type EventItem = { eventId: number; name: string };
+type EventItem = {
+  eventId: number;
+  name: string;
+  budget?: string | number | null;
+  totalBudget?: string | number | null;
+};
 type Task = {
   taskId: number;
   name: string;
@@ -184,6 +189,8 @@ export default function TasksDemo() {
   );
 
   const selectedEvent = eventOptions.find((option) => option.id === eventId) ?? null;
+  const selectedEventRecord =
+    events.find((event) => String(event.eventId) === eventId) ?? null;
 
   const isEditing = selectedId != null;
   const canSubmit = isEditing ? can.edit : can.create;
@@ -375,7 +382,7 @@ export default function TasksDemo() {
                 setError("Pick a deadline before saving.");
                 return;
               }
-              const parsedBudget = budget.trim() === "" ? null : Number(budget);
+              const parsedBudget = budget.trim() === "" ? 0 : Number(budget);
               if (parsedBudget != null && (!Number.isFinite(parsedBudget) || parsedBudget < 0)) {
                 setError("Budget must be a number that is not negative.");
                 return;
@@ -398,7 +405,7 @@ export default function TasksDemo() {
                 handleOpenChange(false);
                 await refresh();
               } catch (err) {
-                setError(String(err));
+                setError(err instanceof Error ? err.message : String(err));
               } finally {
                 setPending(false);
               }
@@ -464,7 +471,7 @@ export default function TasksDemo() {
                     type="number"
                     step="0.01"
                     min="0"
-                    placeholder="Optional"
+                    placeholder="0"
                     value={budget}
                     onChange={(e) => setBudget(e.target.value)}
                     disabled={!canSubmit}
@@ -502,6 +509,15 @@ export default function TasksDemo() {
                     </ComboboxList>
                   </ComboboxContent>
                 </Combobox>
+                {selectedEventRecord && (
+                  <p className="text-xs text-muted-foreground">
+                    Event budget $
+                    {selectedEventRecord.budget != null && selectedEventRecord.budget !== ""
+                      ? selectedEventRecord.budget
+                      : "0"}
+                    . Task budgets already assigned: ${selectedEventRecord.totalBudget ?? "0"}.
+                  </p>
+                )}
                 {events.length === 0 && (
                   <p className="text-xs text-muted-foreground">
                     No events exist yet.{" "}

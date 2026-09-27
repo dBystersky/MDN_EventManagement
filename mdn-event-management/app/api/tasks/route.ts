@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { eventBudgetErrorMessage } from "@/lib/events";
 import { createTask, listTasks } from "@/lib/tasks";
 import { Prisma } from "@/generated/prisma/client";
 
@@ -39,6 +40,10 @@ export async function POST(request: Request) {
 
     } catch (error) {
         console.error(error);
+        const budgetError = eventBudgetErrorMessage(error);
+        if (budgetError) {
+            return NextResponse.json({ error: budgetError }, { status: 400 });
+        }
         if (error instanceof Prisma.PrismaClientKnownRequestError) {
             return NextResponse.json(
                 {

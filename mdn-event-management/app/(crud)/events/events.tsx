@@ -9,6 +9,7 @@ import { apiJson } from "@/lib/api-json";
 import { EventForm } from "./event-form";
 import { EventList } from "./event-list";
 import {
+  budgetAmount,
   existingSubtaskDetails,
   managerPickerOptions,
   resourcePickerOptions,
@@ -29,6 +30,7 @@ export default function Events() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
+  const [budget, setBudget] = useState("");
   const [locationId, setLocationId] = useState("");
   const [managerIds, setManagerIds] = useState<string[]>([]);
   const [resourceIds, setResourceIds] = useState<string[]>([]);
@@ -38,6 +40,7 @@ export default function Events() {
   const [subtaskTitle, setSubtaskTitle] = useState("");
   const [subtaskAssigneeId, setSubtaskAssigneeId] = useState("");
   const [subtaskDeadline, setSubtaskDeadline] = useState("");
+  const [subtaskBudget, setSubtaskBudget] = useState("");
   const [subtaskResourceIds, setSubtaskResourceIds] = useState<string[]>([]);
 
   const isEditing = selectedId != null;
@@ -75,6 +78,7 @@ export default function Events() {
     setSubtaskTitle("");
     setSubtaskAssigneeId("");
     setSubtaskDeadline("");
+    setSubtaskBudget("");
     setSubtaskResourceIds([]);
   }
 
@@ -83,6 +87,7 @@ export default function Events() {
     setName("");
     setDescription("");
     setDate("");
+    setBudget("");
     setLocationId("");
     setManagerIds([]);
     setResourceIds([]);
@@ -95,6 +100,7 @@ export default function Events() {
     setName(ev.name);
     setDescription(ev.description ?? "");
     setDate(toDatetimeLocal(ev.date));
+    setBudget(ev.budget == null ? "" : String(ev.budget));
     setLocationId(ev.location?.locationId != null ? String(ev.location.locationId) : "");
     setManagerIds((ev.eventManagers ?? []).map((em) => String(em.memberId)));
     setResourceIds(
@@ -110,6 +116,15 @@ export default function Events() {
   function addDraftSubtask() {
     const title = subtaskTitle.trim();
     if (!title || !subtaskDeadline) return;
+    const draftBudget = subtaskBudget.trim();
+    if (draftBudget !== "") {
+      const amount = Number(draftBudget);
+      if (!Number.isFinite(amount) || amount < 0) {
+        setError("Subtask budget must be a number that is not negative.");
+        return;
+      }
+    }
+    setError("");
     setDraftSubtasks((current) => [
       ...current,
       {
@@ -118,20 +133,48 @@ export default function Events() {
         assigneeId: subtaskAssigneeId,
         deadline: subtaskDeadline,
         resourceIds: subtaskResourceIds,
+        budget: draftBudget,
       },
     ]);
     setSubtaskTitle("");
     setSubtaskAssigneeId("");
     setSubtaskDeadline("");
+    setSubtaskBudget("");
     setSubtaskResourceIds([]);
   }
 
+  function assignedTaskBudget() {
+    const attached = taskIds.reduce((sum, id) => {
+      const task =
+        allTasks.find((item) => String(item.taskId) === id) ??
+        selectedEvent?.tasks?.find((item) => String(item.taskId) === id);
+      return sum + budgetAmount(task?.budget);
+    }, 0);
+    const drafted = draftSubtasks.reduce(
+      (sum, subtask) => sum + budgetAmount(subtask.budget),
+      0,
+    );
+    return attached + drafted;
+  }
+
   async function saveEvent() {
+    const parsedBudget = budget.trim() === "" ? 0 : Number(budget);
+    if (!Number.isFinite(parsedBudget) || parsedBudget < 0) {
+      throw new Error("Budget must be a number that is not negative.");
+    }
+    const assignedTotal = assignedTaskBudget();
+    if (Math.round(assignedTotal * 100) > Math.round(parsedBudget * 100)) {
+      throw new Error(
+        `Assigned task budgets ($${assignedTotal.toFixed(2)}) exceed the event budget ($${parsedBudget.toFixed(2)})`,
+      );
+    }
+
     const payload = {
       name,
       description,
       date: new Date(date).toISOString(),
       locationId: Number(locationId),
+      budget: parsedBudget,
       managerIds: managerIds.map(Number),
       resourceIds: resourceIds.map(Number),
       taskIds: taskIds.map(Number),
@@ -140,6 +183,7 @@ export default function Events() {
         deadline: new Date(subtask.deadline).toISOString(),
         managerIds: subtask.assigneeId ? [Number(subtask.assigneeId)] : [],
         resourceIds: subtask.resourceIds.map(Number),
+        budget: subtask.budget === "" ? 0 : Number(subtask.budget),
       })),
     };
 
@@ -185,6 +229,9 @@ export default function Events() {
             onDescriptionChange={setDescription}
             date={date}
             onDateChange={setDate}
+            budget={budget}
+            onBudgetChange={setBudget}
+            assignedTotal={assignedTaskBudget()}
             locationId={locationId}
             onLocationIdChange={setLocationId}
             locationOptions={locationOptions}
@@ -207,6 +254,8 @@ export default function Events() {
             onSubtaskAssigneeIdChange={setSubtaskAssigneeId}
             subtaskDeadline={subtaskDeadline}
             onSubtaskDeadlineChange={setSubtaskDeadline}
+            subtaskBudget={subtaskBudget}
+            onSubtaskBudgetChange={setSubtaskBudget}
             subtaskResourceIds={subtaskResourceIds}
             onSubtaskResourceIdsChange={setSubtaskResourceIds}
             memberOptions={memberOptions}
@@ -222,7 +271,7 @@ export default function Events() {
               try {
                 await saveEvent();
               } catch (err) {
-                setError(String(err));
+                setError(err instanceof Error ? err.message : String(err));
               }
             }}
           />
@@ -236,7 +285,7 @@ export default function Events() {
               try {
                 await deleteEvent(eventId);
               } catch (err) {
-                setError(String(err));
+                setError(err instanceof Error ? err.message : String(err));
               }
             }}
           />

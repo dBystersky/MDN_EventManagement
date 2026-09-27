@@ -74,7 +74,9 @@ export function EventList({
                       <Badge variant="secondary">
                         {ev.location?.name ?? "No venue"}
                       </Badge>
-                      <Badge variant="outline">${ev.totalBudget ?? "0"}</Badge>
+                      <Badge variant="outline">
+                        ${ev.budget != null && ev.budget !== "" ? ev.budget : "0"}
+                      </Badge>
                       <Button
                         type="button"
                         size="xs"

@@ -1,0 +1,5 @@
+# Commits to skip in `git blame` (GitHub honours this file automatically).
+# Locally: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style: apply prettier
+35d1356e8b120e6e6f9d2bf80b8e3b6b1951ae43

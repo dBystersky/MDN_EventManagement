@@ -1,9 +1,10 @@
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { cookies } from 'next/headers';
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { cookies } from "next/headers";
 
-const JWT_SECRET = process.env.JWT_SECRET || 'mdn_event_management_secret_key_change_in_production_2026';
-export const AUTH_COOKIE_NAME = 'mdn_auth_token';
+const JWT_SECRET =
+  process.env.JWT_SECRET || "mdn_event_management_secret_key_change_in_production_2026";
+export const AUTH_COOKIE_NAME = "mdn_auth_token";
 
 export interface UserSession {
   member_id: number;
@@ -21,7 +22,7 @@ export async function comparePassword(password: string, hash: string): Promise<b
 }
 
 export function signToken(user: UserSession): string {
-  return jwt.sign(user, JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign(user, JWT_SECRET, { expiresIn: "7d" });
 }
 
 export function verifyToken(token: string): UserSession | null {

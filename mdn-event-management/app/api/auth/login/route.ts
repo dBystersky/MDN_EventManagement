@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { comparePassword, signToken, AUTH_COOKIE_NAME } from '@/lib/auth';
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { comparePassword, signToken, AUTH_COOKIE_NAME } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
@@ -8,10 +8,7 @@ export async function POST(request: Request) {
     const { email, password } = body;
 
     if (!email || !password) {
-      return NextResponse.json(
-        { error: 'Email and password are required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
     }
 
     // Find member by email
@@ -20,19 +17,13 @@ export async function POST(request: Request) {
     });
 
     if (!member) {
-      return NextResponse.json(
-        { error: 'Invalid email or password' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
 
     // Compare password
     const isPasswordValid = await comparePassword(password, member.password);
     if (!isPasswordValid) {
-      return NextResponse.json(
-        { error: 'Invalid email or password' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
 
     const userSession = {
@@ -45,7 +36,7 @@ export async function POST(request: Request) {
     const token = signToken(userSession);
 
     const response = NextResponse.json({
-      message: 'Logged in successfully',
+      message: "Logged in successfully",
       user: userSession,
     });
 
@@ -53,17 +44,14 @@ export async function POST(request: Request) {
       name: AUTH_COOKIE_NAME,
       value: token,
       httpOnly: true,
-      path: '/',
-      secure: process.env.NODE_ENV === 'production',
+      path: "/",
+      secure: process.env.NODE_ENV === "production",
       maxAge: 60 * 60 * 24 * 7, // 1 week
     });
 
     return response;
   } catch (error) {
-    console.error('Login error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error("Login error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

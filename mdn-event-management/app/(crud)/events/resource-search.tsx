@@ -37,9 +37,7 @@ export function ResourceSearch({
       >
         Resources & equipment
       </Label>
-      <p className="text-xs text-muted-foreground">
-        Search to attach inventory for this subtask.
-      </p>
+      <p className="text-xs text-muted-foreground">Search to attach inventory for this subtask.</p>
       <Input
         id="subtask-resource-search"
         placeholder="Search by name or type..."
@@ -67,16 +65,12 @@ export function ResourceSearch({
       {selectedIds.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">
           {selectedIds.map((selectedId) => {
-            const resource = resources.find(
-              (item) => String(item.resourceId) === selectedId,
-            );
+            const resource = resources.find((item) => String(item.resourceId) === selectedId);
             return (
               <RemovableChip
                 key={selectedId}
                 label={resourceLabel(resource)}
-                onRemove={() =>
-                  onChange(selectedIds.filter((id) => id !== selectedId))
-                }
+                onRemove={() => onChange(selectedIds.filter((id) => id !== selectedId))}
               />
             );
           })}

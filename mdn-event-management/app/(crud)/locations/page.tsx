@@ -6,13 +6,7 @@ import fuzzysort, { type Result } from "fuzzysort";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -49,10 +43,7 @@ export default function LocationsDemo() {
   const [can, setCan] = useState<Capabilities>(() => locationPermissions(null));
 
   async function refresh() {
-    const [locations, role] = await Promise.all([
-      apiJson("/api/locations"),
-      fetchSessionRole(),
-    ]);
+    const [locations, role] = await Promise.all([apiJson("/api/locations"), fetchSessionRole()]);
     setItems(locations);
     setCan(locationPermissions(role));
   }
@@ -132,9 +123,7 @@ export default function LocationsDemo() {
         <Card>
           <CardHeader>
             <CardTitle>Location list</CardTitle>
-            <CardDescription>
-              Search by name, then select a row to edit it.
-            </CardDescription>
+            <CardDescription>Search by name, then select a row to edit it.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
@@ -202,10 +191,7 @@ export default function LocationsDemo() {
                         <TableCell className="font-medium">
                           {nameMatch
                             ? nameMatch.highlight((match, i) => (
-                                <mark
-                                  key={i}
-                                  className="rounded-xs bg-primary/20 text-foreground"
-                                >
+                                <mark key={i} className="rounded-xs bg-primary/20 text-foreground">
                                   {match}
                                 </mark>
                               ))
@@ -231,10 +217,7 @@ export default function LocationsDemo() {
                                 setError("");
                                 setPending(true);
                                 try {
-                                  await apiJson(
-                                    `/api/locations/${location.locationId}`,
-                                    "DELETE",
-                                  );
+                                  await apiJson(`/api/locations/${location.locationId}`, "DELETE");
                                   if (selectedId === location.locationId) resetForm();
                                   await refresh();
                                 } catch (err) {

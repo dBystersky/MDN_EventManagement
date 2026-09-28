@@ -64,12 +64,14 @@ export function searchResources<T extends SearchableResource>(
     limit: 0, // unlimited; the list is already client-side and small
   });
 
-  return [...results]
-    // Equal scores otherwise tie-break arbitrarily, which makes the table
-    // reorder unpredictably between keystrokes. Name is the stable fallback.
-    .sort((a, b) => b.score - a.score || a.obj.name.localeCompare(b.obj.name))
-    .map((result) => ({
-      resource: result.obj,
-      nameMatch: result[0] && result[0].score > 0 ? result[0] : null,
-    }));
+  return (
+    [...results]
+      // Equal scores otherwise tie-break arbitrarily, which makes the table
+      // reorder unpredictably between keystrokes. Name is the stable fallback.
+      .sort((a, b) => b.score - a.score || a.obj.name.localeCompare(b.obj.name))
+      .map((result) => ({
+        resource: result.obj,
+        nameMatch: result[0] && result[0].score > 0 ? result[0] : null,
+      }))
+  );
 }

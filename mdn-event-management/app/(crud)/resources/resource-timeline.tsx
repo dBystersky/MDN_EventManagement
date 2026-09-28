@@ -80,8 +80,7 @@ export function ResourceTimeline({
   if (model.bookings.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Not booked yet. Allocations created for this resource will appear here as a
-        timeline.
+        Not booked yet. Allocations created for this resource will appear here as a timeline.
       </p>
     );
   }
@@ -217,7 +216,6 @@ export function ResourceTimeline({
           </div>
         </div>
       </div>
-
     </div>
   );
 }

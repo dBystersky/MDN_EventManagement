@@ -25,10 +25,7 @@ export function middleware(request: NextRequest) {
   if (!token) {
     // API routes return 401 instead of redirecting
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
     // Page routes redirect to login
@@ -41,5 +38,7 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   // Run middleware on all routes except static files
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+  ],
 };

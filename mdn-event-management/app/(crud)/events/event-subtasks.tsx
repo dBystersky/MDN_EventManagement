@@ -83,9 +83,7 @@ export function EventSubtasks({
     <div className="space-y-4 rounded-xl border bg-muted/30 p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <p className="text-sm font-medium">Event subtasks</p>
-        <p className="text-xs text-muted-foreground">
-          Create assignments scoped to this event.
-        </p>
+        <p className="text-xs text-muted-foreground">Create assignments scoped to this event.</p>
       </div>
 
       {/* Selected tasks are listed below, not as picker badges. */}
@@ -155,22 +153,17 @@ export function EventSubtasks({
                 key={`existing-${taskId}`}
                 title={details.name}
                 detail={details.detail}
-                onRemove={() =>
-                  onTaskIdsChange(taskIds.filter((id) => id !== taskId))
-                }
+                onRemove={() => onTaskIdsChange(taskIds.filter((id) => id !== taskId))}
               />
             );
           })}
           {draftSubtasks.map((subtask) => {
             const assignee =
-              members.find(
-                (member) => String(member.memberId) === subtask.assigneeId,
-              )?.name ?? "Unassigned";
+              members.find((member) => String(member.memberId) === subtask.assigneeId)?.name ??
+              "Unassigned";
             const resourceNames = names(
               subtask.resourceIds.map(
-                (id) =>
-                  resources.find((resource) => String(resource.resourceId) === id)
-                    ?.name,
+                (id) => resources.find((resource) => String(resource.resourceId) === id)?.name,
               ),
             );
             return (

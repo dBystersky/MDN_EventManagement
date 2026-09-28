@@ -84,14 +84,17 @@ export function CrudNav({ user }: CrudNavProps) {
                   size: "lg",
                 }),
                 "justify-start rounded-full px-4 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground",
-                active && "bg-primary-foreground text-primary hover:bg-primary-foreground hover:text-primary",
+                active &&
+                  "bg-primary-foreground text-primary hover:bg-primary-foreground hover:text-primary",
               )}
             >
               {l.label}
             </Link>
           );
         })}
-        {user && <LogoutButton className="ml-auto md:mt-auto md:ml-0 md:w-full md:justify-start md:rounded-full md:px-4 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground" />}
+        {user && (
+          <LogoutButton className="ml-auto md:mt-auto md:ml-0 md:w-full md:justify-start md:rounded-full md:px-4 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground" />
+        )}
       </nav>
     </aside>
   );

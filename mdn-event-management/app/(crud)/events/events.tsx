@@ -98,9 +98,7 @@ export default function Events() {
     setLocationId(ev.location?.locationId != null ? String(ev.location.locationId) : "");
     setManagerIds((ev.eventManagers ?? []).map((em) => String(em.memberId)));
     setResourceIds(
-      (ev.bookable?.resourceAllocations ?? []).map((allocation) =>
-        String(allocation.resourceId),
-      ),
+      (ev.bookable?.resourceAllocations ?? []).map((allocation) => String(allocation.resourceId)),
     );
     setTaskIds((ev.tasks ?? []).map((task) => String(task.taskId)));
     clearSubtaskComposer();
@@ -162,9 +160,7 @@ export default function Events() {
     <section>
       <div className="space-y-6">
         <header>
-          <h1 className="text-2xl font-bold">
-            Events
-          </h1>
+          <h1 className="text-2xl font-bold">Events</h1>
         </header>
 
         {error && (
@@ -213,9 +209,7 @@ export default function Events() {
             members={members}
             resources={resources}
             onAddDraft={addDraftSubtask}
-            existingDetails={(taskId) =>
-              existingSubtaskDetails(taskId, selectedEvent, allTasks)
-            }
+            existingDetails={(taskId) => existingSubtaskDetails(taskId, selectedEvent, allTasks)}
             onCancel={resetForm}
             onSubmit={async () => {
               setError("");

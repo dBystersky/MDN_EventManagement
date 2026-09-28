@@ -171,7 +171,9 @@ export default function MembersPage() {
         <Card>
           <CardHeader>
             <CardTitle>All members</CardTitle>
-            <CardDescription>{members.length} account{members.length !== 1 ? "s" : ""}</CardDescription>
+            <CardDescription>
+              {members.length} account{members.length !== 1 ? "s" : ""}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -186,7 +188,10 @@ export default function MembersPage() {
               <TableBody>
                 {members.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 4 : 3} className="text-center text-muted-foreground py-8">
+                    <TableCell
+                      colSpan={isAdmin ? 4 : 3}
+                      className="text-center text-muted-foreground py-8"
+                    >
                       No members yet.
                     </TableCell>
                   </TableRow>
@@ -209,7 +214,11 @@ export default function MembersPage() {
                           size="sm"
                           className="text-destructive hover:text-destructive hover:bg-destructive/10"
                           disabled={m.memberId === sessionId}
-                          title={m.memberId === sessionId ? "You cannot delete your own account" : "Delete member"}
+                          title={
+                            m.memberId === sessionId
+                              ? "You cannot delete your own account"
+                              : "Delete member"
+                          }
                           onClick={() => {
                             setDeleteError("");
                             setDeleteTarget(m);
@@ -314,13 +323,18 @@ export default function MembersPage() {
       )}
 
       {/* Delete confirmation dialog */}
-      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+      <Dialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete account</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete <strong>{deleteTarget?.name}</strong> ({deleteTarget?.email})?
-              This cannot be undone.
+              Are you sure you want to delete <strong>{deleteTarget?.name}</strong> (
+              {deleteTarget?.email})? This cannot be undone.
             </DialogDescription>
           </DialogHeader>
 

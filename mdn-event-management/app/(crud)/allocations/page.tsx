@@ -6,13 +6,7 @@ import { CircleAlertIcon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -117,17 +111,11 @@ export default function AllocationsDemo() {
 
   /** bookableId → "Task: Setup", for the select and the search index (so typing
    *  "task" narrows to task bookings). */
-  const bookableLabels = useMemo(
-    () => new Map(bookables.map((b) => [b.id, b.label])),
-    [bookables],
-  );
+  const bookableLabels = useMemo(() => new Map(bookables.map((b) => [b.id, b.label])), [bookables]);
 
   /** bookableId → "Setup". The table shows the kind as its own badge, so the
    *  cell wants the bare name rather than the prefixed label. */
-  const bookableNames = useMemo(
-    () => new Map(bookables.map((b) => [b.id, b.name])),
-    [bookables],
-  );
+  const bookableNames = useMemo(() => new Map(bookables.map((b) => [b.id, b.name])), [bookables]);
 
   const matches = useMemo(
     () => searchAllocations(query, items, bookableLabels),
@@ -194,10 +182,8 @@ export default function AllocationsDemo() {
     [bookables],
   );
 
-  const selectedResource =
-    resourceOptions.find((o) => o.id === resourceId) ?? null;
-  const selectedBookable =
-    bookableOptions.find((o) => o.id === bookableId) ?? null;
+  const selectedResource = resourceOptions.find((o) => o.id === resourceId) ?? null;
+  const selectedBookable = bookableOptions.find((o) => o.id === bookableId) ?? null;
 
   const isEditing = selectedId != null;
   const canSubmit = isEditing ? can.edit : can.create;
@@ -206,9 +192,7 @@ export default function AllocationsDemo() {
     <section>
       <div className="space-y-6">
         <header>
-          <h1 className="text-2xl font-bold">
-            Allocations
-          </h1>
+          <h1 className="text-2xl font-bold">Allocations</h1>
         </header>
 
         {/* Suppressed while the dialog is open — its own alert carries the
@@ -225,8 +209,8 @@ export default function AllocationsDemo() {
           <CardHeader>
             <CardTitle>Booked resources</CardTitle>
             <CardDescription>
-              Each allocation books one resource against an event or a task for a window of
-              time. Select a row to edit it.
+              Each allocation books one resource against an event or a task for a window of time.
+              Select a row to edit it.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -292,10 +276,7 @@ export default function AllocationsDemo() {
                   <TableBody>
                     {matches.map(({ allocation, resourceMatch }) => {
                       const typeName = allocation.resource?.resourceTypeRel?.name;
-                      const duration = formatDuration(
-                        allocation.startTime,
-                        allocation.endTime,
-                      );
+                      const duration = formatDuration(allocation.startTime, allocation.endTime);
                       return (
                         <TableRow key={allocation.allocationId}>
                           <TableCell className="text-xs text-muted-foreground tabular-nums">
@@ -423,11 +404,7 @@ export default function AllocationsDemo() {
                   endTime: new Date(endTime).toISOString(),
                 };
                 if (isEditing) {
-                  await apiJson(
-                    `/api/resource-allocations/${selectedId}`,
-                    "PATCH",
-                    payload,
-                  );
+                  await apiJson(`/api/resource-allocations/${selectedId}`, "PATCH", payload);
                 } else {
                   await apiJson("/api/resource-allocations", "POST", payload);
                 }
@@ -441,9 +418,7 @@ export default function AllocationsDemo() {
             }}
           >
             <DialogHeader>
-              <DialogTitle>
-                {isEditing ? "Update allocation" : "New allocation"}
-              </DialogTitle>
+              <DialogTitle>{isEditing ? "Update allocation" : "New allocation"}</DialogTitle>
               <DialogDescription>
                 Book a resource against an event or task for a window of time.
               </DialogDescription>
@@ -505,9 +480,7 @@ export default function AllocationsDemo() {
                     </ComboboxList>
                   </ComboboxContent>
                 </Combobox>
-                <p className="text-xs text-muted-foreground">
-                  Search by resource name or type.
-                </p>
+                <p className="text-xs text-muted-foreground">Search by resource name or type.</p>
               </div>
 
               <div className="space-y-2">
@@ -584,9 +557,7 @@ export default function AllocationsDemo() {
               </Button>
               <Button
                 type="submit"
-                disabled={
-                  pending || !canSubmit || resources.length === 0 || bookables.length === 0
-                }
+                disabled={pending || !canSubmit || resources.length === 0 || bookables.length === 0}
               >
                 {isEditing ? "Update" : "Create"}
               </Button>

@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CircleAlertIcon } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 import { apiJson } from "@/lib/api-json";
+import { conflictsByEvent, type Conflict } from "@/lib/conflicts";
 import { EventForm } from "./event-form";
 import { EventList } from "./event-list";
 import {
@@ -16,6 +17,7 @@ import {
   toDatetimeLocal,
 } from "./helpers";
 import type { DraftSubtask, EventItem, Location, Member, Resource, Task } from "./types";
+import { defaultEndFor } from "@/lib/datetime";
 
 export default function Events() {
   const [items, setItems] = useState<EventItem[]>([]);
@@ -24,11 +26,22 @@ export default function Events() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [error, setError] = useState("");
+  /** Every clash in the system, for the badges on the list. */
+  const [conflicts, setConflicts] = useState<Conflict[]>([]);
+  /**
+   * The last answered clash check, tagged with the form state it was asked for.
+   * Tagging is what keeps a slow reply for an earlier keystroke from surfacing
+   * against a newer one.
+   */
+  const [checked, setChecked] = useState<{ key: string; conflicts: Conflict[] } | null>(
+    null,
+  );
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [locationId, setLocationId] = useState("");
   const [managerIds, setManagerIds] = useState<string[]>([]);
   const [resourceIds, setResourceIds] = useState<string[]>([]);
@@ -52,23 +65,89 @@ export default function Events() {
   }));
 
   async function refresh() {
-    const [events, locs, tasks, memberList, resourceList] = await Promise.all([
-      apiJson("/api/events"),
-      apiJson("/api/locations"),
-      apiJson("/api/tasks"),
-      apiJson("/api/members"),
-      apiJson("/api/resources"),
-    ]);
+    const [events, locs, tasks, memberList, resourceList, conflictList] =
+      await Promise.all([
+        apiJson("/api/events"),
+        apiJson("/api/locations"),
+        apiJson("/api/tasks"),
+        apiJson("/api/members"),
+        apiJson("/api/resources"),
+        apiJson("/api/conflicts"),
+      ]);
     setItems(events);
     setLocations(locs);
     setAllTasks(tasks);
     setMembers(memberList);
     setResources(resourceList);
+    setConflicts(conflictList);
   }
+
+  /** eventId → its clashes, so the list can badge a row without a scan. */
+  const conflictIndex = useMemo(() => conflictsByEvent(conflicts), [conflicts]);
 
   useEffect(() => {
     refresh().catch((e) => setError(String(e)));
   }, []);
+
+  /**
+   * The event as currently drafted, or null while it is still incomplete.
+   *
+   * The event name is deliberately left out: it only changes the wording of a
+   * message, and including it would re-query on every letter typed.
+   */
+  const candidate = useMemo(() => {
+    const start = new Date(date);
+    const end = new Date(endDate);
+    if (
+      !locationId ||
+      Number.isNaN(start.getTime()) ||
+      Number.isNaN(end.getTime()) ||
+      end <= start
+    ) {
+      return null;
+    }
+    return {
+      kind: "event" as const,
+      date: start.toISOString(),
+      endDate: end.toISOString(),
+      locationId: Number(locationId),
+      resourceIds: resourceIds.map(Number),
+      excludeEventId: selectedId ?? undefined,
+    };
+  }, [date, endDate, locationId, resourceIds, selectedId]);
+
+  const candidateKey = candidate ? JSON.stringify(candidate) : null;
+
+  /**
+   * Clash check as the form is filled in, not only on submit — RTM Req 9 as
+   * well as Req 7.
+   */
+  useEffect(() => {
+    if (!candidate || !candidateKey) return;
+    const timer = window.setTimeout(() => {
+      apiJson("/api/conflicts/preview", "POST", candidate)
+        .then((found: Conflict[]) => setChecked({ key: candidateKey, conflicts: found }))
+        // A failed check must not read as "no clashes found": leave the previous
+        // answer in place rather than claiming the draft is clear.
+        .catch(() => undefined);
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [candidate, candidateKey]);
+
+  /**
+   * Only ever the clashes computed for exactly this draft. Derived, so an
+   * incomplete form or an in-flight check shows nothing rather than a stale
+   * answer.
+   */
+  const draftConflicts =
+    candidateKey && checked?.key === candidateKey ? checked.conflicts : [];
+
+  /** Picking a start fills in an end two hours later, unless one is already set. */
+  function changeDate(value: string) {
+    setDate(value);
+    if (!endDate) setEndDate(defaultEndFor(value));
+  }
 
   function clearSubtaskComposer() {
     setDraftSubtasks([]);
@@ -83,6 +162,7 @@ export default function Events() {
     setName("");
     setDescription("");
     setDate("");
+    setEndDate("");
     setLocationId("");
     setManagerIds([]);
     setResourceIds([]);
@@ -95,6 +175,7 @@ export default function Events() {
     setName(ev.name);
     setDescription(ev.description ?? "");
     setDate(toDatetimeLocal(ev.date));
+    setEndDate(toDatetimeLocal(ev.endDate));
     setLocationId(ev.location?.locationId != null ? String(ev.location.locationId) : "");
     setManagerIds((ev.eventManagers ?? []).map((em) => String(em.memberId)));
     setResourceIds(
@@ -131,6 +212,7 @@ export default function Events() {
       name,
       description,
       date: new Date(date).toISOString(),
+      endDate: new Date(endDate).toISOString(),
       locationId: Number(locationId),
       managerIds: managerIds.map(Number),
       resourceIds: resourceIds.map(Number),
@@ -184,7 +266,10 @@ export default function Events() {
             description={description}
             onDescriptionChange={setDescription}
             date={date}
-            onDateChange={setDate}
+            onDateChange={changeDate}
+            endDate={endDate}
+            onEndDateChange={setEndDate}
+            conflicts={draftConflicts}
             locationId={locationId}
             onLocationIdChange={setLocationId}
             locationOptions={locationOptions}
@@ -230,6 +315,7 @@ export default function Events() {
             items={items}
             selectedId={selectedId}
             members={members}
+            conflictsFor={(eventId) => conflictIndex.get(eventId) ?? []}
             onSelect={selectEvent}
             onDelete={async (eventId) => {
               setError("");

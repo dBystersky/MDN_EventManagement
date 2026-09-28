@@ -2,7 +2,8 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma/client";
 import { memberPublicSelect } from "@/lib/members";
 import {
-    eventAllocationWindow,
+    assertForwardWindow,
+    defaultWindowFrom,
     replaceBookableAllocations,
     rescheduleBookableAllocations,
 } from "@/lib/resourceAllocations";
@@ -105,6 +106,7 @@ type createEventInput = {
     name: string;
     description: string;
     date: Date;
+    endDate: Date;
     locationId: number;
     managerIds?: number[];
     resourceIds?: number[];
@@ -151,7 +153,9 @@ async function createEventSubtasks(
     subtasks: EventSubtaskInput[],
 ) {
     for (const subtask of subtasks) {
-        const window = eventAllocationWindow(subtask.deadline);
+        // A task has a deadline, not a range, so its bookings get the default
+        // window around that instant.
+        const window = defaultWindowFrom(subtask.deadline);
         await tx.task.create({
             data: {
                 name: subtask.name,
@@ -186,7 +190,9 @@ async function createEventSubtasks(
 }
 
 export async function createEvent(input: createEventInput) {
-    const window = eventAllocationWindow(input.date);
+    assertForwardWindow(input.date, input.endDate, { start: "date", end: "endDate" });
+    // An event's resources are held for exactly as long as the event runs.
+    const window = { startTime: input.date, endTime: input.endDate };
 
     return prisma.$transaction(async (tx) => {
         const event = await tx.event.create({
@@ -194,6 +200,7 @@ export async function createEvent(input: createEventInput) {
                 name: input.name,
                 description: input.description,
                 date: input.date,
+                endDate: input.endDate,
                 location: { connect: { locationId: input.locationId }},
                 bookable: {
                     create: {
@@ -251,6 +258,7 @@ type updateEventInput = {
     name?: string;
     description?: string | null;
     date?: Date;
+    endDate?: Date;
     locationId?: number;
     managerIds?: number[];
     resourceIds?: number[];
@@ -262,10 +270,15 @@ export async function updateEvent(eventId: number, input: updateEventInput) {
     return prisma.$transaction(async (tx) => {
         const existing = await tx.event.findUniqueOrThrow({
             where: { eventId },
-            select: { date: true, bookableId: true },
+            select: { date: true, endDate: true, bookableId: true },
         });
 
+        // Validate the span the event will END UP with, so moving only one end
+        // cannot leave it inverted.
         const nextDate = input.date ?? existing.date;
+        const nextEndDate = input.endDate ?? existing.endDate;
+        assertForwardWindow(nextDate, nextEndDate, { start: "date", end: "endDate" });
+        const nextWindow = { startTime: nextDate, endTime: nextEndDate };
 
         await tx.event.update({
             where: { eventId },
@@ -273,6 +286,7 @@ export async function updateEvent(eventId: number, input: updateEventInput) {
                 name: input.name,
                 description: input.description,
                 date: input.date,
+                endDate: input.endDate,
                 ...(input.locationId !== undefined
                     ? { location: { connect: { locationId: input.locationId }}}
                     : {}
@@ -294,10 +308,12 @@ export async function updateEvent(eventId: number, input: updateEventInput) {
                 tx,
                 existing.bookableId,
                 input.resourceIds,
-                nextDate,
+                nextWindow,
             );
-        } else if (input.date !== undefined) {
-            await rescheduleBookableAllocations(tx, existing.bookableId, nextDate);
+        } else if (input.date !== undefined || input.endDate !== undefined) {
+            // Either end moving reshapes the span, so both must trigger a
+            // reschedule or the bookings drift away from the event.
+            await rescheduleBookableAllocations(tx, existing.bookableId, nextWindow);
         }
 
         if (input.taskIds !== undefined) {

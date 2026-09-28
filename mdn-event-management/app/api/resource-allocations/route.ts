@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAllocation, listAllocations } from "@/lib/resourceAllocations";
+import { conflictsForAllocation } from "@/lib/conflictQueries";
+import { isBadRequest } from "@/lib/api-errors";
 import { Prisma } from "@/generated/prisma/client";
 
 export async function GET() {
@@ -21,9 +23,16 @@ export async function POST(request: Request) {
             endTime: new Date(body.endTime),
             bookableId: Number(body.bookableId),
         });
-        return NextResponse.json(newAllocation, { status: 201 });
+        // Flag, never block: a double-booked resource still saves, and the
+        // caller is told what it now collides with (RTM Req 7).
+        const conflicts = await conflictsForAllocation(newAllocation.allocationId);
+
+        return NextResponse.json({ ...newAllocation, conflicts }, { status: 201 });
     } catch (error) {
         console.error(error);
+        if (isBadRequest(error)) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
+        }
         if (error instanceof Prisma.PrismaClientKnownRequestError) {
             return NextResponse.json(
                 {

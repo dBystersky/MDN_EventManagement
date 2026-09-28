@@ -1,9 +1,16 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { prisma } from "../lib/prisma.ts";
+import {
+  apiClient,
+  assertApiReachable,
+  createTestSession,
+  ORIGIN,
+  type TestSession,
+} from "./auth-helper.ts";
 
-const TASKS_BASE = process.env.TASK_API_BASE ?? "http://localhost:3000/api/tasks";
-const EVENTS_BASE = process.env.EVENT_API_BASE ?? "http://localhost:3000/api/events";
+const TASKS_BASE = process.env.TASK_API_BASE ?? `${ORIGIN}/api/tasks`;
+const EVENTS_BASE = process.env.EVENT_API_BASE ?? `${ORIGIN}/api/events`;
 
 type Task = {
   taskId: number;
@@ -24,30 +31,24 @@ function asEvent(json: unknown): Event {
   return json as Event;
 }
 
-async function api(base: string, method: string, path = "", body?: unknown) {
-  const response = await fetch(`${base}${path}`, {
-    method,
-    headers: body ? { "Content-Type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const json = await response.json();
-  return { status: response.status, json };
-}
-
-const tasksApi = (method: string, path = "", body?: unknown) => api(TASKS_BASE, method, path, body);
-const eventsApi = (method: string, path = "", body?: unknown) => api(EVENTS_BASE, method, path, body);
+/** Both assigned in `before`, once the suite has a session to send. */
+let tasksApi: ReturnType<typeof apiClient>;
+let eventsApi: ReturnType<typeof apiClient>;
 
 describe("Task budget -> Event total rollup", () => {
+  let session: TestSession;
   let locationId: number;
   let eventAId: number;
   let eventBId: number;
   const createdTaskIds: number[] = [];
 
   before(async () => {
-    const health = await fetch(TASKS_BASE).catch(() => null);
-    if (!health) {
-      throw new Error(`API not reachable at ${TASKS_BASE}. Start the app with: npm run dev`);
-    }
+    await assertApiReachable();
+
+    // Every /api/ route is behind `middleware.ts`, so the suite signs in first.
+    session = await createTestSession("task-budget");
+    tasksApi = apiClient(session, TASKS_BASE);
+    eventsApi = apiClient(session, EVENTS_BASE);
 
     const location = await prisma.location.create({ data: { name: `Budget Test Location ${Date.now()}` } });
     locationId = location.locationId;
@@ -57,6 +58,7 @@ describe("Task budget -> Event total rollup", () => {
         name: "Budget Test Event A",
         description: "",
         date: new Date("2026-09-01T00:00:00.000Z"),
+        endDate: new Date("2026-09-01T02:00:00.000Z"),
         location: { connect: { locationId } },
         bookable: { create: { bookableType: "Event" } },
       },
@@ -68,6 +70,7 @@ describe("Task budget -> Event total rollup", () => {
         name: "Budget Test Event B",
         description: "",
         date: new Date("2026-09-02T00:00:00.000Z"),
+        endDate: new Date("2026-09-02T02:00:00.000Z"),
         location: { connect: { locationId } },
         bookable: { create: { bookableType: "Event" } },
       },
@@ -87,6 +90,7 @@ describe("Task budget -> Event total rollup", () => {
     await prisma.event.deleteMany({ where: { eventId: { in: [eventAId, eventBId] } } });
     await prisma.bookable.deleteMany({ where: { bookableId: { in: events.map((e) => e.bookableId) } } });
     await prisma.location.deleteMany({ where: { locationId } });
+    await session.cleanup();
     await prisma.$disconnect();
   });
 
@@ -196,6 +200,7 @@ describe("Task budget -> Event total rollup", () => {
       name: "Event with tasks at create",
       description: "",
       date: "2026-09-06T00:00:00.000Z",
+      endDate: "2026-09-06T02:00:00.000Z",
       locationId,
       taskIds: [taskId],
     });
@@ -214,6 +219,7 @@ describe("Task budget -> Event total rollup", () => {
       name: "Event with inline subtasks",
       description: "",
       date: "2026-09-08T00:00:00.000Z",
+      endDate: "2026-09-08T02:00:00.000Z",
       locationId,
       subtasks: [
         {
@@ -289,6 +295,7 @@ describe("Task budget -> Event total rollup", () => {
       name: "Event task sync",
       description: "",
       date: "2026-09-07T00:00:00.000Z",
+      endDate: "2026-09-07T02:00:00.000Z",
       locationId,
       taskIds: [keepId, dropId],
     });
@@ -336,6 +343,7 @@ describe("Task budget -> Event total rollup", () => {
         name: "Temp Event To Delete",
         description: "",
         date: new Date("2026-09-05T00:00:00.000Z"),
+        endDate: new Date("2026-09-05T02:00:00.000Z"),
         location: { connect: { locationId: location.locationId } },
         bookable: { create: { bookableType: "Event" } },
       },

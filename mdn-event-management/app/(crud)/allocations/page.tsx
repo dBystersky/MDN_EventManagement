@@ -40,7 +40,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDateTime, formatDuration, toDatetimeLocal } from "@/lib/datetime";
+import {
+  defaultEndFor,
+  formatDateTime,
+  formatDuration,
+  toDatetimeLocal,
+} from "@/lib/datetime";
+import { ConflictAlert, ConflictBadge } from "@/components/conflict-flags";
+import { conflictsByAllocation, type Conflict } from "@/lib/conflicts";
 import { allocationPermissions, fetchSessionRole, type Capabilities } from "@/lib/permissions";
 import { resourceTypeStyle } from "@/lib/resourceTypeColor";
 import { fuzzyMatches } from "@/lib/fuzzyFilter";
@@ -80,19 +87,30 @@ export default function AllocationsDemo() {
   const [endTime, setEndTime] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  /** Every clash in the system, for the badges on the table. */
+  const [conflicts, setConflicts] = useState<Conflict[]>([]);
+  /**
+   * The last answered clash check, tagged with the dialog state it was asked
+   * for, so a slow reply for an earlier edit cannot surface against a newer one.
+   */
+  const [checked, setChecked] = useState<{ key: string; conflicts: Conflict[] } | null>(
+    null,
+  );
   const [query, setQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [can, setCan] = useState<Capabilities>(() => allocationPermissions(null));
 
   async function refresh() {
-    const [allocations, res, tasks, events, role] = await Promise.all([
+    const [allocations, res, tasks, events, conflictList, role] = await Promise.all([
       apiJson("/api/resource-allocations"),
       apiJson("/api/resources"),
       apiJson("/api/tasks"),
       apiJson("/api/events"),
+      apiJson("/api/conflicts"),
       fetchSessionRole(),
     ]);
     setItems(allocations);
+    setConflicts(conflictList);
     setResources(res);
     setBookables([
       ...(tasks as Task[]).map((t) => ({
@@ -133,6 +151,57 @@ export default function AllocationsDemo() {
     () => searchAllocations(query, items, bookableLabels),
     [query, items, bookableLabels],
   );
+
+  /** allocationId → its clashes, so a row can be badged without a scan. */
+  const conflictIndex = useMemo(() => conflictsByAllocation(conflicts), [conflicts]);
+
+  /** The booking as currently drafted, or null while the dialog is incomplete. */
+  const candidate = useMemo(() => {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    if (
+      !dialogOpen ||
+      !resourceId ||
+      Number.isNaN(start.getTime()) ||
+      Number.isNaN(end.getTime()) ||
+      end <= start
+    ) {
+      return null;
+    }
+    return {
+      kind: "allocation" as const,
+      resourceId: Number(resourceId),
+      startTime: start.toISOString(),
+      endTime: end.toISOString(),
+      bookableId: bookableId ? Number(bookableId) : undefined,
+      excludeAllocationId: selectedId ?? undefined,
+    };
+  }, [dialogOpen, resourceId, bookableId, startTime, endTime, selectedId]);
+
+  const candidateKey = candidate ? JSON.stringify(candidate) : null;
+
+  /** Clash check while the dialog is open, so a double-booking shows before save. */
+  useEffect(() => {
+    if (!candidate || !candidateKey) return;
+    const timer = window.setTimeout(() => {
+      apiJson("/api/conflicts/preview", "POST", candidate)
+        .then((found: Conflict[]) => setChecked({ key: candidateKey, conflicts: found }))
+        // A failed check must not read as "no clashes found".
+        .catch(() => undefined);
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [candidate, candidateKey]);
+
+  /** Only the clashes computed for exactly this draft. */
+  const draftConflicts =
+    candidateKey && checked?.key === candidateKey ? checked.conflicts : [];
+
+  /** Picking a start fills in an end two hours later, unless one is already set. */
+  function changeStartTime(value: string) {
+    setStartTime(value);
+    if (!endTime) setEndTime(defaultEndFor(value));
+  }
 
   function resetForm() {
     setSelectedId(null);
@@ -296,6 +365,8 @@ export default function AllocationsDemo() {
                         allocation.startTime,
                         allocation.endTime,
                       );
+                      const rowConflicts =
+                        conflictIndex.get(allocation.allocationId) ?? [];
                       return (
                         <TableRow key={allocation.allocationId}>
                           <TableCell className="text-xs text-muted-foreground tabular-nums">
@@ -340,6 +411,7 @@ export default function AllocationsDemo() {
                                 {bookableNames.get(allocation.bookableId) ??
                                   `#${allocation.bookableId}`}
                               </span>
+                              <ConflictBadge conflicts={rowConflicts} />
                             </span>
                           </TableCell>
                           <TableCell className="text-sm whitespace-nowrap">
@@ -408,8 +480,8 @@ export default function AllocationsDemo() {
                 setError("Pick an event or task to book against.");
                 return;
               }
-              // Nothing server-side rejects an inverted range, so catch it here
-              // before a nonsense booking reaches the database.
+              // The server rejects this too (`assertForwardWindow`); this is the
+              // fast path so the dialog answers without a round trip.
               if (new Date(endTime).getTime() <= new Date(startTime).getTime()) {
                 setError("The end time must be after the start time.");
                 return;
@@ -457,6 +529,12 @@ export default function AllocationsDemo() {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
+
+              <ConflictAlert
+                conflicts={draftConflicts}
+                title="This resource is already booked then"
+                hint="Clashes are flagged, not blocked — you can still save this booking."
+              />
 
               <div className="space-y-2">
                 <Label htmlFor="allocation-resource">Resource</Label>
@@ -559,7 +637,7 @@ export default function AllocationsDemo() {
                     id="allocation-start"
                     type="datetime-local"
                     value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
+                    onChange={(e) => changeStartTime(e.target.value)}
                     disabled={!canSubmit}
                     required
                   />
@@ -570,6 +648,7 @@ export default function AllocationsDemo() {
                     id="allocation-end"
                     type="datetime-local"
                     value={endTime}
+                    min={startTime || undefined}
                     onChange={(e) => setEndTime(e.target.value)}
                     disabled={!canSubmit}
                     required

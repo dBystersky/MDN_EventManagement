@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createEvent, listEvents, parseEventSubtasks } from "@/lib/events";
+import { conflictsForEvent } from "@/lib/conflictQueries";
+import { isBadRequest } from "@/lib/api-errors";
 import { Prisma } from "@/generated/prisma/client";
 
 // Function to get all events from the API
@@ -21,6 +23,7 @@ export async function POST(request: Request) {
             name: body.name,
             description: body.description,
             date: new Date(body.date),
+            endDate: new Date(body.endDate),
             locationId: Number(body.locationId),
             managerIds: Array.isArray(body.managerIds)
                 ? body.managerIds.map(Number)
@@ -33,12 +36,16 @@ export async function POST(request: Request) {
                 : undefined,
             subtasks: parseEventSubtasks(body.subtasks),
         });
-    
-        return NextResponse.json(newEvent, { status: 201 });
+
+        // Clashes are flagged, never blocking: the event is created either way
+        // and the caller is told what it now collides with (RTM Req 7).
+        const conflicts = await conflictsForEvent(newEvent.eventId);
+
+        return NextResponse.json({ ...newEvent, conflicts }, { status: 201 });
 
     } catch (error) {
         console.error(error);
-        if (error instanceof Error && /subtasks/.test(error.message)) {
+        if (isBadRequest(error)) {
             return NextResponse.json({ error: error.message }, { status: 400 });
         }
         if (error instanceof Prisma.PrismaClientKnownRequestError) {

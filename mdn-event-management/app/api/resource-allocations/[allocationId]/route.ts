@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAllocation, updateAllocation, deleteAllocation } from "@/lib/resourceAllocations";
+import { conflictsForAllocation } from "@/lib/conflictQueries";
+import { isBadRequest } from "@/lib/api-errors";
 import { Prisma } from "@/generated/prisma/client";
 
 type RouteParams = {
@@ -30,8 +32,14 @@ export async function PATCH(request: Request, context: RouteParams) {
             endTime: body.endTime !== undefined ? new Date(body.endTime) : undefined,
             bookableId: body.bookableId !== undefined ? Number(body.bookableId) : undefined,
         });
-        return NextResponse.json(allocation, { status: 200 });
+        // Flag, never block — see POST /api/resource-allocations.
+        const conflicts = await conflictsForAllocation(id);
+
+        return NextResponse.json({ ...allocation, conflicts }, { status: 200 });
     } catch (error) {
+        if (isBadRequest(error)) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
+        }
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
             return NextResponse.json({ error: `Resource allocation not found: ${error}` }, { status: 404 });
         }

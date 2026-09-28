@@ -8,8 +8,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test tests/task-api.test.ts tests/task-budget.test.ts",
-    "test:api": "tsx --test tests/task-api.test.ts tests/task-budget.test.ts"
+    "test": "tsx --test tests/conflicts.test.ts tests/task-api.test.ts tests/task-budget.test.ts tests/conflict-api.test.ts",
+    "test:api": "tsx --test tests/task-api.test.ts tests/task-budget.test.ts tests/conflict-api.test.ts",
+    "test:unit": "tsx --test tests/conflicts.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

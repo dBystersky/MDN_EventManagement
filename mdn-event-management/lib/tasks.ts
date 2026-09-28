@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { recalculateEventTotalBudget } from "@/lib/events";
 import { memberPublicSelect } from "@/lib/members";
+import { shiftBookableAllocations } from "@/lib/resourceAllocations";
 
 const taskInclude = {
     bookable: true,
@@ -69,7 +70,7 @@ export async function updateTask(taskId: number, input: updateTaskInput) {
     return prisma.$transaction(async (tx) => {
         const previous = await tx.task.findUniqueOrThrow({
             where: { taskId },
-            select: { eventId: true },
+            select: { eventId: true, deadline: true, bookableId: true },
         });
 
         const task = await tx.task.update({
@@ -95,6 +96,17 @@ export async function updateTask(taskId: number, input: updateTaskInput) {
             },
             include: taskInclude,
         });
+
+        // A task's bookings hang off its deadline, so they move with it —
+        // otherwise they drift, and clash detection then reports the resource as
+        // held at a time nobody is working.
+        if (input.deadline !== undefined) {
+            await shiftBookableAllocations(
+                tx,
+                previous.bookableId,
+                input.deadline.getTime() - previous.deadline.getTime(),
+            );
+        }
 
         const budgetOrEventChanged = input.budget !== undefined || input.eventId !== undefined;
         if (budgetOrEventChanged && task.eventId) {

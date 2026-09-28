@@ -290,7 +290,12 @@ export default function MembersPage() {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="member-role">Role</Label>
-                  <Select value={role} onValueChange={setRole}>
+                  {/* Select can report null when cleared; the form always wants a
+                      concrete role, so fall back to the default. */}
+                  <Select
+                    value={role}
+                    onValueChange={(value) => setRole(value ?? "Member")}
+                  >
                     <SelectTrigger id="member-role" className="w-full">
                       <SelectValue placeholder="Select a role" />
                     </SelectTrigger>

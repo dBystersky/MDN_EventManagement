@@ -25,6 +25,8 @@ export type EventItem = {
   name: string;
   description?: string | null;
   date: string;
+  /** Events carry a real span; the form defaults it to start + 2h. */
+  endDate: string;
   location?: { locationId: number; name: string };
   totalBudget?: string;
   tasks?: Task[];

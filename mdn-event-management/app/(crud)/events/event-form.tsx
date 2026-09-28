@@ -12,6 +12,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
+import { ConflictAlert } from "@/components/conflict-flags";
+import type { Conflict } from "@/lib/conflicts";
+
 import { EventSubtasks } from "./event-subtasks";
 import { AssignmentPicker, Field, OptionSelect } from "./form-controls";
 import type { DraftSubtask, Member, Option, Resource } from "./types";
@@ -25,6 +28,9 @@ export function EventForm({
   onDescriptionChange,
   date,
   onDateChange,
+  endDate,
+  onEndDateChange,
+  conflicts,
   locationId,
   onLocationIdChange,
   locationOptions,
@@ -63,6 +69,10 @@ export function EventForm({
   onDescriptionChange: (value: string) => void;
   date: string;
   onDateChange: (value: string) => void;
+  endDate: string;
+  onEndDateChange: (value: string) => void;
+  /** What this event as drafted would clash with; empty when nothing does. */
+  conflicts: readonly Conflict[];
   locationId: string;
   onLocationIdChange: (value: string) => void;
   locationOptions: Option[];
@@ -128,7 +138,7 @@ export function EventForm({
             />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field id="event-date" label="Date">
+            <Field id="event-date" label="Starts">
               <Input
                 id="event-date"
                 type="datetime-local"
@@ -137,6 +147,23 @@ export function EventForm({
                 required
               />
             </Field>
+            {/* An event needs a real span, not just a start: clash detection has
+                nothing to compare without one. Prefilled to two hours after the
+                start, which is only a default. */}
+            <Field id="event-end-date" label="Ends">
+              <Input
+                id="event-end-date"
+                type="datetime-local"
+                value={endDate}
+                min={date || undefined}
+                onChange={(e) => onEndDateChange(e.target.value)}
+                required
+              />
+            </Field>
+          </div>
+          {/* Its own row rather than a lone cell in a two-column grid, which
+              would leave the select stranded at half width. */}
+          <div>
             <Field id="event-location" label="Location">
               {/* Native required check; the visible control is a custom Select. */}
               <input
@@ -194,6 +221,10 @@ export function EventForm({
             resources={resources}
             onAddDraft={onAddDraft}
             existingDetails={existingDetails}
+          />
+          <ConflictAlert
+            conflicts={conflicts}
+            hint="Clashes are flagged, not blocked — you can still save this event."
           />
         </CardContent>
         <CardFooter className="justify-end gap-2">

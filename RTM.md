@@ -10,7 +10,7 @@
 | 4 | The system shall provide a calendar view of events/tasks.  | UI, Visualisation | MDN | Agreed |
 | 5 | Inventory tracking, of persistent items/resources, that can be allocated | UI, Frontend, Backend | MDN | Agreed |
 | 6 | The system shall allow authorised users to book and create resources (e.g. venues, equipment) for events, storing resource details and availability in the database.  | UI, Backend, Database | MDN | Agreed |
-| 7 | The system shall automatically flag when events are overlapping/clashing with dates, venues, or assigned resources. | Backend | MDN | Agreed |
+| 7 | The system shall automatically flag when events are overlapping/clashing with dates, venues, or assigned resources. | Backend, UI, Database | MDN | Agreed |
 | 8 | The system shall restrict access to specific features based on the role of the user’s account. | Security | MDN | Agreed |
 | 9 | The system shall provide real‑time validation and error feedback when users input invalid or incomplete data (e.g., missing fields, invalid dates). | UI | [https://improvement.stanford.edu/resources/usability-principles](https://improvement.stanford.edu/resources/usability-principles): Error Handling & Prevention | Agreed |
 | 10 | Events will have a section to track spending/Budget | UI, Frontend, Backend  | MDN | Agreed |

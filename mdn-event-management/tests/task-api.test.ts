@@ -1,8 +1,15 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { prisma } from "../lib/prisma.ts";
+import {
+  apiClient,
+  assertApiReachable,
+  createTestSession,
+  ORIGIN,
+  type TestSession,
+} from "./auth-helper.ts";
 
-const BASE = process.env.TASK_API_BASE ?? "http://localhost:3000/api/tasks";
+const BASE = process.env.TASK_API_BASE ?? `${ORIGIN}/api/tasks`;
 
 type Task = {
   taskId: number;
@@ -18,25 +25,19 @@ function asTask(json: unknown): Task {
   return json as Task;
 }
 
-async function api(method: string, path = "", body?: unknown) {
-  const response = await fetch(`${BASE}${path}`, {
-    method,
-    headers: body ? { "Content-Type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const json = await response.json();
-  return { status: response.status, json };
-}
+/** Assigned in `before`, once the suite has a session to send. */
+let api: ReturnType<typeof apiClient>;
 
 describe("Task CRUD API", () => {
+  let session: TestSession;
   let memberA: number;
   const createdTaskIds: number[] = [];
 
   before(async () => {
-    const health = await fetch(BASE).catch(() => null);
-    if (!health) {
-      throw new Error(`API not reachable at ${BASE}. Start the app with: npm run dev`);
-    }
+    await assertApiReachable();
+    // Every /api/ route is behind `middleware.ts`, so the suite signs in first.
+    session = await createTestSession("task-api");
+    api = apiClient(session, BASE);
 
     const stamp = Date.now();
     const a = await prisma.member.create({
@@ -56,6 +57,7 @@ describe("Task CRUD API", () => {
     }
     await prisma.taskManager.deleteMany({ where: { memberId: memberA } });
     await prisma.member.deleteMany({ where: { memberId: memberA } });
+    await session.cleanup();
     await prisma.$disconnect();
   });
 

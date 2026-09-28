@@ -6,6 +6,20 @@
  */
 
 /**
+ * Default span offered when only one instant is known.
+ *
+ * Events now carry a real start and end, so this is a convenience default the
+ * forms prefill — not an assumption about how long anything runs. It also stands
+ * in as the booking window for a task, whose `deadline` is genuinely a point in
+ * time rather than a range.
+ *
+ * Lives here rather than in `lib/resourceAllocations.ts` because the client
+ * forms need it, and importing from that module would pull Prisma into the
+ * browser bundle.
+ */
+export const DEFAULT_BOOKING_DURATION_MS = 2 * 60 * 60 * 1000;
+
+/**
  * ISO timestamp → the `YYYY-MM-DDTHH:mm` a `datetime-local` input expects.
  * Shifts by the local offset first, because `toISOString` is UTC and the input
  * is read as local time — without this, edits silently move a booking by the
@@ -51,4 +65,21 @@ export function formatDuration(start: string, end: string): string | null {
   if (hours) parts.push(`${hours}h`);
   if (mins && !days) parts.push(`${mins}m`);
   return parts.length > 0 ? parts.join(" ") : "0m";
+}
+
+/**
+ * A `datetime-local` value → the same format, `DEFAULT_BOOKING_DURATION_MS` later.
+ *
+ * Used to prefill an end time once a start is picked, so nobody has to type the
+ * common case twice. Returns "" for an unparseable start, which the callers read
+ * as "leave the end alone".
+ *
+ * Adds elapsed milliseconds, not wall-clock hours: a two-hour booking across a
+ * DST change is still two hours of the room being occupied.
+ */
+export function defaultEndFor(startLocal: string): string {
+  const parsed = new Date(startLocal);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const end = new Date(parsed.getTime() + DEFAULT_BOOKING_DURATION_MS);
+  return toDatetimeLocal(end.toISOString());
 }

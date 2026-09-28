@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { readEvent, deleteEvent, parseEventSubtasks, updateEvent } from "@/lib/events";
+import { conflictsForEvent } from "@/lib/conflictQueries";
+import { isBadRequest } from "@/lib/api-errors";
 import { Prisma } from "@/generated/prisma/client";
 
 type RouteParams = {
@@ -38,6 +40,7 @@ export async function PATCH(request: Request, context: RouteParams) {
             name: body.name,
             description: body.description,
             date: body.date !== undefined ? new Date(body.date) : undefined,
+            endDate: body.endDate !== undefined ? new Date(body.endDate) : undefined,
             locationId: body.locationId !== undefined ? Number(body.locationId) : undefined,
             managerIds: Array.isArray(body.managerIds)
                 ? body.managerIds.map(Number)
@@ -51,10 +54,13 @@ export async function PATCH(request: Request, context: RouteParams) {
             subtasks: parseEventSubtasks(body.subtasks),
         });
 
+        // Flag, never block — see POST /api/events.
+        const conflicts = await conflictsForEvent(id);
+
         // Return the updated event
-        return NextResponse.json(event, { status: 200 });
+        return NextResponse.json({ ...event, conflicts }, { status: 200 });
     } catch (error) {
-        if (error instanceof Error && /subtasks/.test(error.message)) {
+        if (isBadRequest(error)) {
             return NextResponse.json({ error: error.message }, { status: 400 });
         }
         if (

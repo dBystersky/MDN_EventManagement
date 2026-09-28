@@ -1,20 +1,22 @@
 # MDN_EventManagement
-Event/Task management tool for Monash Deep Neuron (MDN)
 
-Framework: React 19.2.4
-Frontend:
-- Tailwind CSS v4^
-- shadcn
+Event and task management tool for Monash Deep Neuron (MDN).
 
-Database (SQL):
-- PostgreSQL
-- Prisma (ORM)
+The whole app lives in [`mdn-event-management/`](./mdn-event-management) — one
+Next.js project, frontend and API together.
 
-Backend:
-- Typescript
-- Express.js
-- Node.js
+## Stack
 
-## Local DB setup
+| | |
+|---|---|
+| Framework | Next.js 16 (App Router), React 19 |
+| Styling | Tailwind CSS v4, shadcn/ui |
+| API | Next.js route handlers, TypeScript |
+| Database | PostgreSQL via Prisma 7 |
+| Auth | JWT in an httpOnly cookie (`jsonwebtoken`, `bcryptjs`) |
 
-See [prisma-notes.md](./prisma-notes.md) — each teammate runs Postgres locally (Docker) and applies migrations with `npx prisma migrate dev`.
+## Docs
+
+Start at [docs/](./docs) — [getting-started.md](./docs/getting-started.md) takes
+you from clone to running app. The requirement list is
+[docs/RTM.md](./docs/RTM.md).

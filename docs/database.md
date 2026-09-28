@@ -1,86 +1,67 @@
-# Local database setup (PostgreSQL + Prisma)
+# Database
 
-Everyone runs **their own local Postgres**. There is no shared team database.
-After cloning, each person must start Postgres, set `.env`, install deps, and **run migrations** so their DB matches `schema.prisma`.
+Postgres + Prisma. Everyone runs their own local database on port 5433; there is
+no shared instance. First-time setup is in
+[getting-started.md](./getting-started.md).
 
-## One-time setup
+All commands run from `mdn-event-management/`.
 
-### 1. Start Docker Desktop
+## Day to day
 
-This project’s recommended local DB is Postgres in Docker (port `5433`).
+| Task | Command |
+|------|---------|
+| Apply new migrations after a pull | `npx prisma migrate dev` |
+| Check whether you are behind | `npx prisma migrate status` |
+| Regenerate the client | `npx prisma generate` |
+| Browse and edit data | `npx prisma studio` |
+| Wipe and rebuild (destroys data) | `npx prisma migrate reset` |
+| Recreate the admin account | `npx prisma db seed` |
 
-### 2. Create the Postgres container (first time only)
+`generated/prisma` is gitignored. If TypeScript cannot see a model that is
+plainly in `schema.prisma`, you need `generate`.
 
-```bash
-docker run --name mdn-postgres `
-  -e POSTGRES_USER=app_user `
-  -e POSTGRES_PASSWORD=app_password `
-  -e POSTGRES_DB=event_management `
-  -p 5433:5432 `
-  -d postgres:16
-```
+## Changing the schema
 
-Later sessions:
+1. Edit `prisma/schema.prisma`.
+2. `npx prisma migrate dev --name short_description`
+3. Commit **both** `schema.prisma` and the new folder under
+   `prisma/migrations/`. A migration without its schema change, or vice versa,
+   breaks everyone else.
+4. Teammates pull, then run `npx prisma migrate dev`.
 
-```bash
-docker start mdn-postgres
-docker stop mdn-postgres
-```
+## When the generated SQL would lose data
 
-### 3. Configure env
+`migrate dev` writes the migration for you, but it does not know your intent. A
+generated migration will happily drop a column or fail outright — adding a
+`NOT NULL` column to a table that already has rows is the common case, because
+there is no value for the existing ones.
 
-```bash
-cd mdn-event-management
-cp .env.example .env
-```
-
-`.env` should contain:
-
-```env
-DATABASE_URL="postgresql://app_user:app_password@localhost:5433/event_management"
-```
-
-Do **not** commit `.env`. `.env.example` is safe to commit.
-
-### 4. Install and migrate
+When that applies, write the SQL yourself:
 
 ```bash
-cd mdn-event-management
-npm install
+npx prisma migrate dev --create-only --name add_thing
+# edit prisma/migrations/<timestamp>_add_thing/migration.sql
 npx prisma migrate dev
-npx prisma generate
 ```
 
-`migrate dev` applies the committed migrations in `prisma/migrations/` to your local DB.
-**Yes — every teammate needs to run this** (or `npx prisma migrate reset` if they need a clean DB).
+The pattern for a new required column is three steps — add it nullable, backfill
+it, then add the constraint:
 
-### 5. Run the app
+```sql
+ALTER TABLE "events" ADD COLUMN "end_date" TIMESTAMPTZ;
+UPDATE "events" SET "end_date" = "date" + INTERVAL '2 hours';
+ALTER TABLE "events" ALTER COLUMN "end_date" SET NOT NULL;
+```
+
+`20260927120000_add_event_end_date` is a worked example. Test a migration like
+that against a copy with rows in it before pushing — a clean database will not
+exercise the backfill.
+
+## Checking the container is alive
 
 ```bash
-npm run dev
+docker exec mdn-postgres psql -U app_user -d event_management \
+  -c "SELECT current_user, current_database();"
 ```
 
-## Day-to-day commands
-
-| Task | Command (from `mdn-event-management/`) |
-|------|----------------------------------------|
-| Apply migrations | `npx prisma migrate dev` |
-| Reset DB (wipes data, re-applies migrations) | `npx prisma migrate reset` |
-| Regenerate Prisma Client after schema pull | `npx prisma generate` |
-| Browse data | `npx prisma studio` |
-| Check migration status | `npx prisma migrate status` |
-
-## When the schema changes
-
-1. Update `prisma/schema.prisma`
-2. Run `npx prisma migrate dev --name <short_description>`
-3. Commit **both** `schema.prisma` and the new folder under `prisma/migrations/`
-4. Teammates pull, then run `npx prisma migrate dev`
-
-## Verify DB is up
-
-```bash
-docker exec mdn-postgres psql -U app_user -d event_management -c "SELECT current_user, current_database();"
-```
-
-Expected: `app_user | event_management`
+Expect `app_user | event_management`.

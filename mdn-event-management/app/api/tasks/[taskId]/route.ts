@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { readTask, deleteTask, updateTask } from "@/lib/tasks";
 import { Prisma } from "@/generated/prisma/client";
+import { getAuthSession, isGuest } from "@/lib/auth";
 
 type RouteParams = {
   params: Promise<{ taskId: string }>;
@@ -8,6 +9,13 @@ type RouteParams = {
 
 // Function to get individual task from the API
 export async function GET(request: Request, context: RouteParams) {
+  if (isGuest(await getAuthSession())) {
+    return NextResponse.json(
+      { error: "Forbidden — guests have read-only calendar access" },
+      { status: 403 },
+    );
+  }
+
   // Extract the taskId from the URL parameters
   const { taskId } = await context.params;
   const id = Number(taskId);
@@ -24,6 +32,13 @@ export async function GET(request: Request, context: RouteParams) {
 }
 
 export async function PATCH(request: Request, context: RouteParams) {
+  if (isGuest(await getAuthSession())) {
+    return NextResponse.json(
+      { error: "Forbidden — guests have read-only calendar access" },
+      { status: 403 },
+    );
+  }
+
   // Extract the taskId from the URL parameters
   const { taskId } = await context.params;
   const id = Number(taskId);
@@ -62,6 +77,13 @@ export async function PATCH(request: Request, context: RouteParams) {
 }
 
 export async function DELETE(request: Request, context: RouteParams) {
+  if (isGuest(await getAuthSession())) {
+    return NextResponse.json(
+      { error: "Forbidden — guests have read-only calendar access" },
+      { status: 403 },
+    );
+  }
+
   const { taskId } = await context.params;
   const id = Number(taskId);
 

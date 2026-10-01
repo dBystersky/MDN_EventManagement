@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
+import { getAuthSession, isGuest } from "@/lib/auth";
 import { createResource, listResources } from "@/lib/resources";
 import { Prisma } from "@/generated/prisma/client";
 
 export async function GET() {
+  if (isGuest(await getAuthSession())) {
+    return NextResponse.json(
+      { error: "Forbidden — guests have read-only calendar access" },
+      { status: 403 },
+    );
+  }
+
   try {
     const resources = await listResources();
     return NextResponse.json(resources, { status: 200 });
@@ -12,6 +20,13 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (isGuest(await getAuthSession())) {
+    return NextResponse.json(
+      { error: "Forbidden — guests have read-only calendar access" },
+      { status: 403 },
+    );
+  }
+
   const body = await request.json();
 
   try {

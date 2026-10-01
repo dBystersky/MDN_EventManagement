@@ -62,6 +62,14 @@ export function locationPermissions(role: string | null | undefined): Capabiliti
 }
 
 /**
+ * The audit trail is always restricted (not behind `ENFORCED`): it records who
+ * did what, so only admins see it.
+ */
+export function canViewAuditLog(role: string | null | undefined): boolean {
+  return role === "Admin";
+}
+
+/**
  * Reads the current member's role from the session endpoint. Returns `null` for
  * anonymous visitors — `/api/auth/me` answers 401 when there is no cookie, and
  * `apiJson` would throw on that, so this deliberately uses a plain `fetch`.

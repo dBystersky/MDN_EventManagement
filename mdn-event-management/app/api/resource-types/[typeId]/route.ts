@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { getAuthSession, isGuest } from "@/lib/auth";
+import { changedFields, findAllocationDependents, recordAudit, recordCascade } from "@/lib/audit";
 import { getResourceType, updateResourceType, deleteResourceType } from "@/lib/resourceTypes";
 import { Prisma } from "@/generated/prisma/client";
+import { prisma } from "@/lib/prisma";
 
 type RouteParams = {
   params: Promise<{ typeId: string }>;
@@ -27,7 +29,8 @@ export async function GET(request: Request, context: RouteParams) {
 }
 
 export async function PATCH(request: Request, context: RouteParams) {
-  if (isGuest(await getAuthSession())) {
+  const session = await getAuthSession();
+  if (isGuest(session)) {
     return NextResponse.json(
       { error: "Forbidden — guests have read-only calendar access" },
       { status: 403 },
@@ -40,6 +43,14 @@ export async function PATCH(request: Request, context: RouteParams) {
 
   try {
     const resourceType = await updateResourceType(id, body.name);
+    await recordAudit({
+      actor: session,
+      action: "update",
+      entityType: "ResourceType",
+      entityId: id,
+      summary: `Updated resource type "${resourceType.name}"`,
+      changes: { fields: changedFields(body) },
+    });
     return NextResponse.json(resourceType, { status: 200 });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
@@ -53,7 +64,8 @@ export async function PATCH(request: Request, context: RouteParams) {
 }
 
 export async function DELETE(request: Request, context: RouteParams) {
-  if (isGuest(await getAuthSession())) {
+  const session = await getAuthSession();
+  if (isGuest(session)) {
     return NextResponse.json(
       { error: "Forbidden — guests have read-only calendar access" },
       { status: 403 },
@@ -64,7 +76,32 @@ export async function DELETE(request: Request, context: RouteParams) {
   const id = Number(typeId);
 
   try {
+    const before = await getResourceType(id);
+    const resources =
+      (await prisma.resource.findMany({
+        where: { resourceType: id },
+        select: { resourceId: true, name: true },
+      })) ?? [];
+    const allocations = await findAllocationDependents({
+      resourceId: { in: resources.map((r) => r.resourceId) },
+    });
     await deleteResourceType(id);
+    const because = `resource type #${id} was deleted`;
+    await recordCascade(session, "delete", "ResourceAllocation", allocations, because);
+    await recordCascade(
+      session,
+      "delete",
+      "Resource",
+      resources.map((r) => ({ id: r.resourceId, label: `resource "${r.name}"` })),
+      because,
+    );
+    await recordAudit({
+      actor: session,
+      action: "delete",
+      entityType: "ResourceType",
+      entityId: id,
+      summary: `Deleted resource type ${before ? `"${before.name}"` : `#${id}`}`,
+    });
     return NextResponse.json({ message: "Resource type deleted successfully" }, { status: 200 });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {

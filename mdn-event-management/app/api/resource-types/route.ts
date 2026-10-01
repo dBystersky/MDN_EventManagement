@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthSession, isGuest } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
 import { createResourceType, listResourceTypes } from "@/lib/resourceTypes";
 import { Prisma } from "@/generated/prisma/client";
 
@@ -20,7 +21,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (isGuest(await getAuthSession())) {
+  const session = await getAuthSession();
+  if (isGuest(session)) {
     return NextResponse.json(
       { error: "Forbidden — guests have read-only calendar access" },
       { status: 403 },
@@ -31,6 +33,13 @@ export async function POST(request: Request) {
 
   try {
     const newResourceType = await createResourceType(body.name);
+    await recordAudit({
+      actor: session,
+      action: "create",
+      entityType: "ResourceType",
+      entityId: newResourceType.typeId,
+      summary: `Created resource type "${newResourceType.name}"`,
+    });
     return NextResponse.json(newResourceType, { status: 201 });
   } catch (error) {
     console.error(error);

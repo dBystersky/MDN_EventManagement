@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { canViewAuditLog } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { LogoutButton } from "./logout-button";
 
@@ -18,6 +19,7 @@ const LINKS = [
   { href: "/resources", label: "Resources" },
   { href: "/resource-types", label: "Resource types" },
   { href: "/members", label: "Members" },
+  { href: "/audit-log", label: "Audit log" },
 ];
 
 type CrudNavProps = {
@@ -27,7 +29,9 @@ type CrudNavProps = {
 export function CrudNav({ user }: CrudNavProps) {
   const pathname = usePathname();
   const isGuest = user?.role === "Guest";
-  const links = isGuest ? LINKS.filter((l) => l.href === "/calendar") : LINKS;
+  const links = isGuest
+    ? LINKS.filter((l) => l.href === "/calendar")
+    : LINKS.filter((l) => l.href !== "/audit-log" || canViewAuditLog(user?.role));
 
   return (
     <aside className="flex w-full shrink-0 flex-col overflow-y-auto bg-linear-to-b from-primary from-0% via-primary via-[45%] to-secondary px-4 py-6 text-primary-foreground md:sticky md:top-0 md:h-svh md:w-72">

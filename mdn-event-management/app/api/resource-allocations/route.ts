@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthSession, isGuest } from "@/lib/auth";
 import { createAllocation, listAllocations } from "@/lib/resourceAllocations";
+import { recordAudit } from "@/lib/audit";
 import { Prisma } from "@/generated/prisma/client";
 
 export async function GET() {
@@ -23,7 +24,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (isGuest(await getAuthSession())) {
+  const session = await getAuthSession();
+  if (isGuest(session)) {
     return NextResponse.json(
       { error: "Forbidden — guests have read-only calendar access" },
       { status: 403 },
@@ -38,6 +40,13 @@ export async function POST(request: Request) {
       startTime: new Date(body.startTime),
       endTime: new Date(body.endTime),
       bookableId: Number(body.bookableId),
+    });
+    await recordAudit({
+      actor: session,
+      action: "create",
+      entityType: "ResourceAllocation",
+      entityId: newAllocation.allocationId,
+      summary: `Allocated resource #${newAllocation.resourceId} to booking #${newAllocation.bookableId}`,
     });
     return NextResponse.json(newAllocation, { status: 201 });
   } catch (error) {

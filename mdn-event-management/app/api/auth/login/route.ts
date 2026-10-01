@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { comparePassword, signToken, AUTH_COOKIE_NAME } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
 
 export async function POST(request: Request) {
   try {
@@ -17,12 +18,31 @@ export async function POST(request: Request) {
     });
 
     if (!member) {
+      await recordAudit({
+        actor: null,
+        action: "login_failed",
+        entityType: "Member",
+        entityId: 0,
+        summary: `Failed login for unknown email ${email}`,
+      });
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
 
     // Compare password
     const isPasswordValid = await comparePassword(password, member.password);
     if (!isPasswordValid) {
+      await recordAudit({
+        actor: {
+          member_id: member.memberId,
+          email: member.email,
+          name: member.name,
+          role: member.role,
+        },
+        action: "login_failed",
+        entityType: "Member",
+        entityId: member.memberId,
+        summary: `Failed login (wrong password) for ${member.email}`,
+      });
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
 
@@ -34,6 +54,14 @@ export async function POST(request: Request) {
     };
 
     const token = signToken(userSession);
+
+    await recordAudit({
+      actor: userSession,
+      action: "login",
+      entityType: "Member",
+      entityId: member.memberId,
+      summary: `${member.email} logged in`,
+    });
 
     const response = NextResponse.json({
       message: "Logged in successfully",

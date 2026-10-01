@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createTask, listTasks } from "@/lib/tasks";
 import { Prisma } from "@/generated/prisma/client";
 import { getAuthSession, isGuest } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
 
 // Function to get all tasks from the API
 export async function GET(request: Request) {
@@ -20,7 +21,8 @@ export async function GET(request: Request) {
 
 // Function to create a new task
 export async function POST(request: Request) {
-  if (isGuest(await getAuthSession())) {
+  const session = await getAuthSession();
+  if (isGuest(session)) {
     return NextResponse.json(
       { error: "Forbidden — guests have read-only calendar access" },
       { status: 403 },
@@ -41,6 +43,14 @@ export async function POST(request: Request) {
       managerIds: body.managerIds,
       eventId: body.eventId,
       budget: body.budget,
+    });
+
+    await recordAudit({
+      actor: session,
+      action: "create",
+      entityType: "Task",
+      entityId: newTask.taskId,
+      summary: `Created task "${newTask.name}"`,
     });
 
     return NextResponse.json(newTask, { status: 201 });

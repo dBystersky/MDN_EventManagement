@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthSession, isGuest } from "@/lib/auth";
 import { getAllocation, updateAllocation, deleteAllocation } from "@/lib/resourceAllocations";
 import { Prisma } from "@/generated/prisma/client";
+import { changedFields, recordAudit } from "@/lib/audit";
 
 type RouteParams = {
   params: Promise<{ allocationId: string }>;
@@ -27,7 +28,8 @@ export async function GET(request: Request, context: RouteParams) {
 }
 
 export async function PATCH(request: Request, context: RouteParams) {
-  if (isGuest(await getAuthSession())) {
+  const session = await getAuthSession();
+  if (isGuest(session)) {
     return NextResponse.json(
       { error: "Forbidden — guests have read-only calendar access" },
       { status: 403 },
@@ -45,6 +47,15 @@ export async function PATCH(request: Request, context: RouteParams) {
       endTime: body.endTime !== undefined ? new Date(body.endTime) : undefined,
       bookableId: body.bookableId !== undefined ? Number(body.bookableId) : undefined,
     });
+    const fields = changedFields(body);
+    await recordAudit({
+      actor: session,
+      action: "update",
+      entityType: "ResourceAllocation",
+      entityId: allocation.allocationId,
+      summary: `Updated allocation #${allocation.allocationId} (resource #${allocation.resourceId})`,
+      changes: { fields },
+    });
     return NextResponse.json(allocation, { status: 200 });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
@@ -61,7 +72,8 @@ export async function PATCH(request: Request, context: RouteParams) {
 }
 
 export async function DELETE(request: Request, context: RouteParams) {
-  if (isGuest(await getAuthSession())) {
+  const session = await getAuthSession();
+  if (isGuest(session)) {
     return NextResponse.json(
       { error: "Forbidden — guests have read-only calendar access" },
       { status: 403 },
@@ -72,7 +84,17 @@ export async function DELETE(request: Request, context: RouteParams) {
   const id = Number(allocationId);
 
   try {
+    const before = await getAllocation(id);
     await deleteAllocation(id);
+    await recordAudit({
+      actor: session,
+      action: "delete",
+      entityType: "ResourceAllocation",
+      entityId: id,
+      summary: before
+        ? `Removed allocation of "${before.resource.name}"`
+        : `Removed allocation #${id}`,
+    });
     return NextResponse.json(
       { message: "Resource allocation deleted successfully" },
       { status: 200 },

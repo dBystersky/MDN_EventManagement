@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { CircleAlertIcon, Trash2Icon } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -121,8 +120,8 @@ export default function MembersPage() {
       setPassword("");
       setRole("Member");
       await loadMembers();
-    } catch (err: any) {
-      setFormError(err.message);
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : "Failed to create member");
     } finally {
       setCreating(false);
     }
@@ -142,8 +141,8 @@ export default function MembersPage() {
 
       setDeleteTarget(null);
       await loadMembers();
-    } catch (err: any) {
-      setDeleteError(err.message);
+    } catch (err: unknown) {
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete member");
     } finally {
       setDeleting(false);
     }
@@ -299,7 +298,12 @@ export default function MembersPage() {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="member-role">Role</Label>
-                  <Select value={role} onValueChange={setRole}>
+                  <Select
+                    value={role}
+                    onValueChange={(value) => {
+                      if (value != null) setRole(value);
+                    }}
+                  >
                     <SelectTrigger id="member-role" className="w-full">
                       <SelectValue placeholder="Select a role" />
                     </SelectTrigger>

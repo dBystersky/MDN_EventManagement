@@ -2,13 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 import { formatEventDate, managerNamesFor } from "./helpers";
@@ -62,18 +56,14 @@ export function EventList({
                       <p className="font-medium">
                         #{ev.eventId} {ev.name}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatEventDate(ev.date)}
-                      </p>
+                      <p className="text-xs text-muted-foreground">{formatEventDate(ev.date)}</p>
                       <p className="text-xs text-muted-foreground">
                         Event Manager(s):{" "}
                         {managerNames.length > 0 ? managerNames.join(", ") : "None"}
                       </p>
                     </button>
                     <div className="flex shrink-0 flex-col items-end gap-1">
-                      <Badge variant="secondary">
-                        {ev.location?.name ?? "No venue"}
-                      </Badge>
+                      <Badge variant="secondary">{ev.location?.name ?? "No venue"}</Badge>
                       <Badge variant="outline">${ev.totalBudget ?? "0"}</Badge>
                       <Button
                         type="button"

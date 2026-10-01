@@ -68,15 +68,14 @@ export function searchAllocations<T extends SearchableAllocation>(
     limit: 0,
   });
 
-  return [...results]
-    // Equal scores otherwise tie-break arbitrarily, making the table reorder
-    // unpredictably between keystrokes. Start time is the stable fallback.
-    .sort(
-      (a, b) =>
-        b.score - a.score || a.obj.startTime.localeCompare(b.obj.startTime),
-    )
-    .map((result) => ({
-      allocation: result.obj,
-      resourceMatch: result[0] && result[0].score > 0 ? result[0] : null,
-    }));
+  return (
+    [...results]
+      // Equal scores otherwise tie-break arbitrarily, making the table reorder
+      // unpredictably between keystrokes. Start time is the stable fallback.
+      .sort((a, b) => b.score - a.score || a.obj.startTime.localeCompare(b.obj.startTime))
+      .map((result) => ({
+        allocation: result.obj,
+        resourceMatch: result[0] && result[0].score > 0 ? result[0] : null,
+      }))
+  );
 }

@@ -1,0 +1,17 @@
+# Generated / installed
+generated/
+.next/
+node_modules/
+next-env.d.ts
+package-lock.json
+prisma/migrations/
+graphify-out/
+
+# Agent skill bundles (vendored from upstream)
+.agents/
+.claude/
+.windsurf/
+.cursor/
+
+# Markdown is left alone (AGENTS.md is rewritten by `next dev`)
+*.md

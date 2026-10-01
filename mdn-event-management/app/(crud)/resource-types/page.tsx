@@ -86,9 +86,7 @@ export default function ResourceTypesDemo() {
     <section>
       <div className="space-y-6">
         <header>
-          <h1 className="text-2xl font-bold">
-            Resource types
-          </h1>
+          <h1 className="text-2xl font-bold">Resource types</h1>
         </header>
 
         {error && (

@@ -17,10 +17,7 @@ export type SearchableTask = {
   taskManagers?: { memberId: number; member?: { name: string } | null }[];
 };
 
-export function eventNameOf(
-  task: SearchableTask,
-  eventNames: ReadonlyMap<number, string>,
-): string {
+export function eventNameOf(task: SearchableTask, eventNames: ReadonlyMap<number, string>): string {
   if (task.eventId == null) return "";
   return eventNames.get(task.eventId) ?? "";
 }
@@ -69,15 +66,14 @@ export function searchTasks<T extends SearchableTask>(
     limit: 0,
   });
 
-  return [...results]
-    // Equal scores otherwise tie-break arbitrarily, making the table reorder
-    // unpredictably between keystrokes. Deadline is the stable fallback.
-    .sort(
-      (a, b) =>
-        b.score - a.score || a.obj.deadline.localeCompare(b.obj.deadline),
-    )
-    .map((result) => ({
-      task: result.obj,
-      nameMatch: result[0] && result[0].score > 0 ? result[0] : null,
-    }));
+  return (
+    [...results]
+      // Equal scores otherwise tie-break arbitrarily, making the table reorder
+      // unpredictably between keystrokes. Deadline is the stable fallback.
+      .sort((a, b) => b.score - a.score || a.obj.deadline.localeCompare(b.obj.deadline))
+      .map((result) => ({
+        task: result.obj,
+        nameMatch: result[0] && result[0].score > 0 ? result[0] : null,
+      }))
+  );
 }

@@ -7,13 +7,7 @@ import { CircleAlertIcon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -111,10 +105,7 @@ export default function TasksDemo() {
     [events],
   );
 
-  const matches = useMemo(
-    () => searchTasks(query, items, eventNames),
-    [query, items, eventNames],
-  );
+  const matches = useMemo(() => searchTasks(query, items, eventNames), [query, items, eventNames]);
 
   function resetForm() {
     setSelectedId(null);
@@ -196,9 +187,7 @@ export default function TasksDemo() {
     <section>
       <div className="space-y-6">
         <header>
-          <h1 className="text-2xl font-bold">
-            Tasks
-          </h1>
+          <h1 className="text-2xl font-bold">Tasks</h1>
         </header>
 
         {/* Suppressed while the dialog is open — its own alert carries the
@@ -215,8 +204,8 @@ export default function TasksDemo() {
           <CardHeader>
             <CardTitle>Assignments</CardTitle>
             <CardDescription>
-              Each task can belong to an event, carry a budget, and have members assigned to
-              it. Select a row to edit it.
+              Each task can belong to an event, carry a budget, and have members assigned to it.
+              Select a row to edit it.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -310,17 +299,13 @@ export default function TasksDemo() {
                             </button>
                           </TableCell>
                           <TableCell className="text-sm">
-                            {eventName || (
-                              <span className="text-muted-foreground">Unassigned</span>
-                            )}
+                            {eventName || <span className="text-muted-foreground">Unassigned</span>}
                           </TableCell>
                           <TableCell className="text-sm whitespace-nowrap">
                             {formatDateTime(task.deadline)}
                           </TableCell>
                           <TableCell className="text-sm whitespace-nowrap">
-                            {budgetLabel ?? (
-                              <span className="text-muted-foreground">—</span>
-                            )}
+                            {budgetLabel ?? <span className="text-muted-foreground">—</span>}
                           </TableCell>
                           <TableCell className="text-sm">
                             {managerNames || (
@@ -505,10 +490,7 @@ export default function TasksDemo() {
                 {events.length === 0 && (
                   <p className="text-xs text-muted-foreground">
                     No events exist yet.{" "}
-                    <Link
-                      href="/events"
-                      className="text-primary underline underline-offset-4"
-                    >
+                    <Link href="/events" className="text-primary underline underline-offset-4">
                       Create an event
                     </Link>{" "}
                     first, or leave this unassigned.

@@ -1,16 +1,16 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { hashPassword, getAuthSession } from '@/lib/auth';
-import { MemberRole } from '@/generated/prisma/client';
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { hashPassword, getAuthSession } from "@/lib/auth";
+import { MemberRole } from "@/generated/prisma/client";
 
 /** Only Admin sessions may call these handlers. */
 async function requireAdmin() {
   const session = await getAuthSession();
   if (!session) {
-    return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
-  if (session.role !== 'Admin') {
-    return NextResponse.json({ error: 'Forbidden — Admin only' }, { status: 403 });
+  if (session.role !== "Admin") {
+    return NextResponse.json({ error: "Forbidden — Admin only" }, { status: 403 });
   }
   return null; // OK
 }
@@ -25,22 +25,22 @@ export async function POST(request: Request) {
 
     if (!name || !email || !password) {
       return NextResponse.json(
-        { error: 'Name, email, and password are required' },
-        { status: 400 }
+        { error: "Name, email, and password are required" },
+        { status: 400 },
       );
     }
 
     const existing = await prisma.member.findUnique({ where: { email } });
     if (existing) {
       return NextResponse.json(
-        { error: 'A member with this email already exists' },
-        { status: 400 }
+        { error: "A member with this email already exists" },
+        { status: 400 },
       );
     }
 
     let memberRole: MemberRole = MemberRole.Member;
-    if (role === 'Manager') memberRole = MemberRole.Manager;
-    if (role === 'Admin') memberRole = MemberRole.Admin;
+    if (role === "Manager") memberRole = MemberRole.Manager;
+    if (role === "Admin") memberRole = MemberRole.Admin;
 
     const member = await prisma.member.create({
       data: {
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(member, { status: 201 });
   } catch (error) {
-    console.error('Create member error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error("Create member error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

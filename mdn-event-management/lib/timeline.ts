@@ -101,9 +101,7 @@ export function nowPct(model: TimelineModel, now: number): number {
 
 /** Whether "now" is inside the plotted window, i.e. worth drawing a marker for. */
 export function isNowVisible(model: TimelineModel, now: number): boolean {
-  return (
-    model.bookings.length > 0 && now >= model.domainStart && now <= model.domainEnd
-  );
+  return model.bookings.length > 0 && now >= model.domainStart && now <= model.domainEnd;
 }
 
 export function buildTimeline(bookings: readonly Booking[], tickCount = 4): TimelineModel {

@@ -7,7 +7,9 @@
  * added in a single place and every route agrees on the status code.
  */
 
+import { NextResponse } from "next/server";
 import { Prisma } from "@/generated/prisma/client";
+import { firstError, hasErrors, type FieldErrors } from "@/lib/validation";
 
 const BAD_REQUEST_MESSAGES: readonly RegExp[] = [
     /subtasks/,
@@ -29,5 +31,22 @@ export function isBadRequest(error: unknown): error is Error {
     return (
         error instanceof Error &&
         BAD_REQUEST_MESSAGES.some((pattern) => pattern.test(error.message))
+    );
+}
+
+/**
+ * A 400 naming every bad field, or null when the input passed.
+ *
+ * `error` keeps the one-line summary every existing caller reads; `fieldErrors`
+ * is what lets the form put each message under its own field (RTM Req 9).
+ *
+ *     const invalid = validationFailed(validateEvent(body));
+ *     if (invalid) return invalid;
+ */
+export function validationFailed(errors: FieldErrors): NextResponse | null {
+    if (!hasErrors(errors)) return null;
+    return NextResponse.json(
+        { error: firstError(errors), fieldErrors: errors },
+        { status: 400 },
     );
 }

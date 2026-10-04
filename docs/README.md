@@ -10,6 +10,7 @@ a couple of minutes.
 | [database.md](./database.md) | You are changing the schema, or your local DB is out of sync |
 | [testing.md](./testing.md) | You are writing or running tests |
 | [conflict-detection.md](./conflict-detection.md) | You are touching clash flagging (Req 7) |
+| [validation.md](./validation.md) | You are adding a form field, a form, or a write route (Req 9) |
 | [RTM.md](./RTM.md) | You need the requirement list and its IDs |
 
 Not docs: `CLAUDE.md` and `AGENTS.md` in `mdn-event-management/` are instructions

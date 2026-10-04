@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { validationFailed } from "@/lib/api-errors";
+import { validateNamed } from "@/lib/validation";
 import { getLocation, updateLocation, deleteLocation } from "@/lib/locations";
 
 type RouteParams = {
@@ -28,6 +30,9 @@ export async function PATCH(request: Request, context: RouteParams, ) {
     try{
         const body = await request.json();
         const { name } = body;
+
+        const invalid = validationFailed(validateNamed(body, "location"));
+        if (invalid) return invalid;
 
         const updatedLocation = await updateLocation(id, name);
 

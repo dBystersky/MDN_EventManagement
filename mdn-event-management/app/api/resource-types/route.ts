@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { validationFailed } from "@/lib/api-errors";
+import { validateNamed } from "@/lib/validation";
 import { createResourceType, listResourceTypes } from "@/lib/resourceTypes";
 import { Prisma } from "@/generated/prisma/client";
 
@@ -13,6 +15,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
     const body = await request.json();
+
+    const invalid = validationFailed(validateNamed(body, "resource type"));
+    if (invalid) return invalid;
 
     try {
         const newResourceType = await createResourceType(body.name);

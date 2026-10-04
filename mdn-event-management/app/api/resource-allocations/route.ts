@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
+import { validateAllocation } from "@/lib/validation";
 import { createAllocation, listAllocations } from "@/lib/resourceAllocations";
 import { conflictsForAllocation } from "@/lib/conflictQueries";
-import { isBadRequest } from "@/lib/api-errors";
+import { isBadRequest, validationFailed } from "@/lib/api-errors";
 import { Prisma } from "@/generated/prisma/client";
 
 export async function GET() {
@@ -15,6 +16,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
     const body = await request.json();
+
+    const invalid = validationFailed(validateAllocation(body));
+    if (invalid) return invalid;
 
     try {
         const newAllocation = await createAllocation({

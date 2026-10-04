@@ -14,18 +14,23 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { FieldError } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useFieldValidation } from '@/hooks/use-field-validation';
+import { validateLogin } from '@/lib/validation';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const validation = useFieldValidation({ email, password }, validateLogin);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
+    if (!validation.checkBeforeSubmit(e.currentTarget)) return;
     setLoading(true);
 
     try {
@@ -69,7 +74,7 @@ export default function LoginPage() {
             </Alert>
           )}
 
-          <form id="login-form" onSubmit={handleSubmit} className="space-y-4">
+          <form id="login-form" noValidate onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="email">Email address</Label>
               <Input
@@ -80,7 +85,9 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 autoComplete="email"
+                {...validation.fieldProps('email', 'email')}
               />
+              <FieldError id="email-error">{validation.errorFor('email')}</FieldError>
             </div>
 
             <div className="space-y-1.5">
@@ -93,7 +100,9 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 autoComplete="current-password"
+                {...validation.fieldProps('password', 'password')}
               />
+              <FieldError id="password-error">{validation.errorFor('password')}</FieldError>
             </div>
           </form>
         </CardContent>

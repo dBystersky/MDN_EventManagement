@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
+import { validateEvent } from "@/lib/validation";
 import { createEvent, listEvents, parseEventSubtasks } from "@/lib/events";
 import { conflictsForEvent } from "@/lib/conflictQueries";
-import { isBadRequest } from "@/lib/api-errors";
+import { isBadRequest, validationFailed } from "@/lib/api-errors";
 import { Prisma } from "@/generated/prisma/client";
 
 // Function to get all events from the API
@@ -17,6 +18,9 @@ export async function GET() {
 // Function to create a new event
 export async function POST(request: Request) {
     const body = await request.json();
+
+    const invalid = validationFailed(validateEvent(body));
+    if (invalid) return invalid;
 
     try {
         const newEvent = await createEvent({

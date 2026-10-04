@@ -5,6 +5,9 @@ import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+import type { FieldValidation } from "@/hooks/use-field-validation";
+import type { SubtaskDraftField } from "@/lib/validation";
+
 import { AssignmentPicker, Field, OptionSelect } from "./form-controls";
 import { formatSubtaskDate, names } from "./helpers";
 import { ResourceSearch } from "./resource-search";
@@ -51,6 +54,7 @@ export function EventSubtasks({
   onSubtaskAssigneeIdChange,
   subtaskDeadline,
   onSubtaskDeadlineChange,
+  subtaskValidation,
   subtaskResourceIds,
   onSubtaskResourceIdsChange,
   memberOptions,
@@ -71,6 +75,8 @@ export function EventSubtasks({
   onSubtaskAssigneeIdChange: (value: string) => void;
   subtaskDeadline: string;
   onSubtaskDeadlineChange: (value: string) => void;
+  /** Speaks up only when "Add subtask" is pressed — the composer is optional. */
+  subtaskValidation: FieldValidation<SubtaskDraftField>;
   subtaskResourceIds: string[];
   onSubtaskResourceIdsChange: (ids: string[]) => void;
   memberOptions: Option[];
@@ -100,12 +106,19 @@ export function EventSubtasks({
         options={taskPickerOptions}
       />
 
-      <Field id="subtask-title" label="Subtask title">
+      {/* The id scopes where a failed "Add subtask" moves focus to. */}
+      <div id="subtask-composer" className="space-y-4">
+      <Field
+        id="subtask-title"
+        label="Subtask title"
+        error={subtaskValidation.errorFor("name")}
+      >
         <Input
           id="subtask-title"
           placeholder="e.g. Finish slides for the welcome talk"
           value={subtaskTitle}
           onChange={(e) => onSubtaskTitleChange(e.target.value)}
+          {...subtaskValidation.fieldProps("name", "subtask-title", { touchOnBlur: false })}
         />
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -118,14 +131,22 @@ export function EventSubtasks({
             onChange={onSubtaskAssigneeIdChange}
           />
         </Field>
-        <Field id="subtask-deadline" label="Due date">
+        <Field
+          id="subtask-deadline"
+          label="Due date"
+          error={subtaskValidation.errorFor("deadline")}
+        >
           <Input
             id="subtask-deadline"
             type="date"
             value={subtaskDeadline}
             onChange={(e) => onSubtaskDeadlineChange(e.target.value)}
+            {...subtaskValidation.fieldProps("deadline", "subtask-deadline", {
+              touchOnBlur: false,
+            })}
           />
         </Field>
+      </div>
       </div>
       <ResourceSearch
         resources={resources}
@@ -133,11 +154,8 @@ export function EventSubtasks({
         onChange={onSubtaskResourceIdsChange}
       />
       <div className="flex justify-end">
-        <Button
-          type="button"
-          disabled={!subtaskTitle.trim() || !subtaskDeadline}
-          onClick={onAddDraft}
-        >
+        {/* Never disabled: pressing it says what is missing. */}
+        <Button type="button" variant="secondary" onClick={onAddDraft}>
           Add subtask
         </Button>
       </div>

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
+import { validateAllocation } from "@/lib/validation";
 import { getAllocation, updateAllocation, deleteAllocation } from "@/lib/resourceAllocations";
 import { conflictsForAllocation } from "@/lib/conflictQueries";
-import { isBadRequest } from "@/lib/api-errors";
+import { isBadRequest, validationFailed } from "@/lib/api-errors";
 import { Prisma } from "@/generated/prisma/client";
 
 type RouteParams = {
@@ -24,6 +25,9 @@ export async function PATCH(request: Request, context: RouteParams) {
     const { allocationId } = await context.params;
     const id = Number(allocationId);
     const body = await request.json();
+
+    const invalid = validationFailed(validateAllocation(body, { partial: true }));
+    if (invalid) return invalid;
 
     try {
         const allocation = await updateAllocation(id, {

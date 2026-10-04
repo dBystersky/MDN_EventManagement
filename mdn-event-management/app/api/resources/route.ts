@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { validationFailed } from "@/lib/api-errors";
+import { validateResource } from "@/lib/validation";
 import { createResource, listResources } from "@/lib/resources";
 import { Prisma } from "@/generated/prisma/client";
 
@@ -13,6 +15,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
     const body = await request.json();
+
+    const invalid = validationFailed(validateResource(body));
+    if (invalid) return invalid;
 
     try {
         const newResource = await createResource({

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword, getAuthSession } from '@/lib/auth';
 import { MemberRole } from '@/generated/prisma/client';
+import { validationFailed } from '@/lib/api-errors';
+import { validateMember } from '@/lib/validation';
 
 /** Only Admin sessions may call these handlers. */
 async function requireAdmin() {
@@ -21,19 +23,18 @@ export async function POST(request: Request) {
   if (denied) return denied;
 
   try {
-    const { name, email, password, role } = await request.json();
+    const body = await request.json();
+    const invalid = validationFailed(validateMember(body));
+    if (invalid) return invalid;
 
-    if (!name || !email || !password) {
-      return NextResponse.json(
-        { error: 'Name, email, and password are required' },
-        { status: 400 }
-      );
-    }
+    const { name, email, password, role } = body;
 
     const existing = await prisma.member.findUnique({ where: { email } });
     if (existing) {
+      // Keyed to the field so the form shows it under Email, not in a banner.
+      const message = 'A member with this email already exists';
       return NextResponse.json(
-        { error: 'A member with this email already exists' },
+        { error: message, fieldErrors: { email: message } },
         { status: 400 }
       );
     }

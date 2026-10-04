@@ -273,7 +273,8 @@ describe("Conflict flagging API", () => {
       locationId: venueA,
     });
     assert.equal(status, 400);
-    assert.match(String(json.error), /endDate must be after date/);
+    // Caught by lib/validation.ts and keyed to the field the form shows it under.
+    assert.match(String(json.fieldErrors?.endDate), /end must be after the start/);
   });
 
   it("rejects an event with no end at all", async () => {
@@ -326,7 +327,7 @@ describe("Conflict flagging API", () => {
       endTime: at(5),
     });
     assert.equal(status, 400);
-    assert.match(String(json.error), /endTime must be after startTime/);
+    assert.match(String(json.fieldErrors?.endTime), /end must be after the start/);
   });
 
   it("previews a clash without saving anything", async () => {

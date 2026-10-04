@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -32,11 +33,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { fetchSessionRole, locationPermissions, type Capabilities } from "@/lib/permissions";
-import { apiJson } from "@/lib/api-json";
+import { ApiError, apiJson } from "@/lib/api-json";
+import { useFieldValidation } from "@/hooks/use-field-validation";
+import { validateNamed } from "@/lib/validation";
 
 type Location = { locationId: number; name: string };
 
 const MIN_SCORE = 0.2;
+
+const validateLocation = (values: unknown) => validateNamed(values, "location");
 
 export default function LocationsDemo() {
   const [items, setItems] = useState<Location[]>([]);
@@ -47,6 +52,7 @@ export default function LocationsDemo() {
   const [query, setQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [can, setCan] = useState<Capabilities>(() => locationPermissions(null));
+  const validation = useFieldValidation({ name }, validateLocation);
 
   async function refresh() {
     const [locations, role] = await Promise.all([
@@ -64,6 +70,7 @@ export default function LocationsDemo() {
   function resetForm() {
     setSelectedId(null);
     setName("");
+    validation.reset();
   }
 
   function openCreate() {
@@ -77,6 +84,7 @@ export default function LocationsDemo() {
     if (!can.edit) return;
     setSelectedId(location.locationId);
     setName(location.name);
+    validation.reset();
     setError("");
     setDialogOpen(true);
   }
@@ -261,9 +269,11 @@ export default function LocationsDemo() {
       <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
         <DialogContent>
           <form
+            noValidate
             onSubmit={async (e) => {
               e.preventDefault();
               setError("");
+              if (!validation.checkBeforeSubmit(e.currentTarget)) return;
               setPending(true);
               try {
                 if (isEditing) {
@@ -274,6 +284,9 @@ export default function LocationsDemo() {
                 handleOpenChange(false);
                 await refresh();
               } catch (err) {
+                if (err instanceof ApiError && validation.setServerErrors(err.fieldErrors)) {
+                  return;
+                }
                 setError(String(err));
               } finally {
                 setPending(false);
@@ -307,7 +320,9 @@ export default function LocationsDemo() {
                   onChange={(e) => setName(e.target.value)}
                   disabled={!canSubmit}
                   required
+                  {...validation.fieldProps("name", "location-name")}
                 />
+                <FieldError id="location-name-error">{validation.errorFor("name")}</FieldError>
               </div>
             </div>
 

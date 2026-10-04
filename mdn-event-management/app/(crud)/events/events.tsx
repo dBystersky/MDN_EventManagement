@@ -5,8 +5,10 @@ import { CircleAlertIcon } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-import { apiJson } from "@/lib/api-json";
+import { useFieldValidation } from "@/hooks/use-field-validation";
+import { ApiError, apiJson } from "@/lib/api-json";
 import { conflictsByEvent, type Conflict } from "@/lib/conflicts";
+import { validateEvent, validateSubtaskDraft } from "@/lib/validation";
 import { EventForm } from "./event-form";
 import { EventList } from "./event-list";
 import {
@@ -52,6 +54,13 @@ export default function Events() {
   const [subtaskAssigneeId, setSubtaskAssigneeId] = useState("");
   const [subtaskDeadline, setSubtaskDeadline] = useState("");
   const [subtaskResourceIds, setSubtaskResourceIds] = useState<string[]>([]);
+
+  /** Inline errors as the form is filled in (RTM Req 9). */
+  const validation = useFieldValidation({ name, date, endDate, locationId }, validateEvent);
+  const subtaskValidation = useFieldValidation(
+    { name: subtaskTitle, deadline: subtaskDeadline },
+    validateSubtaskDraft,
+  );
 
   const isEditing = selectedId != null;
   const selectedEvent = items.find((ev) => ev.eventId === selectedId);
@@ -146,7 +155,18 @@ export default function Events() {
   /** Picking a start fills in an end two hours later, unless one is already set. */
   function changeDate(value: string) {
     setDate(value);
+    validation.touch("date");
     if (!endDate) setEndDate(defaultEndFor(value));
+  }
+
+  function changeEndDate(value: string) {
+    setEndDate(value);
+    validation.touch("endDate");
+  }
+
+  function changeLocationId(value: string) {
+    setLocationId(value);
+    validation.touch("locationId");
   }
 
   function clearSubtaskComposer() {
@@ -155,6 +175,7 @@ export default function Events() {
     setSubtaskAssigneeId("");
     setSubtaskDeadline("");
     setSubtaskResourceIds([]);
+    subtaskValidation.reset();
   }
 
   function resetForm() {
@@ -168,6 +189,7 @@ export default function Events() {
     setResourceIds([]);
     setTaskIds([]);
     clearSubtaskComposer();
+    validation.reset();
   }
 
   function selectEvent(ev: EventItem) {
@@ -185,12 +207,15 @@ export default function Events() {
     );
     setTaskIds((ev.tasks ?? []).map((task) => String(task.taskId)));
     clearSubtaskComposer();
+    validation.reset();
     setError("");
   }
 
   function addDraftSubtask() {
+    if (!subtaskValidation.checkBeforeSubmit(document.getElementById("subtask-composer"))) {
+      return;
+    }
     const title = subtaskTitle.trim();
-    if (!title || !subtaskDeadline) return;
     setDraftSubtasks((current) => [
       ...current,
       {
@@ -205,6 +230,7 @@ export default function Events() {
     setSubtaskAssigneeId("");
     setSubtaskDeadline("");
     setSubtaskResourceIds([]);
+    subtaskValidation.reset();
   }
 
   async function saveEvent() {
@@ -268,10 +294,11 @@ export default function Events() {
             date={date}
             onDateChange={changeDate}
             endDate={endDate}
-            onEndDateChange={setEndDate}
+            onEndDateChange={changeEndDate}
             conflicts={draftConflicts}
             locationId={locationId}
-            onLocationIdChange={setLocationId}
+            onLocationIdChange={changeLocationId}
+            validation={validation}
             locationOptions={locationOptions}
             managerIds={managerIds}
             onManagerIdsChange={setManagerIds}
@@ -292,6 +319,7 @@ export default function Events() {
             onSubtaskAssigneeIdChange={setSubtaskAssigneeId}
             subtaskDeadline={subtaskDeadline}
             onSubtaskDeadlineChange={setSubtaskDeadline}
+            subtaskValidation={subtaskValidation}
             subtaskResourceIds={subtaskResourceIds}
             onSubtaskResourceIdsChange={setSubtaskResourceIds}
             memberOptions={memberOptions}
@@ -302,11 +330,16 @@ export default function Events() {
               existingSubtaskDetails(taskId, selectedEvent, allTasks)
             }
             onCancel={resetForm}
-            onSubmit={async () => {
+            onSubmit={async (form) => {
               setError("");
+              if (!validation.checkBeforeSubmit(form)) return;
               try {
                 await saveEvent();
               } catch (err) {
+                // Field errors go under their fields; only the rest needs a banner.
+                if (err instanceof ApiError && validation.setServerErrors(err.fieldErrors)) {
+                  return;
+                }
                 setError(String(err));
               }
             }}

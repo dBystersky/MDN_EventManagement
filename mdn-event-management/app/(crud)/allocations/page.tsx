@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { FieldDescription, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -52,7 +53,9 @@ import { allocationPermissions, fetchSessionRole, type Capabilities } from "@/li
 import { resourceTypeStyle } from "@/lib/resourceTypeColor";
 import { fuzzyMatches } from "@/lib/fuzzyFilter";
 import { searchAllocations } from "@/lib/fuzzyAllocations";
-import { apiJson } from "@/lib/api-json";
+import { ApiError, apiJson } from "@/lib/api-json";
+import { useFieldValidation } from "@/hooks/use-field-validation";
+import { isInPast, validateAllocation } from "@/lib/validation";
 
 type Allocation = {
   allocationId: number;
@@ -99,6 +102,10 @@ export default function AllocationsDemo() {
   const [query, setQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [can, setCan] = useState<Capabilities>(() => allocationPermissions(null));
+  const validation = useFieldValidation(
+    { resourceId, bookableId, startTime, endTime },
+    validateAllocation,
+  );
 
   async function refresh() {
     const [allocations, res, tasks, events, conflictList, role] = await Promise.all([
@@ -200,6 +207,7 @@ export default function AllocationsDemo() {
   /** Picking a start fills in an end two hours later, unless one is already set. */
   function changeStartTime(value: string) {
     setStartTime(value);
+    validation.touch("startTime");
     if (!endTime) setEndTime(defaultEndFor(value));
   }
 
@@ -209,6 +217,7 @@ export default function AllocationsDemo() {
     setBookableId("");
     setStartTime("");
     setEndTime("");
+    validation.reset();
   }
 
   function openCreate() {
@@ -225,6 +234,7 @@ export default function AllocationsDemo() {
     setBookableId(String(allocation.bookableId));
     setStartTime(toDatetimeLocal(allocation.startTime));
     setEndTime(toDatetimeLocal(allocation.endTime));
+    validation.reset();
     setError("");
     setDialogOpen(true);
   }
@@ -469,23 +479,13 @@ export default function AllocationsDemo() {
       <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
         <DialogContent>
           <form
+            noValidate
             onSubmit={async (e) => {
               e.preventDefault();
               setError("");
-              if (!resourceId) {
-                setError("Pick a resource before saving.");
-                return;
-              }
-              if (!bookableId) {
-                setError("Pick an event or task to book against.");
-                return;
-              }
-              // The server rejects this too (`assertForwardWindow`); this is the
-              // fast path so the dialog answers without a round trip.
-              if (new Date(endTime).getTime() <= new Date(startTime).getTime()) {
-                setError("The end time must be after the start time.");
-                return;
-              }
+              // Same rules the server enforces, so the dialog answers without a
+              // round trip.
+              if (!validation.checkBeforeSubmit(e.currentTarget)) return;
               setPending(true);
               try {
                 const payload = {
@@ -506,6 +506,9 @@ export default function AllocationsDemo() {
                 handleOpenChange(false);
                 await refresh();
               } catch (err) {
+                if (err instanceof ApiError && validation.setServerErrors(err.fieldErrors)) {
+                  return;
+                }
                 setError(String(err));
               } finally {
                 setPending(false);
@@ -541,7 +544,10 @@ export default function AllocationsDemo() {
                 <Combobox
                   items={resourceOptions}
                   value={selectedResource}
-                  onValueChange={(option) => setResourceId(option ? option.id : "")}
+                  onValueChange={(option) => {
+                    setResourceId(option ? option.id : "");
+                    validation.touch("resourceId");
+                  }}
                   itemToStringLabel={(option) => option.name}
                   isItemEqualToValue={(a, b) => a?.id === b?.id}
                   filter={(item, query) => fuzzyMatches(item.search, query)}
@@ -552,6 +558,7 @@ export default function AllocationsDemo() {
                     disabled={!canSubmit}
                     showClear
                     className="w-full"
+                    {...validation.fieldProps("resourceId", "allocation-resource")}
                   />
                   <ComboboxContent>
                     <ComboboxEmpty>No resources match.</ComboboxEmpty>
@@ -583,6 +590,9 @@ export default function AllocationsDemo() {
                     </ComboboxList>
                   </ComboboxContent>
                 </Combobox>
+                <FieldError id="allocation-resource-error">
+                  {validation.errorFor("resourceId")}
+                </FieldError>
                 <p className="text-xs text-muted-foreground">
                   Search by resource name or type.
                 </p>
@@ -593,7 +603,10 @@ export default function AllocationsDemo() {
                 <Combobox
                   items={bookableOptions}
                   value={selectedBookable}
-                  onValueChange={(option) => setBookableId(option ? option.id : "")}
+                  onValueChange={(option) => {
+                    setBookableId(option ? option.id : "");
+                    validation.touch("bookableId");
+                  }}
                   itemToStringLabel={(option) => option.name}
                   isItemEqualToValue={(a, b) => a?.id === b?.id}
                   filter={(item, query) => fuzzyMatches(item.search, query)}
@@ -604,6 +617,7 @@ export default function AllocationsDemo() {
                     disabled={!canSubmit}
                     showClear
                     className="w-full"
+                    {...validation.fieldProps("bookableId", "allocation-bookable")}
                   />
                   <ComboboxContent>
                     <ComboboxEmpty>No events or tasks match.</ComboboxEmpty>
@@ -623,6 +637,9 @@ export default function AllocationsDemo() {
                     </ComboboxList>
                   </ComboboxContent>
                 </Combobox>
+                <FieldError id="allocation-bookable-error">
+                  {validation.errorFor("bookableId")}
+                </FieldError>
                 {bookables.length === 0 && (
                   <p className="text-xs text-muted-foreground">
                     No events or tasks exist yet — create one first.
@@ -640,7 +657,14 @@ export default function AllocationsDemo() {
                     onChange={(e) => changeStartTime(e.target.value)}
                     disabled={!canSubmit}
                     required
+                    {...validation.fieldProps("startTime", "allocation-start")}
                   />
+                  <FieldError id="allocation-start-error">
+                    {validation.errorFor("startTime")}
+                  </FieldError>
+                  {!validation.errorFor("startTime") && isInPast(startTime) && (
+                    <FieldDescription>This is in the past.</FieldDescription>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="allocation-end">End</Label>
@@ -649,10 +673,17 @@ export default function AllocationsDemo() {
                     type="datetime-local"
                     value={endTime}
                     min={startTime || undefined}
-                    onChange={(e) => setEndTime(e.target.value)}
+                    onChange={(e) => {
+                      setEndTime(e.target.value);
+                      validation.touch("endTime");
+                    }}
                     disabled={!canSubmit}
                     required
+                    {...validation.fieldProps("endTime", "allocation-end")}
                   />
+                  <FieldError id="allocation-end-error">
+                    {validation.errorFor("endTime")}
+                  </FieldError>
                 </div>
               </div>
             </div>

@@ -14,14 +14,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { fetchSessionRole, resourceTypePermissions, type Capabilities } from "@/lib/permissions";
 import { resourceTypeStyle } from "@/lib/resourceTypeColor";
-import { apiJson } from "@/lib/api-json";
+import { ApiError, apiJson } from "@/lib/api-json";
+import { useFieldValidation } from "@/hooks/use-field-validation";
+import { validateNamed } from "@/lib/validation";
 
 type ResourceType = { typeId: number; name: string };
 type Resource = { resourceId: number; resourceType: number };
+
+const validateResourceType = (values: unknown) => validateNamed(values, "resource type");
 
 export default function ResourceTypesDemo() {
   const [items, setItems] = useState<ResourceType[]>([]);
@@ -32,6 +37,7 @@ export default function ResourceTypesDemo() {
   const [pending, setPending] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [can, setCan] = useState<Capabilities>(() => resourceTypePermissions(null));
+  const validation = useFieldValidation({ name }, validateResourceType);
 
   async function refresh() {
     const [types, resourceList, role] = await Promise.all([
@@ -51,12 +57,14 @@ export default function ResourceTypesDemo() {
   function resetForm() {
     setSelectedId(null);
     setName("");
+    validation.reset();
   }
 
   function selectType(type: ResourceType) {
     if (!can.edit) return;
     setSelectedId(type.typeId);
     setName(type.name);
+    validation.reset();
     setError("");
   }
 
@@ -110,9 +118,11 @@ export default function ResourceTypesDemo() {
               </CardDescription>
             </CardHeader>
             <form
+              noValidate
               onSubmit={async (e) => {
                 e.preventDefault();
                 setError("");
+                if (!validation.checkBeforeSubmit(e.currentTarget)) return;
                 setPending(true);
                 try {
                   if (isEditing) {
@@ -123,6 +133,9 @@ export default function ResourceTypesDemo() {
                   resetForm();
                   await refresh();
                 } catch (err) {
+                  if (err instanceof ApiError && validation.setServerErrors(err.fieldErrors)) {
+                    return;
+                  }
                   setError(String(err));
                 } finally {
                   setPending(false);
@@ -139,7 +152,9 @@ export default function ResourceTypesDemo() {
                     onChange={(e) => setName(e.target.value)}
                     disabled={isEditing ? !can.edit : !can.create}
                     required
+                    {...validation.fieldProps("name", "type-name")}
                   />
+                  <FieldError id="type-name-error">{validation.errorFor("name")}</FieldError>
                   {name.trim() && (
                     <p className="flex items-center gap-2 text-xs text-muted-foreground">
                       Colour:

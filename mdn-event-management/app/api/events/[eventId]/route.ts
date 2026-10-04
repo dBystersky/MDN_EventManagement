@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
+import { validateEvent } from "@/lib/validation";
 import { readEvent, deleteEvent, parseEventSubtasks, updateEvent } from "@/lib/events";
 import { conflictsForEvent } from "@/lib/conflictQueries";
-import { isBadRequest } from "@/lib/api-errors";
+import { isBadRequest, validationFailed } from "@/lib/api-errors";
 import { Prisma } from "@/generated/prisma/client";
 
 type RouteParams = {
@@ -33,6 +34,9 @@ export async function PATCH(request: Request, context: RouteParams) {
 
     // Extract the params to update event with
     const body = await request.json();
+
+    const invalid = validationFailed(validateEvent(body, { partial: true }));
+    if (invalid) return invalid;
 
     try {
         // Update the event

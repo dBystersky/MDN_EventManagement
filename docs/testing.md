@@ -7,7 +7,7 @@ the other does not.
 ## The two kinds
 
 **Unit** — pure functions, no database, no server. Fast, and they run anywhere.
-`tests/conflicts.test.ts` is the example.
+`tests/conflicts.test.ts` and `tests/validation.test.ts` are examples.
 
 ```bash
 npm run test:unit
@@ -21,7 +21,7 @@ npm run dev          # in another terminal, and Postgres must be up
 npm run test:api
 ```
 
-`npm test` runs everything. Expect **55 tests** passing.
+`npm test` runs everything. Expect **94 tests** passing.
 
 ## Writing an API test
 
@@ -56,10 +56,10 @@ Two traps, both of which have bitten this suite:
 
 ```bash
 npx tsc --noEmit     # expect zero errors
-npm run lint         # 10 pre-existing errors; do not add more
+npm run lint         # 9 pre-existing errors; do not add more
 npm run build        # must pass
-npm test             # 55/55
+npm test             # 94/94
 ```
 
-`npm run lint` is not clean — there are 10 known errors, mostly `setState` in an
+`npm run lint` is not clean — there are 9 known errors, mostly `setState` in an
 effect across the CRUD pages. Treat the count as the bar, not zero.

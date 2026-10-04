@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { validationFailed } from "@/lib/api-errors";
+import { validateTask } from "@/lib/validation";
 import { createTask, listTasks } from "@/lib/tasks";
 import { Prisma } from "@/generated/prisma/client";
 
@@ -21,9 +23,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     const body = await request.json();
 
-    if (body.budget !== undefined && body.budget !== null && Number(body.budget) < 0) {
-        return NextResponse.json({ error: "budget must not be negative" }, { status: 400 });
-    }
+    const invalid = validationFailed(validateTask(body));
+    if (invalid) return invalid;
 
     try {
         const newTask = await createTask({

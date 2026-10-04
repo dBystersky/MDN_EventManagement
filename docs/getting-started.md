@@ -60,7 +60,7 @@ accounts are created by an admin from the Members page.
 |---------|-----|
 | `Can't reach database server at localhost:5433` | Container is not running: `docker start mdn-postgres` |
 | `DATABASE_URL is not set` | You skipped `cp .env.example .env` |
-| Type errors about a Prisma model you can see in the schema | `npx prisma generate` |
+| `Unknown field X for select statement on model Y`, or type errors about a field you can plainly see in `schema.prisma` | Your generated client is stale: `npx prisma generate`, then restart the dev server |
 | Every page bounces to `/login` | Expected when not signed in; the seed creates the first account |
 | `npx prisma migrate status` reports pending migrations | `npx prisma migrate dev` |
 

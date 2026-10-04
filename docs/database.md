@@ -17,8 +17,12 @@ All commands run from `mdn-event-management/`.
 | Wipe and rebuild (destroys data) | `npx prisma migrate reset` |
 | Recreate the admin account | `npx prisma db seed` |
 
-`generated/prisma` is gitignored. If TypeScript cannot see a model that is
-plainly in `schema.prisma`, you need `generate`.
+`generated/prisma` is gitignored, so it is never in sync just because you pulled.
+A `postinstall` hook regenerates it on `npm install`, and `migrate dev` does too,
+but if you pull a schema change whose migration you *already* have applied,
+neither runs — and the app fails at runtime with
+`Unknown field X for select statement on model Y`. Run `npx prisma generate` and
+restart the dev server.
 
 ## Changing the schema
 

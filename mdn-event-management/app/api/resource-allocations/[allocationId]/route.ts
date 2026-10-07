@@ -1,15 +1,24 @@
 import { NextResponse } from "next/server";
 import { validateAllocation } from "@/lib/validation";
+import { getAuthSession, isGuest } from "@/lib/auth";
 import { getAllocation, updateAllocation, deleteAllocation } from "@/lib/resourceAllocations";
 import { conflictsForAllocation } from "@/lib/conflictQueries";
 import { isBadRequest, validationFailed } from "@/lib/api-errors";
 import { Prisma } from "@/generated/prisma/client";
+import { changedFields, recordAudit } from "@/lib/audit";
 
 type RouteParams = {
   params: Promise<{ allocationId: string }>;
 };
 
 export async function GET(request: Request, context: RouteParams) {
+  if (isGuest(await getAuthSession())) {
+    return NextResponse.json(
+      { error: "Forbidden — guests have read-only calendar access" },
+      { status: 403 },
+    );
+  }
+
   const { allocationId } = await context.params;
   const id = Number(allocationId);
 
@@ -22,6 +31,14 @@ export async function GET(request: Request, context: RouteParams) {
 }
 
 export async function PATCH(request: Request, context: RouteParams) {
+  const session = await getAuthSession();
+  if (isGuest(session)) {
+    return NextResponse.json(
+      { error: "Forbidden — guests have read-only calendar access" },
+      { status: 403 },
+    );
+  }
+
   const { allocationId } = await context.params;
   const id = Number(allocationId);
   const body = await request.json();
@@ -35,6 +52,15 @@ export async function PATCH(request: Request, context: RouteParams) {
       startTime: body.startTime !== undefined ? new Date(body.startTime) : undefined,
       endTime: body.endTime !== undefined ? new Date(body.endTime) : undefined,
       bookableId: body.bookableId !== undefined ? Number(body.bookableId) : undefined,
+    });
+    const fields = changedFields(body);
+    await recordAudit({
+      actor: session,
+      action: "update",
+      entityType: "ResourceAllocation",
+      entityId: allocation.allocationId,
+      summary: `Updated allocation #${allocation.allocationId} (resource #${allocation.resourceId})`,
+      changes: { fields },
     });
     // Flag, never block — see POST /api/resource-allocations.
     const conflicts = await conflictsForAllocation(id);
@@ -58,11 +84,29 @@ export async function PATCH(request: Request, context: RouteParams) {
 }
 
 export async function DELETE(request: Request, context: RouteParams) {
+  const session = await getAuthSession();
+  if (isGuest(session)) {
+    return NextResponse.json(
+      { error: "Forbidden — guests have read-only calendar access" },
+      { status: 403 },
+    );
+  }
+
   const { allocationId } = await context.params;
   const id = Number(allocationId);
 
   try {
+    const before = await getAllocation(id);
     await deleteAllocation(id);
+    await recordAudit({
+      actor: session,
+      action: "delete",
+      entityType: "ResourceAllocation",
+      entityId: id,
+      summary: before
+        ? `Removed allocation of "${before.resource.name}"`
+        : `Removed allocation #${id}`,
+    });
     return NextResponse.json(
       { message: "Resource allocation deleted successfully" },
       { status: 200 },

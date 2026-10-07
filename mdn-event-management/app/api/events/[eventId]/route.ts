@@ -4,6 +4,8 @@ import { readEvent, deleteEvent, parseEventSubtasks, updateEvent } from "@/lib/e
 import { conflictsForEvent } from "@/lib/conflictQueries";
 import { isBadRequest, validationFailed } from "@/lib/api-errors";
 import { Prisma } from "@/generated/prisma/client";
+import { getAuthSession, isGuest } from "@/lib/auth";
+import { changedFields, findAllocationDependents, recordAudit, recordCascade } from "@/lib/audit";
 
 type RouteParams = {
   params: Promise<{ eventId: string }>;
@@ -11,6 +13,13 @@ type RouteParams = {
 
 // Functino to get individual event from the API
 export async function GET(request: Request, context: RouteParams) {
+  if (isGuest(await getAuthSession())) {
+    return NextResponse.json(
+      { error: "Forbidden — guests have read-only calendar access" },
+      { status: 403 },
+    );
+  }
+
   // Extract the eventId from the URL parameters
   const { eventId } = await context.params;
   const id = Number(eventId);
@@ -27,6 +36,14 @@ export async function GET(request: Request, context: RouteParams) {
 }
 
 export async function PATCH(request: Request, context: RouteParams) {
+  const session = await getAuthSession();
+  if (isGuest(session)) {
+    return NextResponse.json(
+      { error: "Forbidden — guests have read-only calendar access" },
+      { status: 403 },
+    );
+  }
+
   // Extract the eventId from the URL parameters
   const { eventId } = await context.params;
   const id = Number(eventId);
@@ -38,6 +55,8 @@ export async function PATCH(request: Request, context: RouteParams) {
   if (invalid) return invalid;
 
   try {
+    const subtasks = parseEventSubtasks(body.subtasks);
+
     // Update the event
     const event = await updateEvent(id, {
       name: body.name,
@@ -48,7 +67,17 @@ export async function PATCH(request: Request, context: RouteParams) {
       managerIds: Array.isArray(body.managerIds) ? body.managerIds.map(Number) : undefined,
       resourceIds: Array.isArray(body.resourceIds) ? body.resourceIds.map(Number) : undefined,
       taskIds: Array.isArray(body.taskIds) ? body.taskIds.map(Number) : undefined,
-      subtasks: parseEventSubtasks(body.subtasks),
+      subtasks,
+    });
+
+    const fields = changedFields(body);
+    await recordAudit({
+      actor: session,
+      action: "update",
+      entityType: "Event",
+      entityId: event.eventId,
+      summary: `Updated event "${event.name}"`,
+      changes: { fields },
     });
 
     // Flag, never block — see POST /api/events.
@@ -71,12 +100,46 @@ export async function PATCH(request: Request, context: RouteParams) {
 }
 
 export async function DELETE(request: Request, context: RouteParams) {
+  const session = await getAuthSession();
+  if (isGuest(session)) {
+    return NextResponse.json(
+      { error: "Forbidden — guests have read-only calendar access" },
+      { status: 403 },
+    );
+  }
+
   const { eventId } = await context.params;
   const id = Number(eventId);
 
   try {
+    const before = await readEvent(id);
+
     // Delete the event
+    const allocations = before
+      ? await findAllocationDependents({ bookableId: before.bookableId })
+      : [];
     await deleteEvent(id);
+    const because = `event #${id} was deleted`;
+    await recordCascade(session, "delete", "ResourceAllocation", allocations, because);
+    await recordCascade(
+      session,
+      "update",
+      "Task",
+      (before?.tasks ?? []).map((t) => ({
+        id: t.taskId,
+        label: `task "${t.name}" from the event`,
+      })),
+      because,
+    );
+
+    const label = before ? `"${before.name}"` : `#${id}`;
+    await recordAudit({
+      actor: session,
+      action: "delete",
+      entityType: "Event",
+      entityId: id,
+      summary: `Deleted event ${label}`,
+    });
 
     // Return a success message
     return NextResponse.json({ message: "Event deleted successfully" }, { status: 200 });

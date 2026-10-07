@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server";
 import { validationFailed } from "@/lib/api-errors";
 import { validateResource } from "@/lib/validation";
+import { getAuthSession, isGuest } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
 import { createResource, listResources } from "@/lib/resources";
 import { Prisma } from "@/generated/prisma/client";
 
 export async function GET() {
+  if (isGuest(await getAuthSession())) {
+    return NextResponse.json(
+      { error: "Forbidden — guests have read-only calendar access" },
+      { status: 403 },
+    );
+  }
+
   try {
     const resources = await listResources();
     return NextResponse.json(resources, { status: 200 });
@@ -14,6 +23,14 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const session = await getAuthSession();
+  if (isGuest(session)) {
+    return NextResponse.json(
+      { error: "Forbidden — guests have read-only calendar access" },
+      { status: 403 },
+    );
+  }
+
   const body = await request.json();
 
   const invalid = validationFailed(validateResource(body));
@@ -23,6 +40,13 @@ export async function POST(request: Request) {
     const newResource = await createResource({
       name: body.name,
       resourceTypeId: Number(body.resourceTypeId),
+    });
+    await recordAudit({
+      actor: session,
+      action: "create",
+      entityType: "Resource",
+      entityId: newResource.resourceId,
+      summary: `Created resource "${newResource.name}"`,
     });
     return NextResponse.json(newResource, { status: 201 });
   } catch (error) {

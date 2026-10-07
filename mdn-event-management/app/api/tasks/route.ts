@@ -3,6 +3,8 @@ import { validationFailed } from "@/lib/api-errors";
 import { validateTask } from "@/lib/validation";
 import { createTask, listTasks } from "@/lib/tasks";
 import { Prisma } from "@/generated/prisma/client";
+import { getAuthSession, isGuest } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
 
 // Function to get all tasks from the API
 export async function GET(request: Request) {
@@ -21,6 +23,14 @@ export async function GET(request: Request) {
 
 // Function to create a new task
 export async function POST(request: Request) {
+  const session = await getAuthSession();
+  if (isGuest(session)) {
+    return NextResponse.json(
+      { error: "Forbidden — guests have read-only calendar access" },
+      { status: 403 },
+    );
+  }
+
   const body = await request.json();
 
   const invalid = validationFailed(validateTask(body));
@@ -34,6 +44,14 @@ export async function POST(request: Request) {
       managerIds: body.managerIds,
       eventId: body.eventId,
       budget: body.budget,
+    });
+
+    await recordAudit({
+      actor: session,
+      action: "create",
+      entityType: "Task",
+      entityId: newTask.taskId,
+      summary: `Created task "${newTask.name}"`,
     });
 
     return NextResponse.json(newTask, { status: 201 });

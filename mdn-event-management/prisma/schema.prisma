@@ -16,6 +16,7 @@ enum MemberRole {
   Member
   Manager
   Admin
+  Guest
 
   @@map("member_role")
 }
@@ -134,4 +135,22 @@ model ResourceType {
   resources Resource[]
 
   @@map("resource_types")
+}
+
+/// Append-only record of who changed what. `actorId` is deliberately not a
+/// relation: the trail must outlive the member, so the name is snapshotted too.
+model AuditLog {
+  auditId    Int      @id @default(autoincrement()) @map("audit_id")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  actorId    Int?     @map("actor_id")
+  actorName  String   @map("actor_name") @db.VarChar
+  action     String   @db.VarChar
+  entityType String   @map("entity_type") @db.VarChar
+  entityId   Int      @map("entity_id")
+  summary    String   @db.VarChar
+  changes    Json?
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

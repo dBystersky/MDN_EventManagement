@@ -4,6 +4,8 @@ import { createEvent, listEvents, parseEventSubtasks } from "@/lib/events";
 import { conflictsForEvent } from "@/lib/conflictQueries";
 import { isBadRequest, validationFailed } from "@/lib/api-errors";
 import { Prisma } from "@/generated/prisma/client";
+import { getAuthSession, isGuest } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
 
 // Function to get all events from the API
 export async function GET() {
@@ -17,12 +19,21 @@ export async function GET() {
 
 // Function to create a new event
 export async function POST(request: Request) {
+  const session = await getAuthSession();
+  if (isGuest(session)) {
+    return NextResponse.json(
+      { error: "Forbidden — guests have read-only calendar access" },
+      { status: 403 },
+    );
+  }
+
   const body = await request.json();
 
   const invalid = validationFailed(validateEvent(body));
   if (invalid) return invalid;
 
   try {
+    const subtasks = parseEventSubtasks(body.subtasks);
     const newEvent = await createEvent({
       name: body.name,
       description: body.description,
@@ -32,7 +43,15 @@ export async function POST(request: Request) {
       managerIds: Array.isArray(body.managerIds) ? body.managerIds.map(Number) : undefined,
       resourceIds: Array.isArray(body.resourceIds) ? body.resourceIds.map(Number) : undefined,
       taskIds: Array.isArray(body.taskIds) ? body.taskIds.map(Number) : undefined,
-      subtasks: parseEventSubtasks(body.subtasks),
+      subtasks,
+    });
+
+    await recordAudit({
+      actor: session,
+      action: "create",
+      entityType: "Event",
+      entityId: newEvent.eventId,
+      summary: `Created event "${newEvent.name}"`,
     });
 
     // Clashes are flagged, never blocking: the event is created either way

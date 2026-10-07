@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, getAuthSession } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
 import { MemberRole } from "@/generated/prisma/client";
 import { validationFailed } from "@/lib/api-errors";
 import { validateMember } from "@/lib/validation";
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
     let memberRole: MemberRole = MemberRole.Member;
     if (role === "Manager") memberRole = MemberRole.Manager;
     if (role === "Admin") memberRole = MemberRole.Admin;
+    if (role === "Guest") memberRole = MemberRole.Guest;
 
     const member = await prisma.member.create({
       data: {
@@ -53,6 +55,13 @@ export async function POST(request: Request) {
       select: { memberId: true, name: true, email: true, role: true },
     });
 
+    await recordAudit({
+      actor: await getAuthSession(),
+      action: "create",
+      entityType: "Member",
+      entityId: member.memberId,
+      summary: `Created ${member.role} account for ${member.name} <${member.email}>`,
+    });
     return NextResponse.json(member, { status: 201 });
   } catch (error) {
     console.error("Create member error:", error);

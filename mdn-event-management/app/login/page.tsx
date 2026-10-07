@@ -49,9 +49,9 @@ export default function LoginPage() {
       // Use full navigation instead of client-side routing so the
       // browser picks up the newly-set auth cookie reliably
       // (fixes redirect issues when accessing over network/IP)
-      window.location.href = "/events";
-    } catch (err: any) {
-      setError(err.message);
+      window.location.href = data.user?.role === "Guest" ? "/calendar" : "/events";
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Incorrect email or password");
     } finally {
       setLoading(false);
     }

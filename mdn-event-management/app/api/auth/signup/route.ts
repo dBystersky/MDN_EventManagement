@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, signToken, AUTH_COOKIE_NAME } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
 import { MemberRole } from "@/generated/prisma/client";
 
 export async function POST(request: Request) {
@@ -53,6 +54,14 @@ export async function POST(request: Request) {
     };
 
     const token = signToken(userSession);
+
+    await recordAudit({
+      actor: userSession,
+      action: "signup",
+      entityType: "Member",
+      entityId: newMember.memberId,
+      summary: `${newMember.email} signed up as ${newMember.role}`,
+    });
 
     const response = NextResponse.json({
       message: "Signed up successfully",

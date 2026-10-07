@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
 
 /** DELETE /api/admin/members/[id] — delete a member (Admin only) */
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -25,7 +26,20 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   }
 
   try {
+    const before = await prisma.member.findUnique({
+      where: { memberId },
+      select: { name: true, email: true, role: true },
+    });
     await prisma.member.delete({ where: { memberId } });
+    await recordAudit({
+      actor: session,
+      action: "delete",
+      entityType: "Member",
+      entityId: memberId,
+      summary: before
+        ? `Deleted ${before.role} account for ${before.name} <${before.email}>`
+        : `Deleted member #${memberId}`,
+    });
     return NextResponse.json({ message: "Member deleted" }, { status: 200 });
   } catch (error) {
     console.error("Delete member error:", error);

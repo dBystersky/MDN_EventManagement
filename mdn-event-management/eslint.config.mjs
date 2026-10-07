@@ -8,6 +8,12 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Turn off stylistic rules that Prettier owns. Must stay last.
   prettier,
+  {
+    rules: {
+      // Mount-time fetches (`refresh()` on each CRUD page) trip this rule.
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

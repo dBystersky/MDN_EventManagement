@@ -1,15 +1,15 @@
 /**
  * Clash detection — the interval maths (RTM Req 7).
  *
- * Unlike `task-api.test.ts` and `task-budget.test.ts`, these need no database
- * and no running server: `lib/conflicts.ts` is pure on purpose, so the rules
+ * Unlike the route tests in `tests/api/`, these need no Prisma mock at all:
+ * `lib/conflicts.ts` is pure on purpose, so the rules
  * that are easy to get subtly wrong — the half-open boundary, one long span
  * overlapping several short ones, a venue clash not double-reporting as a
  * schedule warning — are checked directly.
  */
 
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import {
   conflictsByAllocation,
   conflictsByEvent,

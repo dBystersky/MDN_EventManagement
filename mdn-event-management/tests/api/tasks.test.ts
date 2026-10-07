@@ -139,7 +139,8 @@ describe("POST /api/tasks", () => {
     );
 
     expect(status).toBe(400);
-    expect(json.error).toBe("budget must not be negative");
+    expect(json.error).toBe("Budget cannot be negative.");
+    expect(json.fieldErrors).toEqual({ budget: "Budget cannot be negative." });
     expect(prismaMock.task.create).not.toHaveBeenCalled();
   });
 

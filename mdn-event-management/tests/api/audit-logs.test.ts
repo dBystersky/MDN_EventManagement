@@ -148,7 +148,7 @@ describe("coverage of the remaining areas", () => {
     } as never);
 
     await POST(
-      jsonRequest("POST", { name: "Bo", email: "bo@x.com", password: "s3cret!", role: "Manager" }),
+      jsonRequest("POST", { name: "Bo", email: "bo@x.com", password: "s3cret!!", role: "Manager" }),
     );
     prismaMock.member.findUnique.mockResolvedValueOnce({
       name: "Bo",

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAuthSession, isGuest } from "@/lib/auth";
 import { previewAllocationConflicts, previewEventConflicts } from "@/lib/conflictQueries";
 import type { Conflict } from "@/lib/conflicts";
 
@@ -11,6 +12,14 @@ import type { Conflict } from "@/lib/conflicts";
  * clash before committing to it rather than after.
  */
 export async function POST(request: Request) {
+  // Clashes name resources and bookings, which guests cannot otherwise see.
+  if (isGuest(await getAuthSession())) {
+    return NextResponse.json(
+      { error: "Forbidden — guests have read-only calendar access" },
+      { status: 403 },
+    );
+  }
+
   const body = await request.json().catch(() => null);
 
   if (!body || typeof body !== "object") {

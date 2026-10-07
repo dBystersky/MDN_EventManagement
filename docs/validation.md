@@ -65,5 +65,5 @@ messages. `required` stays on the inputs for assistive technology.
    - call `validation.reset()` wherever the form is cleared
 4. For a new route, put `validationFailed(validateThing(body))` before the `lib/` call.
 
-Tests: `tests/validation.test.ts` covers the rules. `tests/validation-api.test.ts`
+Tests: `tests/validation.test.ts` covers the rules. `tests/api/validation.test.ts`
 covers the routes.

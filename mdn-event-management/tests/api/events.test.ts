@@ -8,6 +8,7 @@ const event = {
   name: "Launch night",
   description: "",
   date: new Date("2026-09-06T00:00:00.000Z"),
+  endDate: new Date("2026-09-06T02:00:00.000Z"),
   locationId: 1,
   bookableId: 30,
   totalBudget: 0,
@@ -18,6 +19,7 @@ const body = {
   name: "Launch night",
   description: "",
   date: "2026-09-06T00:00:00.000Z",
+  endDate: "2026-09-06T02:00:00.000Z",
   locationId: "1",
 };
 
@@ -60,7 +62,7 @@ describe("POST /api/events", () => {
       location: { connect: { locationId: 1 } },
       eventManagers: { create: [{ memberId: 4 }] },
     });
-    // Duplicate resource ids collapse; each allocation spans a 2h window.
+    // Duplicate resource ids collapse; each allocation spans the event itself.
     expect(data.bookable).toEqual({
       create: {
         bookableType: "Event",
@@ -109,7 +111,7 @@ describe("POST /api/events", () => {
     });
   });
 
-  it("fails with 500 when a task id does not exist", async () => {
+  it("rejects an unknown task id with 400", async () => {
     prismaMock.event.create.mockResolvedValue(event as never);
     prismaMock.task.findMany.mockResolvedValue([{ taskId: 10, eventId: null }] as never);
 
@@ -117,7 +119,7 @@ describe("POST /api/events", () => {
       await POST(jsonRequest("POST", { ...body, taskIds: [10, 99] })),
     );
 
-    expect(status).toBe(500);
+    expect(status).toBe(400);
     expect(json.error).toContain("One or more tasks were not found");
   });
 
@@ -179,9 +181,13 @@ describe("POST /api/events", () => {
     expect(prismaMock.event.create).not.toHaveBeenCalled();
   });
 
-  // parseEventSubtasks throws "budget must not be negative", which doesn't
-  // mention "subtasks", so the handler reports it as a 500.
-  it.todo("rejects a subtask with a negative budget with 400");
+  it("rejects a subtask with a negative budget with 400", async () => {
+    const subtasks = [{ name: "x", deadline: "2026-09-01", budget: -1 }];
+    const { status } = await read(await POST(jsonRequest("POST", { ...body, subtasks })));
+
+    expect(status).toBe(400);
+    expect(prismaMock.event.create).not.toHaveBeenCalled();
+  });
 
   it("returns 500 with the Prisma error code when the insert fails", async () => {
     prismaMock.event.create.mockRejectedValue(prismaError("P2025"));

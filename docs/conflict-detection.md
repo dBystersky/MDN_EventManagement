@@ -52,5 +52,5 @@ span **is** flagged as a `resource` clash. That is one physical item claimed
 twice, so flagging it is correct, but it looks odd the first time. Do not suppress
 it without deciding that is really what you want.
 
-Tests: `tests/conflicts.test.ts` for the maths, `tests/conflict-api.test.ts` for
+Tests: `tests/conflicts.test.ts` for the maths, `tests/api/conflicts.test.ts` for
 the endpoints.

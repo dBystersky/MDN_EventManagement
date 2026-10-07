@@ -7,7 +7,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { apiJson } from "@/lib/api-json";
 import { formatDateTime } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
@@ -126,8 +132,8 @@ export default function CalendarPage() {
   }, [tasks]);
 
   function itemsForDay(key: string): DayItem[] {
-    const dayEvents = showEvents ? eventsByDay.get(key) ?? [] : [];
-    const dayTasks = showTasks ? tasksByDay.get(key) ?? [] : [];
+    const dayEvents = showEvents ? (eventsByDay.get(key) ?? []) : [];
+    const dayTasks = showTasks ? (tasksByDay.get(key) ?? []) : [];
     return [
       ...dayEvents.map((event) => ({
         type: "event" as const,
@@ -263,7 +269,9 @@ export default function CalendarPage() {
                       isToday && "border-primary",
                     )}
                   >
-                    <span className={cn("text-xs font-medium tabular-nums", isToday && "text-primary")}>
+                    <span
+                      className={cn("text-xs font-medium tabular-nums", isToday && "text-primary")}
+                    >
                       {day.getDate()}
                     </span>
                     <div className="flex w-full flex-col gap-0.5">
@@ -293,7 +301,9 @@ export default function CalendarPage() {
                         ),
                       )}
                       {overflow > 0 && (
-                        <span className="text-[0.65rem] text-muted-foreground">+{overflow} more</span>
+                        <span className="text-[0.65rem] text-muted-foreground">
+                          +{overflow} more
+                        </span>
                       )}
                     </div>
                   </div>
@@ -338,7 +348,9 @@ export default function CalendarPage() {
                             {content}
                           </button>
                         ) : (
-                          <div className="flex flex-wrap items-center gap-2 p-1 text-sm">{content}</div>
+                          <div className="flex flex-wrap items-center gap-2 p-1 text-sm">
+                            {content}
+                          </div>
                         )}
                       </li>
                     );
@@ -406,7 +418,10 @@ export default function CalendarPage() {
                     <p className="mb-1 font-medium">Tasks</p>
                     <ul className="space-y-1">
                       {previewEvent.tasks.map((task) => (
-                        <li key={task.taskId} className="flex items-center gap-2 text-muted-foreground">
+                        <li
+                          key={task.taskId}
+                          className="flex items-center gap-2 text-muted-foreground"
+                        >
                           <span className="text-foreground">{task.name}</span>
                           <span>· due {formatDateTime(task.deadline)}</span>
                         </li>

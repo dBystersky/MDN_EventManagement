@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
+import { validateAllocation } from "@/lib/validation";
 import { getAuthSession, isGuest } from "@/lib/auth";
 import { getAllocation, updateAllocation, deleteAllocation } from "@/lib/resourceAllocations";
+import { conflictsForAllocation } from "@/lib/conflictQueries";
+import { isBadRequest, validationFailed } from "@/lib/api-errors";
 import { Prisma } from "@/generated/prisma/client";
 import { changedFields, recordAudit } from "@/lib/audit";
 
@@ -40,6 +43,9 @@ export async function PATCH(request: Request, context: RouteParams) {
   const id = Number(allocationId);
   const body = await request.json();
 
+  const invalid = validationFailed(validateAllocation(body, { partial: true }));
+  if (invalid) return invalid;
+
   try {
     const allocation = await updateAllocation(id, {
       resourceId: body.resourceId !== undefined ? Number(body.resourceId) : undefined,
@@ -56,8 +62,14 @@ export async function PATCH(request: Request, context: RouteParams) {
       summary: `Updated allocation #${allocation.allocationId} (resource #${allocation.resourceId})`,
       changes: { fields },
     });
-    return NextResponse.json(allocation, { status: 200 });
+    // Flag, never block — see POST /api/resource-allocations.
+    const conflicts = await conflictsForAllocation(id);
+
+    return NextResponse.json({ ...allocation, conflicts }, { status: 200 });
   } catch (error) {
+    if (isBadRequest(error)) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
       return NextResponse.json(
         { error: `Resource allocation not found: ${error}` },

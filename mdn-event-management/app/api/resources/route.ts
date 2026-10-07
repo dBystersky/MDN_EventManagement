@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { validationFailed } from "@/lib/api-errors";
+import { validateResource } from "@/lib/validation";
 import { getAuthSession, isGuest } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { createResource, listResources } from "@/lib/resources";
@@ -30,6 +32,9 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
+
+  const invalid = validationFailed(validateResource(body));
+  if (invalid) return invalid;
 
   try {
     const newResource = await createResource({

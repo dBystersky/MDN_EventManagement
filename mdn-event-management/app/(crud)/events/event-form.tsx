@@ -12,6 +12,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
+import { ConflictAlert } from "@/components/conflict-flags";
+import type { FieldValidation } from "@/hooks/use-field-validation";
+import type { Conflict } from "@/lib/conflicts";
+import { isInPast, type EventField, type SubtaskDraftField } from "@/lib/validation";
+
 import { EventSubtasks } from "./event-subtasks";
 import { AssignmentPicker, Field, OptionSelect } from "./form-controls";
 import type { DraftSubtask, Member, Option, Resource } from "./types";
@@ -25,6 +30,11 @@ export function EventForm({
   onDescriptionChange,
   date,
   onDateChange,
+  endDate,
+  onEndDateChange,
+  conflicts,
+  validation,
+  subtaskValidation,
   locationId,
   onLocationIdChange,
   locationOptions,
@@ -63,6 +73,12 @@ export function EventForm({
   onDescriptionChange: (value: string) => void;
   date: string;
   onDateChange: (value: string) => void;
+  endDate: string;
+  onEndDateChange: (value: string) => void;
+  /** What this event as drafted would clash with; empty when nothing does. */
+  conflicts: readonly Conflict[];
+  validation: FieldValidation<EventField>;
+  subtaskValidation: FieldValidation<SubtaskDraftField>;
   locationId: string;
   onLocationIdChange: (value: string) => void;
   locationOptions: Option[];
@@ -91,7 +107,7 @@ export function EventForm({
   onAddDraft: () => void;
   existingDetails: (taskId: string) => { name: string; detail: string };
   onCancel: () => void;
-  onSubmit: () => Promise<void>;
+  onSubmit: (form: HTMLFormElement) => Promise<void>;
 }) {
   return (
     <Card>
@@ -103,20 +119,23 @@ export function EventForm({
             : "Name the event, add a brief, then pick a time and venue."}
         </CardDescription>
       </CardHeader>
+      {/* noValidate: the inline errors below replace the browser's bubbles. */}
       <form
+        noValidate
         onSubmit={async (e) => {
           e.preventDefault();
-          await onSubmit();
+          await onSubmit(e.currentTarget);
         }}
       >
         <CardContent className="space-y-4 pb-4">
-          <Field id="event-name" label="Event name">
+          <Field id="event-name" label="Event name" error={validation.errorFor("name")}>
             <Input
               id="event-name"
               placeholder="Name"
               value={name}
               onChange={(e) => onNameChange(e.target.value)}
               required
+              {...validation.fieldProps("name", "event-name")}
             />
           </Field>
           <Field id="event-description" label="Description">
@@ -128,31 +147,47 @@ export function EventForm({
             />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field id="event-date" label="Date">
+            <Field
+              id="event-date"
+              label="Starts"
+              error={validation.errorFor("date")}
+              hint={isInPast(date) ? "This is in the past." : undefined}
+            >
               <Input
                 id="event-date"
                 type="datetime-local"
                 value={date}
                 onChange={(e) => onDateChange(e.target.value)}
                 required
+                {...validation.fieldProps("date", "event-date")}
               />
             </Field>
-            <Field id="event-location" label="Location">
-              {/* Native required check; the visible control is a custom Select. */}
-              <input
-                id="event-location"
-                className="sr-only"
-                tabIndex={-1}
-                value={locationId}
-                onChange={() => undefined}
+            {/* An event needs a real span, not just a start: clash detection has
+                nothing to compare without one. Prefilled to two hours after the
+                start, which is only a default. */}
+            <Field id="event-end-date" label="Ends" error={validation.errorFor("endDate")}>
+              <Input
+                id="event-end-date"
+                type="datetime-local"
+                value={endDate}
+                min={date || undefined}
+                onChange={(e) => onEndDateChange(e.target.value)}
                 required
-                readOnly
+                {...validation.fieldProps("endDate", "event-end-date")}
               />
+            </Field>
+          </div>
+          {/* Its own row rather than a lone cell in a two-column grid, which
+              would leave the select stranded at half width. */}
+          <div>
+            <Field id="event-location" label="Location" error={validation.errorFor("locationId")}>
               <OptionSelect
+                id="event-location"
                 value={locationId}
                 placeholder="Location..."
                 options={locationOptions}
                 onChange={onLocationIdChange}
+                validation={validation.fieldProps("locationId", "event-location")}
               />
             </Field>
           </div>
@@ -187,6 +222,7 @@ export function EventForm({
             onSubtaskAssigneeIdChange={onSubtaskAssigneeIdChange}
             subtaskDeadline={subtaskDeadline}
             onSubtaskDeadlineChange={onSubtaskDeadlineChange}
+            subtaskValidation={subtaskValidation}
             subtaskResourceIds={subtaskResourceIds}
             onSubtaskResourceIdsChange={onSubtaskResourceIdsChange}
             memberOptions={memberOptions}
@@ -194,6 +230,10 @@ export function EventForm({
             resources={resources}
             onAddDraft={onAddDraft}
             existingDetails={existingDetails}
+          />
+          <ConflictAlert
+            conflicts={conflicts}
+            hint="Clashes are flagged, not blocked — you can still save this event."
           />
         </CardContent>
         <CardFooter className="justify-end gap-2">

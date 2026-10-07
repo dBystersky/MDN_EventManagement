@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+import { validateEvent } from "@/lib/validation";
 import { readEvent, deleteEvent, parseEventSubtasks, updateEvent } from "@/lib/events";
+import { conflictsForEvent } from "@/lib/conflictQueries";
+import { isBadRequest, validationFailed } from "@/lib/api-errors";
 import { Prisma } from "@/generated/prisma/client";
 import { getAuthSession, isGuest } from "@/lib/auth";
 import { changedFields, findAllocationDependents, recordAudit, recordCascade } from "@/lib/audit";
@@ -48,6 +51,9 @@ export async function PATCH(request: Request, context: RouteParams) {
   // Extract the params to update event with
   const body = await request.json();
 
+  const invalid = validationFailed(validateEvent(body, { partial: true }));
+  if (invalid) return invalid;
+
   try {
     const subtasks = parseEventSubtasks(body.subtasks);
 
@@ -56,6 +62,7 @@ export async function PATCH(request: Request, context: RouteParams) {
       name: body.name,
       description: body.description,
       date: body.date !== undefined ? new Date(body.date) : undefined,
+      endDate: body.endDate !== undefined ? new Date(body.endDate) : undefined,
       locationId: body.locationId !== undefined ? Number(body.locationId) : undefined,
       managerIds: Array.isArray(body.managerIds) ? body.managerIds.map(Number) : undefined,
       resourceIds: Array.isArray(body.resourceIds) ? body.resourceIds.map(Number) : undefined,
@@ -73,10 +80,13 @@ export async function PATCH(request: Request, context: RouteParams) {
       changes: { fields },
     });
 
+    // Flag, never block — see POST /api/events.
+    const conflicts = await conflictsForEvent(id);
+
     // Return the updated event
-    return NextResponse.json(event, { status: 200 });
+    return NextResponse.json({ ...event, conflicts }, { status: 200 });
   } catch (error) {
-    if (error instanceof Error && /subtasks/.test(error.message)) {
+    if (isBadRequest(error)) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     if (error instanceof Prisma.PrismaClientKnownRequestError) {

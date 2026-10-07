@@ -52,7 +52,12 @@ describe("GET /api/tasks/[taskId]", () => {
 
 describe("PATCH /api/tasks/[taskId]", () => {
   it("updates name, description and deadline", async () => {
-    prismaMock.task.findUniqueOrThrow.mockResolvedValue({ eventId: null } as never);
+    prismaMock.task.findUniqueOrThrow.mockResolvedValue({
+      eventId: null,
+      deadline: task.deadline,
+      bookableId: task.bookableId,
+    } as never);
+    prismaMock.resourceAllocation.findMany.mockResolvedValue([] as never);
     prismaMock.task.update.mockResolvedValue({ ...task, name: "After" } as never);
 
     const { status, json } = await read(

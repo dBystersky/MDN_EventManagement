@@ -72,7 +72,12 @@ describe("/api/resource-allocations", () => {
 
     const { status, json } = await read(
       await POST(
-        jsonRequest("POST", { resourceId: 99, bookableId: 30, startTime: "", endTime: "" }),
+        jsonRequest("POST", {
+          resourceId: 99,
+          bookableId: 30,
+          startTime: "2026-09-06T00:00:00.000Z",
+          endTime: "2026-09-06T02:00:00.000Z",
+        }),
       ),
     );
 
@@ -102,6 +107,8 @@ describe("/api/resource-allocations/[allocationId]", () => {
   });
 
   it("PATCH updates only the fields given", async () => {
+    // The stored row is read first, so the window it ends up with can be checked.
+    prismaMock.resourceAllocation.findUniqueOrThrow.mockResolvedValue(allocation as never);
     prismaMock.resourceAllocation.update.mockResolvedValue(allocation as never);
 
     await PATCH_ONE(jsonRequest("PATCH", { endTime: "2026-09-06T03:00:00.000Z" }), ctx);
@@ -119,7 +126,7 @@ describe("/api/resource-allocations/[allocationId]", () => {
   });
 
   it("PATCH returns 404 for an unknown allocation", async () => {
-    prismaMock.resourceAllocation.update.mockRejectedValue(prismaError("P2025"));
+    prismaMock.resourceAllocation.findUniqueOrThrow.mockRejectedValue(prismaError("P2025"));
 
     expect((await PATCH_ONE(jsonRequest("PATCH", { resourceId: 1 }), ctx)).status).toBe(404);
   });

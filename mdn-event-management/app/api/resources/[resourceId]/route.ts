@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { validationFailed } from "@/lib/api-errors";
+import { validateResource } from "@/lib/validation";
 import { getAuthSession, isGuest } from "@/lib/auth";
 import { changedFields, findAllocationDependents, recordAudit, recordCascade } from "@/lib/audit";
 import { getResource, updateResource, deleteResource } from "@/lib/resources";
@@ -39,6 +41,9 @@ export async function PATCH(request: Request, context: RouteParams) {
   const { resourceId } = await context.params;
   const id = Number(resourceId);
   const body = await request.json();
+
+  const invalid = validationFailed(validateResource(body, { partial: true }));
+  if (invalid) return invalid;
 
   try {
     const resource = await updateResource(id, {

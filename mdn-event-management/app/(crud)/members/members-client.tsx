@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { FieldDescription, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -38,6 +39,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useFieldValidation } from "@/hooks/use-field-validation";
+import { ApiError, apiJson } from "@/lib/api-json";
+import { MIN_PASSWORD_LENGTH, validateMember } from "@/lib/validation";
 
 type Member = {
   memberId: number;
@@ -67,6 +71,7 @@ export default function MembersPage() {
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
   const [creating, setCreating] = useState(false);
+  const validation = useFieldValidation({ name, email, password }, validateMember);
 
   // Delete dialog state
   const [deleteTarget, setDeleteTarget] = useState<Member | null>(null);
@@ -100,28 +105,31 @@ export default function MembersPage() {
     loadMembers();
   }, []);
 
-  async function handleCreate(e: React.FormEvent) {
+  async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setFormError("");
     setFormSuccess("");
+    if (!validation.checkBeforeSubmit(e.currentTarget)) return;
     setCreating(true);
 
     try {
-      const res = await fetch("/api/admin/members", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, role }),
+      const data = await apiJson("/api/admin/members", "POST", {
+        name,
+        email,
+        password,
+        role,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create member");
 
       setFormSuccess(`Account created for ${data.name} (${data.email})`);
       setName("");
       setEmail("");
       setPassword("");
       setRole("Member");
+      validation.reset();
       await loadMembers();
-    } catch (err: unknown) {
+    } catch (err) {
+      // A taken email comes back keyed to the email field.
+      if (err instanceof ApiError && validation.setServerErrors(err.fieldErrors)) return;
       setFormError(err instanceof Error ? err.message : "Failed to create member");
     } finally {
       setCreating(false);
@@ -259,7 +267,7 @@ export default function MembersPage() {
               </Alert>
             )}
 
-            <form id="create-member-form" onSubmit={handleCreate} className="space-y-4">
+            <form id="create-member-form" noValidate onSubmit={handleCreate} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="member-name">Full name</Label>
@@ -270,7 +278,9 @@ export default function MembersPage() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Jane Doe"
+                    {...validation.fieldProps("name", "member-name")}
                   />
+                  <FieldError id="member-name-error">{validation.errorFor("name")}</FieldError>
                 </div>
 
                 <div className="space-y-1.5">
@@ -282,7 +292,9 @@ export default function MembersPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="jane@example.com"
+                    {...validation.fieldProps("email", "member-email")}
                   />
+                  <FieldError id="member-email-error">{validation.errorFor("email")}</FieldError>
                 </div>
 
                 <div className="space-y-1.5">
@@ -294,17 +306,22 @@ export default function MembersPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
+                    {...validation.fieldProps("password", "member-password")}
                   />
+                  {validation.errorFor("password") ? (
+                    <FieldError id="member-password-error">
+                      {validation.errorFor("password")}
+                    </FieldError>
+                  ) : (
+                    <FieldDescription>At least {MIN_PASSWORD_LENGTH} characters.</FieldDescription>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
                   <Label htmlFor="member-role">Role</Label>
-                  <Select
-                    value={role}
-                    onValueChange={(value) => {
-                      if (value != null) setRole(value);
-                    }}
-                  >
+                  {/* Select can report null when cleared; the form always wants a
+                      concrete role, so fall back to the default. */}
+                  <Select value={role} onValueChange={(value) => setRole(value ?? "Member")}>
                     <SelectTrigger id="member-role" className="w-full">
                       <SelectValue placeholder="Select a role" />
                     </SelectTrigger>

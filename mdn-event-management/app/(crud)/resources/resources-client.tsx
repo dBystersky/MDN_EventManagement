@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -41,7 +42,9 @@ import { fuzzyMatches } from "@/lib/fuzzyFilter";
 import { searchResources, typeNameOf } from "@/lib/fuzzyResources";
 import type { Booking } from "@/lib/timeline";
 import { ResourceTimeline } from "./resource-timeline";
-import { apiJson } from "@/lib/api-json";
+import { ApiError, apiJson } from "@/lib/api-json";
+import { useFieldValidation } from "@/hooks/use-field-validation";
+import { validateResource } from "@/lib/validation";
 
 type ResourceType = { typeId: number; name: string };
 type Allocation = {
@@ -75,6 +78,7 @@ export default function ResourcesDemo() {
   const [bookableNames, setBookableNames] = useState<Map<number, string>>(new Map());
   const [timelineFor, setTimelineFor] = useState<Resource | null>(null);
   const [can, setCan] = useState<Capabilities>(() => resourcePermissions(null));
+  const validation = useFieldValidation({ name, resourceTypeId }, validateResource);
 
   async function refresh() {
     const [resources, resourceTypes, allocationList, tasks, events, role] = await Promise.all([
@@ -105,6 +109,7 @@ export default function ResourcesDemo() {
     setSelectedId(null);
     setName("");
     setResourceTypeId("");
+    validation.reset();
   }
 
   function openCreate() {
@@ -119,6 +124,7 @@ export default function ResourcesDemo() {
     setSelectedId(resource.resourceId);
     setName(resource.name);
     setResourceTypeId(String(resource.resourceType));
+    validation.reset();
     setError("");
     setDialogOpen(true);
   }
@@ -398,13 +404,11 @@ export default function ResourcesDemo() {
       <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
         <DialogContent>
           <form
+            noValidate
             onSubmit={async (e) => {
               e.preventDefault();
               setError("");
-              if (!resourceTypeId) {
-                setError("Pick a resource type before saving.");
-                return;
-              }
+              if (!validation.checkBeforeSubmit(e.currentTarget)) return;
               setPending(true);
               try {
                 const payload = { name, resourceTypeId: Number(resourceTypeId) };
@@ -416,6 +420,9 @@ export default function ResourcesDemo() {
                 handleOpenChange(false);
                 await refresh();
               } catch (err) {
+                if (err instanceof ApiError && validation.setServerErrors(err.fieldErrors)) {
+                  return;
+                }
                 setError(String(err));
               } finally {
                 setPending(false);
@@ -449,7 +456,9 @@ export default function ResourcesDemo() {
                   onChange={(e) => setName(e.target.value)}
                   disabled={!canSubmit}
                   required
+                  {...validation.fieldProps("name", "resource-name")}
                 />
+                <FieldError id="resource-name-error">{validation.errorFor("name")}</FieldError>
               </div>
 
               <div className="space-y-2">
@@ -457,7 +466,10 @@ export default function ResourcesDemo() {
                 <Combobox
                   items={typeOptions}
                   value={selectedType}
-                  onValueChange={(option) => setResourceTypeId(option ? option.id : "")}
+                  onValueChange={(option) => {
+                    setResourceTypeId(option ? option.id : "");
+                    validation.touch("resourceTypeId");
+                  }}
                   itemToStringLabel={(option) => option.name}
                   isItemEqualToValue={(a, b) => a?.id === b?.id}
                   filter={(item, query) => fuzzyMatches(item.name, query)}
@@ -468,6 +480,7 @@ export default function ResourcesDemo() {
                     disabled={!canSubmit}
                     showClear
                     className="w-full"
+                    {...validation.fieldProps("resourceTypeId", "resource-type")}
                   />
                   <ComboboxContent>
                     <ComboboxEmpty>No types match.</ComboboxEmpty>
@@ -488,6 +501,9 @@ export default function ResourcesDemo() {
                     </ComboboxList>
                   </ComboboxContent>
                 </Combobox>
+                <FieldError id="resource-type-error">
+                  {validation.errorFor("resourceTypeId")}
+                </FieldError>
                 {types.length === 0 && (
                   <p className="text-xs text-muted-foreground">
                     No types exist yet.{" "}

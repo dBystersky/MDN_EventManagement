@@ -10,6 +10,7 @@ const event = {
   name: "Launch night",
   description: "",
   date: new Date("2026-09-06T00:00:00.000Z"),
+  endDate: new Date("2026-09-06T02:00:00.000Z"),
   bookableId: 30,
   totalBudget: 0,
   tasks: [],
@@ -18,7 +19,7 @@ const event = {
 /** `updateEvent` reads the event twice: once up front, once to return it. */
 function existingEvent(after: object = event) {
   prismaMock.event.findUniqueOrThrow
-    .mockResolvedValueOnce({ date: event.date, bookableId: 30 } as never)
+    .mockResolvedValueOnce({ date: event.date, endDate: event.endDate, bookableId: 30 } as never)
     .mockResolvedValueOnce(after as never);
 }
 
@@ -48,7 +49,7 @@ describe("GET /api/events/[eventId]", () => {
 });
 
 describe("PATCH /api/events/[eventId]", () => {
-  it("updates fields and reschedules existing allocations when the date moves", async () => {
+  it("updates fields and reschedules existing allocations when the span moves", async () => {
     existingEvent({ ...event, name: "Renamed" });
 
     const { status, json } = await read(
@@ -56,6 +57,7 @@ describe("PATCH /api/events/[eventId]", () => {
         jsonRequest("PATCH", {
           name: "Renamed",
           date: "2026-10-01T10:00:00.000Z",
+          endDate: "2026-10-01T12:00:00.000Z",
           locationId: "2",
         }),
         ctx,
@@ -94,7 +96,7 @@ describe("PATCH /api/events/[eventId]", () => {
         resourceId,
         bookableId: 30,
         startTime: event.date,
-        endTime: new Date("2026-09-06T02:00:00.000Z"),
+        endTime: event.endDate,
       })),
     });
     expect(prismaMock.resourceAllocation.updateMany).not.toHaveBeenCalled();

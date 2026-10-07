@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { validationFailed } from "@/lib/api-errors";
+import { validateTask } from "@/lib/validation";
 import { readTask, deleteTask, updateTask } from "@/lib/tasks";
 import { Prisma } from "@/generated/prisma/client";
 import { getAuthSession, isGuest } from "@/lib/auth";
@@ -48,9 +50,8 @@ export async function PATCH(request: Request, context: RouteParams) {
   // Extract the params to update task with
   const body = await request.json();
 
-  if (body.budget !== undefined && body.budget !== null && Number(body.budget) < 0) {
-    return NextResponse.json({ error: "budget must not be negative" }, { status: 400 });
-  }
+  const invalid = validationFailed(validateTask(body, { partial: true }));
+  if (invalid) return invalid;
 
   try {
     // Update the task

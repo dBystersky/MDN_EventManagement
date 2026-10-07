@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
-import { getAuthSession, isGuest } from "@/lib/auth";
+import { validateAllocation } from "@/lib/validation";
 import { createAllocation, listAllocations } from "@/lib/resourceAllocations";
+import { conflictsForAllocation } from "@/lib/conflictQueries";
+import { isBadRequest, validationFailed } from "@/lib/api-errors";
+import { getAuthSession, isGuest } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { Prisma } from "@/generated/prisma/client";
 
@@ -34,6 +37,9 @@ export async function POST(request: Request) {
 
   const body = await request.json();
 
+  const invalid = validationFailed(validateAllocation(body));
+  if (invalid) return invalid;
+
   try {
     const newAllocation = await createAllocation({
       resourceId: Number(body.resourceId),
@@ -48,9 +54,16 @@ export async function POST(request: Request) {
       entityId: newAllocation.allocationId,
       summary: `Allocated resource #${newAllocation.resourceId} to booking #${newAllocation.bookableId}`,
     });
-    return NextResponse.json(newAllocation, { status: 201 });
+    // Flag, never block: a double-booked resource still saves, and the
+    // caller is told what it now collides with (RTM Req 7).
+    const conflicts = await conflictsForAllocation(newAllocation.allocationId);
+
+    return NextResponse.json({ ...newAllocation, conflicts }, { status: 201 });
   } catch (error) {
     console.error(error);
+    if (isBadRequest(error)) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       return NextResponse.json(
         {

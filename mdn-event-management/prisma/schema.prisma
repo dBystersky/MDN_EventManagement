@@ -48,6 +48,7 @@ model Event {
   name             String         @db.VarChar
   description      String?        @db.VarChar
   date             DateTime       @db.Timestamptz
+  endDate          DateTime       @map("end_date") @db.Timestamptz
   eventLocationId  Int            @map("event_location_id")
   bookableId       Int            @unique @map("bookable_id")
   totalBudget      Decimal        @default(0) @db.Decimal(10, 2) @map("total_budget")
@@ -56,6 +57,8 @@ model Event {
   bookable         Bookable       @relation(fields: [bookableId], references: [bookableId])
   tasks            Task[]
 
+  // Serves the half-open overlap predicate behind venue clash detection.
+  @@index([eventLocationId, date, endDate])
   @@map("events")
 }
 
@@ -103,6 +106,8 @@ model ResourceAllocation {
   bookable     Bookable @relation(fields: [bookableId], references: [bookableId])
   resource     Resource @relation(fields: [resourceId], references: [resourceId])
 
+  // Serves the half-open overlap predicate behind resource clash detection.
+  @@index([resourceId, startTime, endTime])
   @@map("resource_allocations")
 }
 

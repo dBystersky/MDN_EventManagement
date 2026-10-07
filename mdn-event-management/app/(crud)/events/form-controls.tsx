@@ -5,6 +5,7 @@ import { XIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FieldDescription, FieldError } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -19,19 +20,34 @@ import type { Option } from "./types";
 export function Field({
   id,
   label,
+  error,
+  hint,
   children,
 }: {
   id?: string;
   label: string;
+  /** Shown under the control as `${id}-error`, which the control points at. */
+  error?: string;
+  /** Non-blocking note, hidden while there is an error to show instead. */
+  hint?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
       {children}
+      <FieldError id={id ? `${id}-error` : undefined}>{error}</FieldError>
+      {!error && hint && <FieldDescription>{hint}</FieldDescription>}
     </div>
   );
 }
+
+/** What `useFieldValidation().fieldProps` hands a control. */
+export type ControlValidationProps = {
+  "aria-invalid"?: boolean;
+  "aria-describedby"?: string;
+  onBlur?: () => void;
+};
 
 export function OptionSelect({
   id,
@@ -40,6 +56,7 @@ export function OptionSelect({
   options,
   onChange,
   className,
+  validation,
 }: {
   id?: string;
   value: string;
@@ -47,6 +64,7 @@ export function OptionSelect({
   options: Option[];
   onChange: (id: string) => void;
   className?: string;
+  validation?: ControlValidationProps;
 }) {
   const labelFor = (optionId: string) =>
     options.find((option) => option.id === optionId)?.label ?? "";
@@ -58,7 +76,7 @@ export function OptionSelect({
       itemToStringLabel={(item) => labelFor(String(item))}
       onValueChange={(item) => onChange(item == null ? "" : String(item))}
     >
-      <SelectTrigger id={id} className={className ?? "w-full"}>
+      <SelectTrigger id={id} className={className ?? "w-full"} {...validation}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent align="start" alignItemWithTrigger={false}>

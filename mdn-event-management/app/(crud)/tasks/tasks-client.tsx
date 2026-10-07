@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { FieldDescription, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,7 +41,9 @@ import { formatDateTime, toDatetimeLocal } from "@/lib/datetime";
 import { fetchSessionRole, taskPermissions, type Capabilities } from "@/lib/permissions";
 import { fuzzyMatches } from "@/lib/fuzzyFilter";
 import { eventNameOf, managerNamesOf, searchTasks } from "@/lib/fuzzyTasks";
-import { apiJson } from "@/lib/api-json";
+import { ApiError, apiJson } from "@/lib/api-json";
+import { useFieldValidation } from "@/hooks/use-field-validation";
+import { isInPast, validateTask } from "@/lib/validation";
 
 type Member = { memberId: number; name: string; email: string };
 type EventItem = { eventId: number; name: string };
@@ -82,6 +85,7 @@ export default function TasksDemo() {
     search: string;
   } | null>(null);
   const [can, setCan] = useState<Capabilities>(() => taskPermissions(null));
+  const validation = useFieldValidation({ name, deadline, budget }, validateTask);
 
   async function refresh() {
     const [tasks, eventList, memberList, role] = await Promise.all([
@@ -116,6 +120,7 @@ export default function TasksDemo() {
     setEventId("");
     setManagerIds([]);
     setPendingManager(null);
+    validation.reset();
   }
 
   function openCreate() {
@@ -134,6 +139,7 @@ export default function TasksDemo() {
     setBudget(task.budget == null ? "" : String(task.budget));
     setEventId(task.eventId != null ? String(task.eventId) : "");
     setManagerIds((task.taskManagers ?? []).map((tm) => String(tm.memberId)));
+    validation.reset();
     setError("");
     setDialogOpen(true);
   }
@@ -349,22 +355,12 @@ export default function TasksDemo() {
       <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-lg">
           <form
+            noValidate
             onSubmit={async (e) => {
               e.preventDefault();
               setError("");
-              if (!name.trim()) {
-                setError("Name a task before saving.");
-                return;
-              }
-              if (!deadline) {
-                setError("Pick a deadline before saving.");
-                return;
-              }
+              if (!validation.checkBeforeSubmit(e.currentTarget)) return;
               const parsedBudget = budget.trim() === "" ? null : Number(budget);
-              if (parsedBudget != null && (!Number.isFinite(parsedBudget) || parsedBudget < 0)) {
-                setError("Budget must be a number that is not negative.");
-                return;
-              }
               setPending(true);
               try {
                 const payload = {
@@ -383,6 +379,9 @@ export default function TasksDemo() {
                 handleOpenChange(false);
                 await refresh();
               } catch (err) {
+                if (err instanceof ApiError && validation.setServerErrors(err.fieldErrors)) {
+                  return;
+                }
                 setError(String(err));
               } finally {
                 setPending(false);
@@ -416,7 +415,9 @@ export default function TasksDemo() {
                   onChange={(e) => setName(e.target.value)}
                   disabled={!canSubmit}
                   required
+                  {...validation.fieldProps("name", "task-name")}
                 />
+                <FieldError id="task-name-error">{validation.errorFor("name")}</FieldError>
               </div>
 
               <div className="space-y-2">
@@ -437,10 +438,20 @@ export default function TasksDemo() {
                     id="task-deadline"
                     type="datetime-local"
                     value={deadline}
-                    onChange={(e) => setDeadline(e.target.value)}
+                    onChange={(e) => {
+                      setDeadline(e.target.value);
+                      validation.touch("deadline");
+                    }}
                     disabled={!canSubmit}
                     required
+                    {...validation.fieldProps("deadline", "task-deadline")}
                   />
+                  <FieldError id="task-deadline-error">
+                    {validation.errorFor("deadline")}
+                  </FieldError>
+                  {!validation.errorFor("deadline") && isInPast(deadline) && (
+                    <FieldDescription>This is in the past.</FieldDescription>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="task-budget">Budget</Label>
@@ -451,9 +462,14 @@ export default function TasksDemo() {
                     min="0"
                     placeholder="Optional"
                     value={budget}
-                    onChange={(e) => setBudget(e.target.value)}
+                    onChange={(e) => {
+                      setBudget(e.target.value);
+                      validation.touch("budget");
+                    }}
                     disabled={!canSubmit}
+                    {...validation.fieldProps("budget", "task-budget")}
                   />
+                  <FieldError id="task-budget-error">{validation.errorFor("budget")}</FieldError>
                 </div>
               </div>
 

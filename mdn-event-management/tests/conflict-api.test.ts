@@ -120,9 +120,7 @@ describe("Conflict flagging API", () => {
   }
 
   before(async () => {
-    const health = await fetch(`${ORIGIN}/api/auth/login`, { method: "POST" }).catch(
-      () => null,
-    );
+    const health = await fetch(`${ORIGIN}/api/auth/login`, { method: "POST" }).catch(() => null);
     if (!health) {
       throw new Error(`API not reachable at ${ORIGIN}. Start the app with: npm run dev`);
     }
@@ -158,9 +156,7 @@ describe("Conflict flagging API", () => {
 
   after(async () => {
     for (const allocationId of createdAllocationIds) {
-      await api(`/api/resource-allocations/${allocationId}`, "DELETE").catch(
-        () => undefined,
-      );
+      await api(`/api/resource-allocations/${allocationId}`, "DELETE").catch(() => undefined);
     }
     for (const eventId of createdEventIds) {
       await api(`/api/events/${eventId}`, "DELETE").catch(() => undefined);

@@ -72,9 +72,7 @@ export function useFieldValidation<K extends string>(
     if (!hasErrors(errors)) return true;
     // After React commits the aria-invalid it just learned about.
     requestAnimationFrame(() => {
-      (scope ?? document)
-        .querySelector<HTMLElement>('[aria-invalid="true"]')
-        ?.focus();
+      (scope ?? document).querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
     });
     return false;
   }

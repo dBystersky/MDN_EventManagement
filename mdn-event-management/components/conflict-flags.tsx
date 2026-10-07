@@ -45,9 +45,7 @@ export function ConflictBadge({
   if (conflicts.length === 0) return null;
 
   const label =
-    conflicts.length === 1
-      ? KIND_LABEL[conflicts[0].kind]
-      : `${conflicts.length} clashes`;
+    conflicts.length === 1 ? KIND_LABEL[conflicts[0].kind] : `${conflicts.length} clashes`;
 
   return (
     <Badge
@@ -91,11 +89,9 @@ export function ConflictAlert({
         <ul className="space-y-1.5">
           {conflicts.map((conflict, index) => (
             <li key={`${conflict.kind}-${index}`}>
-              <span className="font-medium">{KIND_LABEL[conflict.kind]}:</span>{" "}
-              {conflict.message}
+              <span className="font-medium">{KIND_LABEL[conflict.kind]}:</span> {conflict.message}
               <span className="block text-xs tabular-nums opacity-80">
-                {formatDateTime(conflict.window.start)} →{" "}
-                {formatDateTime(conflict.window.end)}
+                {formatDateTime(conflict.window.start)} → {formatDateTime(conflict.window.end)}
               </span>
             </li>
           ))}

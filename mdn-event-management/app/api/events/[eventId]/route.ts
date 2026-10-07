@@ -6,96 +6,86 @@ import { isBadRequest, validationFailed } from "@/lib/api-errors";
 import { Prisma } from "@/generated/prisma/client";
 
 type RouteParams = {
-    params: Promise<{ eventId: string }>;
-}
+  params: Promise<{ eventId: string }>;
+};
 
 // Functino to get individual event from the API
 export async function GET(request: Request, context: RouteParams) {
-    // Extract the eventId from the URL parameters
-    const { eventId } = await context.params;
-    const id  = Number(eventId);
+  // Extract the eventId from the URL parameters
+  const { eventId } = await context.params;
+  const id = Number(eventId);
 
-    try {
-        // Get the event from the database
-        const event = await readEvent(id);
+  try {
+    // Get the event from the database
+    const event = await readEvent(id);
 
-        // Return the found event
-        return NextResponse.json(event, { status: 200 });
-    } catch (error) {
-        return NextResponse.json({ error: `Event not found: ${error}` }, { status: 404 }); 
-    }
-    
+    // Return the found event
+    return NextResponse.json(event, { status: 200 });
+  } catch (error) {
+    return NextResponse.json({ error: `Event not found: ${error}` }, { status: 404 });
+  }
 }
 
 export async function PATCH(request: Request, context: RouteParams) {
-    // Extract the eventId from the URL parameters
-    const { eventId } = await context.params;
-    const id = Number(eventId);
+  // Extract the eventId from the URL parameters
+  const { eventId } = await context.params;
+  const id = Number(eventId);
 
-    // Extract the params to update event with
-    const body = await request.json();
+  // Extract the params to update event with
+  const body = await request.json();
 
-    const invalid = validationFailed(validateEvent(body, { partial: true }));
-    if (invalid) return invalid;
+  const invalid = validationFailed(validateEvent(body, { partial: true }));
+  if (invalid) return invalid;
 
-    try {
-        // Update the event
-        const event = await updateEvent(id, {
-            name: body.name,
-            description: body.description,
-            date: body.date !== undefined ? new Date(body.date) : undefined,
-            endDate: body.endDate !== undefined ? new Date(body.endDate) : undefined,
-            locationId: body.locationId !== undefined ? Number(body.locationId) : undefined,
-            managerIds: Array.isArray(body.managerIds)
-                ? body.managerIds.map(Number)
-                : undefined,
-            resourceIds: Array.isArray(body.resourceIds)
-                ? body.resourceIds.map(Number)
-                : undefined,
-            taskIds: Array.isArray(body.taskIds)
-                ? body.taskIds.map(Number)
-                : undefined,
-            subtasks: parseEventSubtasks(body.subtasks),
-        });
+  try {
+    // Update the event
+    const event = await updateEvent(id, {
+      name: body.name,
+      description: body.description,
+      date: body.date !== undefined ? new Date(body.date) : undefined,
+      endDate: body.endDate !== undefined ? new Date(body.endDate) : undefined,
+      locationId: body.locationId !== undefined ? Number(body.locationId) : undefined,
+      managerIds: Array.isArray(body.managerIds) ? body.managerIds.map(Number) : undefined,
+      resourceIds: Array.isArray(body.resourceIds) ? body.resourceIds.map(Number) : undefined,
+      taskIds: Array.isArray(body.taskIds) ? body.taskIds.map(Number) : undefined,
+      subtasks: parseEventSubtasks(body.subtasks),
+    });
 
-        // Flag, never block — see POST /api/events.
-        const conflicts = await conflictsForEvent(id);
+    // Flag, never block — see POST /api/events.
+    const conflicts = await conflictsForEvent(id);
 
-        // Return the updated event
-        return NextResponse.json({ ...event, conflicts }, { status: 200 });
-    } catch (error) {
-        if (isBadRequest(error)) {
-            return NextResponse.json({ error: error.message }, { status: 400 });
-        }
-        if (
-            error instanceof Prisma.PrismaClientKnownRequestError
-        ) {
-            if (error.code === 'P2025') {
-                return NextResponse.json({ error: `Event not found: ${error}` }, { status: 404 });
-            }
-        }
-
-        return NextResponse.json({ error: `Failed to update event: ${error}` }, { status: 500 });
+    // Return the updated event
+    return NextResponse.json({ ...event, conflicts }, { status: 200 });
+  } catch (error) {
+    if (isBadRequest(error)) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2025") {
+        return NextResponse.json({ error: `Event not found: ${error}` }, { status: 404 });
+      }
+    }
+
+    return NextResponse.json({ error: `Failed to update event: ${error}` }, { status: 500 });
+  }
 }
 
-export async function DELETE(request: Request, context: RouteParams){
-    const { eventId } = await context.params;
-    const id = Number(eventId);
+export async function DELETE(request: Request, context: RouteParams) {
+  const { eventId } = await context.params;
+  const id = Number(eventId);
 
-    try {
-        // Delete the event
-        await deleteEvent(id);
+  try {
+    // Delete the event
+    await deleteEvent(id);
 
-        // Return a success message
-        return NextResponse.json({ message: "Event deleted successfully" }, { status: 200 });
-
-    } catch (error) {
-        if (error instanceof Prisma.PrismaClientKnownRequestError) {
-            if (error.code === 'P2025') {
-                return NextResponse.json({ error: `Event not found: ${error}` }, { status: 404 });
-            }
-        }
-        return NextResponse.json({ error: `Failed to delete event ${error}` }, { status: 500 });
+    // Return a success message
+    return NextResponse.json({ message: "Event deleted successfully" }, { status: 200 });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2025") {
+        return NextResponse.json({ error: `Event not found: ${error}` }, { status: 404 });
+      }
     }
+    return NextResponse.json({ error: `Failed to delete event ${error}` }, { status: 500 });
+  }
 }

@@ -60,9 +60,7 @@ export function orphanOptions<T>(
 export function managerNamesFor(ev: EventItem, members: Member[]) {
   return names(
     (ev.eventManagers ?? []).map(
-      (em) =>
-        em.member?.name ??
-        members.find((member) => member.memberId === em.memberId)?.name,
+      (em) => em.member?.name ?? members.find((member) => member.memberId === em.memberId)?.name,
     ),
   );
 }
@@ -72,8 +70,7 @@ export function resourceNamesFor(ev: EventItem, resources: Resource[]) {
     (ev.bookable?.resourceAllocations ?? []).map(
       (allocation) =>
         allocation.resource?.name ??
-        resources.find((resource) => resource.resourceId === allocation.resourceId)
-          ?.name,
+        resources.find((resource) => resource.resourceId === allocation.resourceId)?.name,
     ),
   );
 }
@@ -83,19 +80,13 @@ export function existingSubtaskDetails(
   selectedEvent: EventItem | undefined,
   allTasks: Task[],
 ) {
-  const fromEvent = selectedEvent?.tasks?.find(
-    (task) => String(task.taskId) === taskId,
-  );
+  const fromEvent = selectedEvent?.tasks?.find((task) => String(task.taskId) === taskId);
   const fromCatalog = allTasks.find((task) => String(task.taskId) === taskId);
   const assignees = names(
-    (fromEvent?.taskManagers ?? fromCatalog?.taskManagers ?? []).map(
-      (tm) => tm.member?.name,
-    ),
+    (fromEvent?.taskManagers ?? fromCatalog?.taskManagers ?? []).map((tm) => tm.member?.name),
   );
   const assignedResources = names(
-    (fromEvent?.bookable?.resourceAllocations ?? []).map(
-      (allocation) => allocation.resource?.name,
-    ),
+    (fromEvent?.bookable?.resourceAllocations ?? []).map((allocation) => allocation.resource?.name),
   );
   const deadline = fromEvent?.deadline ?? fromCatalog?.deadline;
 
@@ -123,8 +114,7 @@ export function managerPickerOptions(
     ...orphanOptions(
       selectedEvent?.eventManagers,
       (em) => members.some((member) => member.memberId === em.memberId),
-      (em) =>
-        em.member?.name ? { id: String(em.memberId), label: em.member.name } : null,
+      (em) => (em.member?.name ? { id: String(em.memberId), label: em.member.name } : null),
     ),
   ];
 }
@@ -140,8 +130,7 @@ export function resourcePickerOptions(
     })),
     ...orphanOptions(
       selectedEvent?.bookable?.resourceAllocations,
-      (allocation) =>
-        resources.some((resource) => resource.resourceId === allocation.resourceId),
+      (allocation) => resources.some((resource) => resource.resourceId === allocation.resourceId),
       (allocation) =>
         allocation.resource?.name
           ? { id: String(allocation.resourceId), label: allocation.resource.name }

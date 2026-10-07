@@ -20,9 +20,7 @@ export type TestSession = {
 
 /** Throws with a usable message when the app is not running. */
 export async function assertApiReachable() {
-  const reachable = await fetch(`${ORIGIN}/api/auth/login`, { method: "POST" }).catch(
-    () => null,
-  );
+  const reachable = await fetch(`${ORIGIN}/api/auth/login`, { method: "POST" }).catch(() => null);
   if (!reachable) {
     throw new Error(`API not reachable at ${ORIGIN}. Start the app with: npm run dev`);
   }

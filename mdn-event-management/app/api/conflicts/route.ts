@@ -11,13 +11,10 @@ import { listAllConflicts } from "@/lib/conflictQueries";
  * it by id (`conflictsByEvent` / `conflictsByAllocation` in `lib/conflicts.ts`).
  */
 export async function GET() {
-    try {
-        const conflicts = await listAllConflicts();
-        return NextResponse.json(conflicts, { status: 200 });
-    } catch (error) {
-        return NextResponse.json(
-            { error: `Failed to get conflicts: ${error}` },
-            { status: 500 },
-        );
-    }
+  try {
+    const conflicts = await listAllConflicts();
+    return NextResponse.json(conflicts, { status: 200 });
+  } catch (error) {
+    return NextResponse.json({ error: `Failed to get conflicts: ${error}` }, { status: 500 });
+  }
 }

@@ -7,25 +7,27 @@
  * different credentials. Do NOT commit real passwords here.
  */
 
-import bcrypt from 'bcryptjs';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '../generated/prisma/client';
-import 'dotenv/config';
+import bcrypt from "bcryptjs";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../generated/prisma/client";
+import "dotenv/config";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
-  throw new Error('DATABASE_URL is not set. Copy .env.example to .env first.');
+  throw new Error("DATABASE_URL is not set. Copy .env.example to .env first.");
 }
 
 const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
 
-const ADMIN_EMAIL    = process.env.SEED_ADMIN_EMAIL    ?? 'admin@mdn.com';
-const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? 'changeme123';
-const ADMIN_NAME     = process.env.SEED_ADMIN_NAME     ?? 'MDN Admin';
+const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@mdn.com";
+const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "changeme123";
+const ADMIN_NAME = process.env.SEED_ADMIN_NAME ?? "MDN Admin";
 
 if (!process.env.SEED_ADMIN_PASSWORD) {
-  console.warn('⚠️  SEED_ADMIN_PASSWORD not set in .env — using default "changeme123". Change it after seeding.');
+  console.warn(
+    '⚠️  SEED_ADMIN_PASSWORD not set in .env — using default "changeme123". Change it after seeding.',
+  );
 }
 
 async function main() {
@@ -45,7 +47,7 @@ async function main() {
       name: ADMIN_NAME,
       email: ADMIN_EMAIL,
       password: hashed,
-      role: 'Admin',
+      role: "Admin",
     },
   });
 

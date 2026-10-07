@@ -94,18 +94,12 @@ describe("overlaps / intersection", () => {
 
 describe("findEventConflicts", () => {
   it("finds nothing when one event ends exactly as the next begins", () => {
-    const conflicts = findEventConflicts([
-      ev(1, "Workshop", 1, 9, 11),
-      ev(2, "AGM", 1, 11, 13),
-    ]);
+    const conflicts = findEventConflicts([ev(1, "Workshop", 1, 9, 11), ev(2, "AGM", 1, 11, 13)]);
     assert.deepEqual(conflicts, []);
   });
 
   it("flags two events sharing a venue as a venue error", () => {
-    const conflicts = findEventConflicts([
-      ev(1, "Workshop", 1, 9, 12),
-      ev(2, "AGM", 1, 11, 13),
-    ]);
+    const conflicts = findEventConflicts([ev(1, "Workshop", 1, 9, 12), ev(2, "AGM", 1, 11, 13)]);
 
     assert.equal(conflicts.length, 1);
     const [conflict] = conflicts;
@@ -119,10 +113,7 @@ describe("findEventConflicts", () => {
   });
 
   it("does not also report a venue clash as a schedule warning", () => {
-    const conflicts = findEventConflicts([
-      ev(1, "Workshop", 1, 9, 12),
-      ev(2, "AGM", 1, 11, 13),
-    ]);
+    const conflicts = findEventConflicts([ev(1, "Workshop", 1, 9, 12), ev(2, "AGM", 1, 11, 13)]);
     assert.deepEqual(
       conflicts.map((c) => c.kind),
       ["venue"],
@@ -130,10 +121,7 @@ describe("findEventConflicts", () => {
   });
 
   it("flags overlapping events at different venues as a schedule warning only", () => {
-    const conflicts = findEventConflicts([
-      ev(1, "Workshop", 1, 9, 12),
-      ev(2, "AGM", 2, 11, 13),
-    ]);
+    const conflicts = findEventConflicts([ev(1, "Workshop", 1, 9, 12), ev(2, "AGM", 2, 11, 13)]);
 
     assert.equal(conflicts.length, 1);
     assert.equal(conflicts[0].kind, "schedule");
@@ -141,10 +129,7 @@ describe("findEventConflicts", () => {
   });
 
   it("names the earlier-starting event as `left`", () => {
-    const conflicts = findEventConflicts([
-      ev(2, "AGM", 1, 11, 13),
-      ev(1, "Workshop", 1, 9, 12),
-    ]);
+    const conflicts = findEventConflicts([ev(2, "AGM", 1, 11, 13), ev(1, "Workshop", 1, 9, 12)]);
 
     const [{ left, right }] = conflicts;
     assert.equal(left.type === "event" && left.eventId, 1);
@@ -163,9 +148,7 @@ describe("findEventConflicts", () => {
     assert.equal(conflicts.length, 3);
     assert.ok(conflicts.every((c) => c.kind === "venue"));
     assert.deepEqual(
-      conflicts
-        .map((c) => (c.right.type === "event" ? c.right.eventId : 0))
-        .sort((a, b) => a - b),
+      conflicts.map((c) => (c.right.type === "event" ? c.right.eventId : 0)).sort((a, b) => a - b),
       [2, 3, 4],
     );
   });
@@ -189,10 +172,7 @@ describe("findEventConflicts", () => {
 
 describe("findAllocationConflicts", () => {
   it("flags one resource booked for two overlapping windows", () => {
-    const conflicts = findAllocationConflicts([
-      alloc(1, 7, 100, 9, 12),
-      alloc(2, 7, 200, 11, 13),
-    ]);
+    const conflicts = findAllocationConflicts([alloc(1, 7, 100, 9, 12), alloc(2, 7, 200, 11, 13)]);
 
     assert.equal(conflicts.length, 1);
     assert.equal(conflicts[0].kind, "resource");
@@ -239,10 +219,7 @@ describe("findAllocationConflicts", () => {
   });
 
   it("words a duplicate booking as such rather than naming one side twice", () => {
-    const conflicts = findAllocationConflicts([
-      alloc(1, 7, 100, 9, 12),
-      alloc(2, 7, 100, 10, 13),
-    ]);
+    const conflicts = findAllocationConflicts([alloc(1, 7, 100, 9, 12), alloc(2, 7, 100, 10, 13)]);
 
     assert.equal(conflicts.length, 1);
     assert.match(conflicts[0].message, /booked twice for Event: Booking 100/);

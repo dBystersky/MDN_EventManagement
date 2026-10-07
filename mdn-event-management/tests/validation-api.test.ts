@@ -38,13 +38,13 @@ describe("Validation API", () => {
   const createdMemberEmails: string[] = [];
 
   /** Asserts a 400 that names exactly `field`, among possibly others. */
-  function assertRejected(
-    result: { status: number; json: unknown },
-    field: string,
-  ) {
+  function assertRejected(result: { status: number; json: unknown }, field: string) {
     assert.equal(result.status, 400, JSON.stringify(result.json));
     const json = result.json as Rejection;
-    assert.ok(json.fieldErrors?.[field], `expected fieldErrors.${field}, got ${JSON.stringify(json)}`);
+    assert.ok(
+      json.fieldErrors?.[field],
+      `expected fieldErrors.${field}, got ${JSON.stringify(json)}`,
+    );
     assert.ok(json.error, "the one-line summary is still there for older callers");
   }
 
@@ -132,11 +132,18 @@ describe("Validation API", () => {
   it("rejects a member with a malformed email or short password", async () => {
     const member = { name: "Val Idator", email: `val-${stamp}@mdn.test`, password: "longenough" };
     assertRejected(await api("POST", "/admin/members", { ...member, email: "val" }), "email");
-    assertRejected(await api("POST", "/admin/members", { ...member, password: "short" }), "password");
+    assertRejected(
+      await api("POST", "/admin/members", { ...member, password: "short" }),
+      "password",
+    );
   });
 
   it("reports a taken email against the email field", async () => {
-    const member = { name: "Val Idator", email: `val-dupe-${stamp}@mdn.test`, password: "longenough" };
+    const member = {
+      name: "Val Idator",
+      email: `val-dupe-${stamp}@mdn.test`,
+      password: "longenough",
+    };
     createdMemberEmails.push(member.email);
     const first = await api("POST", "/admin/members", member);
     assert.equal(first.status, 201, JSON.stringify(first.json));

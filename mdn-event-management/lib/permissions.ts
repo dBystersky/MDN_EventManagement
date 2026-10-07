@@ -34,10 +34,7 @@ const LOCATION_MANAGERS: readonly Role[] = ["Member", "Manager", "Admin"];
 
 const FULL_ACCESS: Capabilities = { create: true, edit: true, delete: true };
 
-function capabilitiesFor(
-  role: string | null | undefined,
-  allowed: readonly Role[],
-): Capabilities {
+function capabilitiesFor(role: string | null | undefined, allowed: readonly Role[]): Capabilities {
   if (!ENFORCED) return FULL_ACCESS;
 
   const permitted = role != null && allowed.includes(role as Role);

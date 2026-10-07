@@ -7,13 +7,7 @@ import { CalendarClockIcon, CircleAlertIcon, PlusIcon, SearchIcon, XIcon } from 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -87,15 +81,14 @@ export default function ResourcesDemo() {
   const validation = useFieldValidation({ name, resourceTypeId }, validateResource);
 
   async function refresh() {
-    const [resources, resourceTypes, allocationList, tasks, events, role] =
-      await Promise.all([
-        apiJson("/api/resources"),
-        apiJson("/api/resource-types"),
-        apiJson("/api/resource-allocations"),
-        apiJson("/api/tasks"),
-        apiJson("/api/events"),
-        fetchSessionRole(),
-      ]);
+    const [resources, resourceTypes, allocationList, tasks, events, role] = await Promise.all([
+      apiJson("/api/resources"),
+      apiJson("/api/resource-types"),
+      apiJson("/api/resource-allocations"),
+      apiJson("/api/tasks"),
+      apiJson("/api/events"),
+      fetchSessionRole(),
+    ]);
     setItems(resources);
     setTypes(resourceTypes);
     setAllocations(allocationList);
@@ -171,18 +164,13 @@ export default function ResourcesDemo() {
   const isEditing = selectedId != null;
   const canSubmit = isEditing ? can.edit : can.create;
 
-  const matches = useMemo(
-    () => searchResources(query, items, types),
-    [query, items, types],
-  );
+  const matches = useMemo(() => searchResources(query, items, types), [query, items, types]);
 
   return (
     <section>
       <div className="space-y-6">
         <header>
-          <h1 className="text-2xl font-bold">
-            Resources
-          </h1>
+          <h1 className="text-2xl font-bold">Resources</h1>
         </header>
 
         {/* While the dialog is open its own alert carries the message, so this
@@ -300,49 +288,49 @@ export default function ResourcesDemo() {
                           </TableCell>
                           <TableCell className="text-right">
                             <span className="flex justify-end gap-1">
-                            <Button
-                              type="button"
-                              size="xs"
-                              variant="ghost"
-                              aria-label={`Show bookings for ${resource.name}`}
-                              disabled={pending}
-                              onClick={() => setTimelineFor(resource)}
-                            >
-                              <CalendarClockIcon />
-                            </Button>
-                            <Button
-                              type="button"
-                              size="xs"
-                              variant="secondary"
-                              disabled={pending || !can.edit}
-                              onClick={() => openEdit(resource)}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              type="button"
-                              size="xs"
-                              variant="destructive"
-                              disabled={pending || !can.delete}
-                              onClick={async () => {
-                                setError("");
-                                setPending(true);
-                                try {
-                                  await apiJson(
-                                    `/api/resources/${resource.resourceId}`,
-                                    "DELETE",
-                                  );
-                                  if (selectedId === resource.resourceId) resetForm();
-                                  await refresh();
-                                } catch (err) {
-                                  setError(String(err));
-                                } finally {
-                                  setPending(false);
-                                }
-                              }}
-                            >
-                              Delete
-                            </Button>
+                              <Button
+                                type="button"
+                                size="xs"
+                                variant="ghost"
+                                aria-label={`Show bookings for ${resource.name}`}
+                                disabled={pending}
+                                onClick={() => setTimelineFor(resource)}
+                              >
+                                <CalendarClockIcon />
+                              </Button>
+                              <Button
+                                type="button"
+                                size="xs"
+                                variant="secondary"
+                                disabled={pending || !can.edit}
+                                onClick={() => openEdit(resource)}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                type="button"
+                                size="xs"
+                                variant="destructive"
+                                disabled={pending || !can.delete}
+                                onClick={async () => {
+                                  setError("");
+                                  setPending(true);
+                                  try {
+                                    await apiJson(
+                                      `/api/resources/${resource.resourceId}`,
+                                      "DELETE",
+                                    );
+                                    if (selectedId === resource.resourceId) resetForm();
+                                    await refresh();
+                                  } catch (err) {
+                                    setError(String(err));
+                                  } finally {
+                                    setPending(false);
+                                  }
+                                }}
+                              >
+                                Delete
+                              </Button>
                             </span>
                           </TableCell>
                         </TableRow>

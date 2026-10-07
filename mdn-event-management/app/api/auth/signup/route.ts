@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { hashPassword, signToken, AUTH_COOKIE_NAME } from '@/lib/auth';
-import { MemberRole } from '@/generated/prisma/client';
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { hashPassword, signToken, AUTH_COOKIE_NAME } from "@/lib/auth";
+import { MemberRole } from "@/generated/prisma/client";
 
 export async function POST(request: Request) {
   try {
@@ -10,8 +10,8 @@ export async function POST(request: Request) {
 
     if (!name || !email || !password) {
       return NextResponse.json(
-        { error: 'Name, email, and password are required' },
-        { status: 400 }
+        { error: "Name, email, and password are required" },
+        { status: 400 },
       );
     }
 
@@ -22,8 +22,8 @@ export async function POST(request: Request) {
 
     if (existingMember) {
       return NextResponse.json(
-        { error: 'A member with this email already exists' },
-        { status: 400 }
+        { error: "A member with this email already exists" },
+        { status: 400 },
       );
     }
 
@@ -32,8 +32,8 @@ export async function POST(request: Request) {
 
     // Validate role
     let memberRole: MemberRole = MemberRole.Member;
-    if (role === 'Manager') memberRole = MemberRole.Manager;
-    if (role === 'Admin') memberRole = MemberRole.Admin;
+    if (role === "Manager") memberRole = MemberRole.Manager;
+    if (role === "Admin") memberRole = MemberRole.Admin;
 
     // Create member
     const newMember = await prisma.member.create({
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     const token = signToken(userSession);
 
     const response = NextResponse.json({
-      message: 'Signed up successfully',
+      message: "Signed up successfully",
       user: userSession,
     });
 
@@ -63,17 +63,14 @@ export async function POST(request: Request) {
       name: AUTH_COOKIE_NAME,
       value: token,
       httpOnly: true,
-      path: '/',
-      secure: process.env.NODE_ENV === 'production',
+      path: "/",
+      secure: process.env.NODE_ENV === "production",
       maxAge: 60 * 60 * 24 * 7, // 1 week
     });
 
     return response;
   } catch (error) {
-    console.error('Signup error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error("Signup error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

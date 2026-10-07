@@ -206,9 +206,7 @@ export function findEventConflicts(events: readonly EventSpan[]): Conflict[] {
 }
 
 /** Resource clashes: one resource booked for overlapping windows. */
-export function findAllocationConflicts(
-  allocations: readonly AllocationSpan[],
-): Conflict[] {
+export function findAllocationConflicts(allocations: readonly AllocationSpan[]): Conflict[] {
   const valid = allocations.filter(isForwardInterval);
   const conflicts: Conflict[] = [];
 
@@ -268,9 +266,7 @@ export function conflictsByEvent(conflicts: readonly Conflict[]): Map<number, Co
 }
 
 /** Index conflicts by every allocation they touch. */
-export function conflictsByAllocation(
-  conflicts: readonly Conflict[],
-): Map<number, Conflict[]> {
+export function conflictsByAllocation(conflicts: readonly Conflict[]): Map<number, Conflict[]> {
   const index = new Map<number, Conflict[]>();
   for (const conflict of conflicts) {
     for (const ref of [conflict.left, conflict.right]) {

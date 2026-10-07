@@ -7,11 +7,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint .",
     "postinstall": "prisma generate",
-    "test": "tsx --test tests/conflicts.test.ts tests/validation.test.ts tests/task-api.test.ts tests/task-budget.test.ts tests/conflict-api.test.ts tests/validation-api.test.ts",
-    "test:api": "tsx --test tests/task-api.test.ts tests/task-budget.test.ts tests/conflict-api.test.ts tests/validation-api.test.ts",
-    "test:unit": "tsx --test tests/conflicts.test.ts tests/validation.test.ts"
+    "typecheck": "next typegen && tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -45,10 +47,14 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.9",
     "prisma": "^7.9.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.12",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11",
+    "vitest-mock-extended": "^5.1.1"
   },
   "allowScripts": {
     "@prisma/engines@7.9.1": true,

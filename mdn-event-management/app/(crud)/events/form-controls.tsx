@@ -90,13 +90,7 @@ export function OptionSelect({
   );
 }
 
-export function RemovableChip({
-  label,
-  onRemove,
-}: {
-  label: string;
-  onRemove: () => void;
-}) {
+export function RemovableChip({ label, onRemove }: { label: string; onRemove: () => void }) {
   const text = label || "Unknown";
   return (
     <Badge variant="secondary" className="gap-1 pr-1">

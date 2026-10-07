@@ -180,11 +180,7 @@ export function EventForm({
           {/* Its own row rather than a lone cell in a two-column grid, which
               would leave the select stranded at half width. */}
           <div>
-            <Field
-              id="event-location"
-              label="Location"
-              error={validation.errorFor("locationId")}
-            >
+            <Field id="event-location" label="Location" error={validation.errorFor("locationId")}>
               <OptionSelect
                 id="event-location"
                 value={locationId}

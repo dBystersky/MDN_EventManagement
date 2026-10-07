@@ -89,9 +89,7 @@ export function EventSubtasks({
     <div className="space-y-4 rounded-xl border bg-muted/30 p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <p className="text-sm font-medium">Event subtasks</p>
-        <p className="text-xs text-muted-foreground">
-          Create assignments scoped to this event.
-        </p>
+        <p className="text-xs text-muted-foreground">Create assignments scoped to this event.</p>
       </div>
 
       {/* Selected tasks are listed below, not as picker badges. */}
@@ -108,45 +106,41 @@ export function EventSubtasks({
 
       {/* The id scopes where a failed "Add subtask" moves focus to. */}
       <div id="subtask-composer" className="space-y-4">
-      <Field
-        id="subtask-title"
-        label="Subtask title"
-        error={subtaskValidation.errorFor("name")}
-      >
-        <Input
-          id="subtask-title"
-          placeholder="e.g. Finish slides for the welcome talk"
-          value={subtaskTitle}
-          onChange={(e) => onSubtaskTitleChange(e.target.value)}
-          {...subtaskValidation.fieldProps("name", "subtask-title", { touchOnBlur: false })}
-        />
-      </Field>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field id="subtask-assignee" label="Assignee">
-          <OptionSelect
-            id="subtask-assignee"
-            value={subtaskAssigneeId}
-            placeholder="Select a member..."
-            options={memberOptions}
-            onChange={onSubtaskAssigneeIdChange}
-          />
-        </Field>
-        <Field
-          id="subtask-deadline"
-          label="Due date"
-          error={subtaskValidation.errorFor("deadline")}
-        >
+        <Field id="subtask-title" label="Subtask title" error={subtaskValidation.errorFor("name")}>
           <Input
-            id="subtask-deadline"
-            type="date"
-            value={subtaskDeadline}
-            onChange={(e) => onSubtaskDeadlineChange(e.target.value)}
-            {...subtaskValidation.fieldProps("deadline", "subtask-deadline", {
-              touchOnBlur: false,
-            })}
+            id="subtask-title"
+            placeholder="e.g. Finish slides for the welcome talk"
+            value={subtaskTitle}
+            onChange={(e) => onSubtaskTitleChange(e.target.value)}
+            {...subtaskValidation.fieldProps("name", "subtask-title", { touchOnBlur: false })}
           />
         </Field>
-      </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field id="subtask-assignee" label="Assignee">
+            <OptionSelect
+              id="subtask-assignee"
+              value={subtaskAssigneeId}
+              placeholder="Select a member..."
+              options={memberOptions}
+              onChange={onSubtaskAssigneeIdChange}
+            />
+          </Field>
+          <Field
+            id="subtask-deadline"
+            label="Due date"
+            error={subtaskValidation.errorFor("deadline")}
+          >
+            <Input
+              id="subtask-deadline"
+              type="date"
+              value={subtaskDeadline}
+              onChange={(e) => onSubtaskDeadlineChange(e.target.value)}
+              {...subtaskValidation.fieldProps("deadline", "subtask-deadline", {
+                touchOnBlur: false,
+              })}
+            />
+          </Field>
+        </div>
       </div>
       <ResourceSearch
         resources={resources}
@@ -173,22 +167,17 @@ export function EventSubtasks({
                 key={`existing-${taskId}`}
                 title={details.name}
                 detail={details.detail}
-                onRemove={() =>
-                  onTaskIdsChange(taskIds.filter((id) => id !== taskId))
-                }
+                onRemove={() => onTaskIdsChange(taskIds.filter((id) => id !== taskId))}
               />
             );
           })}
           {draftSubtasks.map((subtask) => {
             const assignee =
-              members.find(
-                (member) => String(member.memberId) === subtask.assigneeId,
-              )?.name ?? "Unassigned";
+              members.find((member) => String(member.memberId) === subtask.assigneeId)?.name ??
+              "Unassigned";
             const resourceNames = names(
               subtask.resourceIds.map(
-                (id) =>
-                  resources.find((resource) => String(resource.resourceId) === id)
-                    ?.name,
+                (id) => resources.find((resource) => String(resource.resourceId) === id)?.name,
               ),
             );
             return (

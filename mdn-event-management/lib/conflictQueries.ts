@@ -14,14 +14,14 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma/client";
 import {
-    findAllocationConflicts,
-    findEventConflicts,
-    involvesAllocation,
-    involvesEvent,
-    isForwardInterval,
-    type AllocationSpan,
-    type Conflict,
-    type EventSpan,
+  findAllocationConflicts,
+  findEventConflicts,
+  involvesAllocation,
+  involvesEvent,
+  isForwardInterval,
+  type AllocationSpan,
+  type Conflict,
+  type EventSpan,
 } from "@/lib/conflicts";
 
 /**
@@ -133,9 +133,7 @@ export type EventConflictQuery = {
  * Queries only the overlapping window rather than scanning the table, using the
  * half-open predicate the `events` index is built for.
  */
-export async function previewEventConflicts(
-  input: EventConflictQuery,
-): Promise<Conflict[]> {
+export async function previewEventConflicts(input: EventConflictQuery): Promise<Conflict[]> {
   const candidateName = input.name?.trim() || "This event";
   const start = input.date.getTime();
   const end = input.endDate.getTime();
@@ -150,9 +148,7 @@ export async function previewEventConflicts(
     }),
     prisma.event.findMany({
       where: {
-        ...(input.excludeEventId != null
-          ? { eventId: { not: input.excludeEventId } }
-          : {}),
+        ...(input.excludeEventId != null ? { eventId: { not: input.excludeEventId } } : {}),
         date: { lt: input.endDate },
         endDate: { gt: input.date },
       },
@@ -170,10 +166,9 @@ export async function previewEventConflicts(
     end,
   };
 
-  const conflicts = findEventConflicts([
-    candidate,
-    ...overlapping.map(toEventSpan),
-  ]).filter((conflict) => involvesEvent(conflict, candidateId));
+  const conflicts = findEventConflicts([candidate, ...overlapping.map(toEventSpan)]).filter(
+    (conflict) => involvesEvent(conflict, candidateId),
+  );
 
   if (input.resourceIds === undefined) return conflicts;
 
@@ -233,9 +228,7 @@ async function candidateResourceConflicts(
 
   return findAllocationConflicts([...candidates, ...booked.map(toAllocationSpan)]).filter(
     (conflict) =>
-      candidates.some((candidate) =>
-        involvesAllocation(conflict, candidate.allocationId),
-      ),
+      candidates.some((candidate) => involvesAllocation(conflict, candidate.allocationId)),
   );
 }
 
@@ -299,8 +292,8 @@ export async function previewAllocationConflicts(
     end,
   };
 
-  return findAllocationConflicts([candidate, ...booked.map(toAllocationSpan)]).filter(
-    (conflict) => involvesAllocation(conflict, candidateId),
+  return findAllocationConflicts([candidate, ...booked.map(toAllocationSpan)]).filter((conflict) =>
+    involvesAllocation(conflict, candidateId),
   );
 }
 

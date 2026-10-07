@@ -12,11 +12,11 @@ import { Prisma } from "@/generated/prisma/client";
 import { firstError, hasErrors, type FieldErrors } from "@/lib/validation";
 
 const BAD_REQUEST_MESSAGES: readonly RegExp[] = [
-    /subtasks/,
-    /must be after/,
-    /must be valid dates/,
-    /must not be negative/,
-    /were not found/,
+  /subtasks/,
+  /must be after/,
+  /must be valid dates/,
+  /must not be negative/,
+  /were not found/,
 ];
 
 /**
@@ -27,11 +27,10 @@ const BAD_REQUEST_MESSAGES: readonly RegExp[] = [
  * on prose here would steal those cases.
  */
 export function isBadRequest(error: unknown): error is Error {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) return false;
-    return (
-        error instanceof Error &&
-        BAD_REQUEST_MESSAGES.some((pattern) => pattern.test(error.message))
-    );
+  if (error instanceof Prisma.PrismaClientKnownRequestError) return false;
+  return (
+    error instanceof Error && BAD_REQUEST_MESSAGES.some((pattern) => pattern.test(error.message))
+  );
 }
 
 /**
@@ -44,9 +43,6 @@ export function isBadRequest(error: unknown): error is Error {
  *     if (invalid) return invalid;
  */
 export function validationFailed(errors: FieldErrors): NextResponse | null {
-    if (!hasErrors(errors)) return null;
-    return NextResponse.json(
-        { error: firstError(errors), fieldErrors: errors },
-        { status: 400 },
-    );
+  if (!hasErrors(errors)) return null;
+  return NextResponse.json({ error: firstError(errors), fieldErrors: errors }, { status: 400 });
 }

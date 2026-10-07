@@ -179,7 +179,9 @@ export default function MembersPage() {
         <Card>
           <CardHeader>
             <CardTitle>All members</CardTitle>
-            <CardDescription>{members.length} account{members.length !== 1 ? "s" : ""}</CardDescription>
+            <CardDescription>
+              {members.length} account{members.length !== 1 ? "s" : ""}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -194,7 +196,10 @@ export default function MembersPage() {
               <TableBody>
                 {members.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 4 : 3} className="text-center text-muted-foreground py-8">
+                    <TableCell
+                      colSpan={isAdmin ? 4 : 3}
+                      className="text-center text-muted-foreground py-8"
+                    >
                       No members yet.
                     </TableCell>
                   </TableRow>
@@ -217,7 +222,11 @@ export default function MembersPage() {
                           size="sm"
                           className="text-destructive hover:text-destructive hover:bg-destructive/10"
                           disabled={m.memberId === sessionId}
-                          title={m.memberId === sessionId ? "You cannot delete your own account" : "Delete member"}
+                          title={
+                            m.memberId === sessionId
+                              ? "You cannot delete your own account"
+                              : "Delete member"
+                          }
                           onClick={() => {
                             setDeleteError("");
                             setDeleteTarget(m);
@@ -258,12 +267,7 @@ export default function MembersPage() {
               </Alert>
             )}
 
-            <form
-              id="create-member-form"
-              noValidate
-              onSubmit={handleCreate}
-              className="space-y-4"
-            >
+            <form id="create-member-form" noValidate onSubmit={handleCreate} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="member-name">Full name</Label>
@@ -317,10 +321,7 @@ export default function MembersPage() {
                   <Label htmlFor="member-role">Role</Label>
                   {/* Select can report null when cleared; the form always wants a
                       concrete role, so fall back to the default. */}
-                  <Select
-                    value={role}
-                    onValueChange={(value) => setRole(value ?? "Member")}
-                  >
+                  <Select value={role} onValueChange={(value) => setRole(value ?? "Member")}>
                     <SelectTrigger id="member-role" className="w-full">
                       <SelectValue placeholder="Select a role" />
                     </SelectTrigger>
@@ -344,13 +345,18 @@ export default function MembersPage() {
       )}
 
       {/* Delete confirmation dialog */}
-      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+      <Dialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete account</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete <strong>{deleteTarget?.name}</strong> ({deleteTarget?.email})?
-              This cannot be undone.
+              Are you sure you want to delete <strong>{deleteTarget?.name}</strong> (
+              {deleteTarget?.email})? This cannot be undone.
             </DialogDescription>
           </DialogHeader>
 

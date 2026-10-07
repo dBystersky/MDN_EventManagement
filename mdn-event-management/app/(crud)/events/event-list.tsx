@@ -2,13 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/datetime";
 import { ConflictBadge } from "@/components/conflict-flags";
@@ -84,9 +78,7 @@ export function EventList({
                     </button>
                     <div className="flex shrink-0 flex-col items-end gap-1">
                       <ConflictBadge conflicts={conflicts} />
-                      <Badge variant="secondary">
-                        {ev.location?.name ?? "No venue"}
-                      </Badge>
+                      <Badge variant="secondary">{ev.location?.name ?? "No venue"}</Badge>
                       <Badge variant="outline">${ev.totalBudget ?? "0"}</Badge>
                       <Button
                         type="button"

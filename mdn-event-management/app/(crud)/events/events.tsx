@@ -35,9 +35,7 @@ export default function Events() {
    * Tagging is what keeps a slow reply for an earlier keystroke from surfacing
    * against a newer one.
    */
-  const [checked, setChecked] = useState<{ key: string; conflicts: Conflict[] } | null>(
-    null,
-  );
+  const [checked, setChecked] = useState<{ key: string; conflicts: Conflict[] } | null>(null);
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [name, setName] = useState("");
@@ -74,15 +72,14 @@ export default function Events() {
   }));
 
   async function refresh() {
-    const [events, locs, tasks, memberList, resourceList, conflictList] =
-      await Promise.all([
-        apiJson("/api/events"),
-        apiJson("/api/locations"),
-        apiJson("/api/tasks"),
-        apiJson("/api/members"),
-        apiJson("/api/resources"),
-        apiJson("/api/conflicts"),
-      ]);
+    const [events, locs, tasks, memberList, resourceList, conflictList] = await Promise.all([
+      apiJson("/api/events"),
+      apiJson("/api/locations"),
+      apiJson("/api/tasks"),
+      apiJson("/api/members"),
+      apiJson("/api/resources"),
+      apiJson("/api/conflicts"),
+    ]);
     setItems(events);
     setLocations(locs);
     setAllTasks(tasks);
@@ -149,8 +146,7 @@ export default function Events() {
    * incomplete form or an in-flight check shows nothing rather than a stale
    * answer.
    */
-  const draftConflicts =
-    candidateKey && checked?.key === candidateKey ? checked.conflicts : [];
+  const draftConflicts = candidateKey && checked?.key === candidateKey ? checked.conflicts : [];
 
   /** Picking a start fills in an end two hours later, unless one is already set. */
   function changeDate(value: string) {
@@ -201,9 +197,7 @@ export default function Events() {
     setLocationId(ev.location?.locationId != null ? String(ev.location.locationId) : "");
     setManagerIds((ev.eventManagers ?? []).map((em) => String(em.memberId)));
     setResourceIds(
-      (ev.bookable?.resourceAllocations ?? []).map((allocation) =>
-        String(allocation.resourceId),
-      ),
+      (ev.bookable?.resourceAllocations ?? []).map((allocation) => String(allocation.resourceId)),
     );
     setTaskIds((ev.tasks ?? []).map((task) => String(task.taskId)));
     clearSubtaskComposer();
@@ -270,9 +264,7 @@ export default function Events() {
     <section>
       <div className="space-y-6">
         <header>
-          <h1 className="text-2xl font-bold">
-            Events
-          </h1>
+          <h1 className="text-2xl font-bold">Events</h1>
         </header>
 
         {error && (
@@ -326,9 +318,7 @@ export default function Events() {
             members={members}
             resources={resources}
             onAddDraft={addDraftSubtask}
-            existingDetails={(taskId) =>
-              existingSubtaskDetails(taskId, selectedEvent, allTasks)
-            }
+            existingDetails={(taskId) => existingSubtaskDetails(taskId, selectedEvent, allTasks)}
             onCancel={resetForm}
             onSubmit={async (form) => {
               setError("");

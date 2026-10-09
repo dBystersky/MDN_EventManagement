@@ -16,6 +16,8 @@ All commands run from `mdn-event-management/`.
 | Browse and edit data | `npx prisma studio` |
 | Wipe and rebuild (destroys data) | `npx prisma migrate reset` |
 | Recreate the admin account | `npx prisma db seed` |
+| Reset to an empty database with only the admin (destroys data) | `npm run db:init` |
+| Reset and fill with demo data (destroys data) | `npm run db:demo` |
 
 `generated/prisma` is gitignored, so it is never in sync just because you pulled.
 A `postinstall` hook regenerates it on `npm install`, and `migrate dev` does too,

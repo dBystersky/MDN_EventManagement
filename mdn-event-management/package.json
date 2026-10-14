@@ -13,7 +13,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:init": "prisma migrate deploy && tsx prisma/init.ts",
+    "db:demo": "prisma migrate deploy && tsx prisma/demo.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

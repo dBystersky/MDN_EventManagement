@@ -44,6 +44,21 @@ The seed prints the admin credentials it used — by default `admin@mdn.com` /
 `changeme123`. Override them with `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD`
 in `.env` before seeding.
 
+Two one-command alternatives apply pending migrations and then **wipe every
+table** (they ask first; add `-- --yes` to skip the prompt):
+
+```bash
+npm run db:init            # empty database, just the admin account
+npm run db:demo            # the admin plus demo data that looks in use
+```
+
+The demo data is dated relative to when you run it, so there is always recent
+history and upcoming events. Besides the admin it creates three Managers, seven
+Members and a Guest, all with the password `demo1234` — for example
+`priya.raman@mdn.com` (Manager), `ethan.wong@mdn.com` (Member) and
+`olivia.hart@mdn.com` (Guest). It also plants two clashes (a venue and a
+projector) so the conflict flags have something to show.
+
 ## 4. Run it
 
 ```bash

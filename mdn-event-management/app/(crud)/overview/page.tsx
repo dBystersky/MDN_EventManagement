@@ -182,7 +182,7 @@ export default function OverviewPage() {
                 <p className="text-xs font-medium">
                   {i === 0
                     ? "Today"
-                    : day.toLocaleDateString(undefined, { weekday: "short", day: "numeric" })}
+                    : day.toLocaleDateString("en-AU", { weekday: "short", day: "numeric" })}
                 </p>
                 <ul className="mt-1 space-y-1">
                   {dayEvents.map((e) => (

@@ -76,7 +76,7 @@ function buildMonthGrid(viewDate: Date): Date[] {
 function formatTime(value: string): string {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return parsed.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" });
 }
 
 function formatBudget(value: string | undefined): string | null {
@@ -164,12 +164,9 @@ export default function CalendarPage() {
   }
 
   return (
-    <section className="relative left-1/2 w-screen -translate-x-1/2 -my-8 min-h-[calc(100vh-3.25rem)] bg-linear-to-b from-primary from-0% via-primary via-[45%] to-secondary px-6 py-8 md:px-10">
-      <div className="mx-auto max-w-6xl space-y-6">
+    <section className="min-w-0 space-y-6">
         <header>
-          <h1 className="font-heading text-3xl font-medium tracking-tight text-primary-foreground">
-            Calendar
-          </h1>
+          <h1 className="text-2xl font-bold">Calendar</h1>
         </header>
 
         {error && (
@@ -200,7 +197,7 @@ export default function CalendarPage() {
                   <ChevronLeftIcon />
                 </Button>
                 <h2 className="min-w-40 text-center font-heading text-lg font-medium">
-                  {viewDate.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+                  {viewDate.toLocaleDateString("en-AU", { month: "long", year: "numeric" })}
                 </h2>
                 <Button
                   type="button"
@@ -235,7 +232,7 @@ export default function CalendarPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-7 gap-1.5">
+            <div className="grid min-w-0 grid-cols-7 gap-1.5">
               {WEEKDAYS.map((day) => (
                 <div
                   key={day}
@@ -263,7 +260,7 @@ export default function CalendarPage() {
                       if (e.key === "Enter" || e.key === " ") setSelectedDate(day);
                     }}
                     className={cn(
-                      "flex min-h-24 cursor-pointer flex-col items-start gap-1 rounded-lg border p-1.5 text-left transition-colors",
+                      "flex min-h-24 min-w-0 cursor-pointer flex-col items-start gap-1 rounded-lg border p-1.5 text-left transition-colors",
                       inMonth ? "bg-card" : "bg-muted/40 text-muted-foreground",
                       isSelected ? "ring-2 ring-primary" : "border-border",
                       isToday && "border-primary",
@@ -313,7 +310,7 @@ export default function CalendarPage() {
 
             <div className="space-y-2 border-t pt-4">
               <h3 className="font-heading text-sm font-medium">
-                {selectedDate.toLocaleDateString(undefined, {
+                {selectedDate.toLocaleDateString("en-AU", {
                   weekday: "long",
                   month: "long",
                   day: "numeric",
@@ -360,7 +357,6 @@ export default function CalendarPage() {
             </div>
           </CardContent>
         </Card>
-      </div>
 
       <Dialog open={previewEvent != null} onOpenChange={(open) => !open && setPreviewEvent(null)}>
         <DialogContent className="sm:max-w-lg">
@@ -377,7 +373,7 @@ export default function CalendarPage() {
                 <div className="flex flex-wrap gap-x-6 gap-y-1 text-muted-foreground">
                   <span>
                     <span className="font-medium text-foreground">When: </span>
-                    {new Date(previewEvent.date).toLocaleString(undefined, {
+                    {new Date(previewEvent.date).toLocaleString("en-AU", {
                       weekday: "long",
                       month: "long",
                       day: "numeric",

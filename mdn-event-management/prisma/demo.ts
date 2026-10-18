@@ -18,7 +18,7 @@
  */
 
 import bcrypt from "bcryptjs";
-import type { Prisma } from "../generated/prisma/client";
+import { MemberRole, type Prisma } from "../generated/prisma/client";
 import { DEFAULT_BOOKING_DURATION_MS } from "../lib/datetime";
 import { confirmWipe, createAdmin, run, wipeDatabase, type Db } from "./seed-utils";
 
@@ -56,20 +56,18 @@ function plus(d: Date, ms: number) {
 // Data
 // ---------------------------------------------------------------------------
 
-type Role = "Member" | "Manager" | "Executive";
-
-const MEMBERS: { key: string; name: string; role: Role }[] = [
-  { key: "priya", name: "Priya Raman", role: "Manager" },
-  { key: "lachlan", name: "Lachlan Nguyen", role: "Manager" },
-  { key: "aisha", name: "Aisha Karim", role: "Manager" },
-  { key: "ethan", name: "Ethan Wong", role: "Member" },
-  { key: "sophie", name: "Sophie Tran", role: "Member" },
-  { key: "mateo", name: "Mateo Rossi", role: "Member" },
-  { key: "hannah", name: "Hannah Lee", role: "Member" },
-  { key: "arjun", name: "Arjun Mehta", role: "Member" },
-  { key: "chloe", name: "Chloe Bennett", role: "Member" },
-  { key: "daniel", name: "Daniel Kim", role: "Member" },
-  { key: "olivia", name: "Olivia Hart", role: "Member" },
+const MEMBERS: { key: string; name: string; role: MemberRole }[] = [
+  { key: "priya", name: "Priya Raman", role: MemberRole.Manager },
+  { key: "lachlan", name: "Lachlan Nguyen", role: MemberRole.Manager },
+  { key: "aisha", name: "Aisha Karim", role: MemberRole.Manager },
+  { key: "ethan", name: "Ethan Wong", role: MemberRole.Member },
+  { key: "sophie", name: "Sophie Tran", role: MemberRole.Member },
+  { key: "mateo", name: "Mateo Rossi", role: MemberRole.Member },
+  { key: "hannah", name: "Hannah Lee", role: MemberRole.Member },
+  { key: "arjun", name: "Arjun Mehta", role: MemberRole.Member },
+  { key: "chloe", name: "Chloe Bennett", role: MemberRole.Member },
+  { key: "daniel", name: "Daniel Kim", role: MemberRole.Member },
+  { key: "olivia", name: "Olivia Hart", role: MemberRole.Member },
 ];
 
 const LOCATIONS: { key: string; name: string }[] = [

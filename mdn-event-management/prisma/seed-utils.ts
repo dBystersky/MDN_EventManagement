@@ -9,7 +9,7 @@
 import bcrypt from "bcryptjs";
 import { createInterface } from "node:readline/promises";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient, type Prisma } from "../generated/prisma/client";
+import { MemberRole, PrismaClient, type Prisma } from "../generated/prisma/client";
 import "dotenv/config";
 
 /** A client or a transaction — the helpers below work inside either. */
@@ -57,7 +57,7 @@ export async function createAdmin(prisma: Db) {
       name: ADMIN_NAME,
       email: ADMIN_EMAIL,
       password: hashed,
-      role: "Executive",
+      role: MemberRole.Executive,
     },
   });
 

@@ -7,7 +7,7 @@ import { MemberRole } from "@/generated/prisma/client";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, email, password, role } = body;
+    const { name, email, password } = body;
 
     if (!name || !email || !password) {
       return NextResponse.json(
@@ -31,10 +31,10 @@ export async function POST(request: Request) {
     // Hash password
     const hashedPassword = await hashPassword(password);
 
-    // Validate role
-    let memberRole: MemberRole = MemberRole.Member;
-    if (role === "Manager") memberRole = MemberRole.Manager;
-    if (role === "Admin") memberRole = MemberRole.Admin;
+    // Self-service signup is always a plain Member; an Executive promotes
+    // people from the members page. (Trusting a client-sent role here would
+    // let anyone sign themselves up as Executive.)
+    const memberRole: MemberRole = MemberRole.Member;
 
     // Create member
     const newMember = await prisma.member.create({

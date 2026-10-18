@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getAuthSession, isGuest } from "@/lib/auth";
 import { listAllConflicts } from "@/lib/conflictQueries";
 
 /**
@@ -13,12 +12,6 @@ import { listAllConflicts } from "@/lib/conflictQueries";
  */
 export async function GET() {
   // Clashes name resources and bookings, which guests cannot otherwise see.
-  if (isGuest(await getAuthSession())) {
-    return NextResponse.json(
-      { error: "Forbidden — guests have read-only calendar access" },
-      { status: 403 },
-    );
-  }
 
   try {
     const conflicts = await listAllConflicts();

@@ -3,14 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 
-/** DELETE /api/admin/members/[id] — delete a member (Admin only) */
+/** DELETE /api/admin/members/[id] — delete a member (Executive only) */
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getAuthSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
-  if (session.role !== "Admin") {
-    return NextResponse.json({ error: "Forbidden — Admin only" }, { status: 403 });
+  if (session.role !== "Executive") {
+    return NextResponse.json({ error: "Forbidden — Executive only" }, { status: 403 });
   }
 
   const { id } = await params;

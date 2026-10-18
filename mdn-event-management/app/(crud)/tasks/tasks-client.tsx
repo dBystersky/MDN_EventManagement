@@ -30,6 +30,13 @@ import {
   ComboboxItem,
 } from "@/components/ui/combobox";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -38,7 +45,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDateTime, toDatetimeLocal } from "@/lib/datetime";
-import { fetchSessionRole, taskPermissions, type Capabilities } from "@/lib/permissions";
+import {
+  TASK_STATUSES,
+  TASK_STATUS_LABELS,
+  canCreateTask,
+  canEditBudget,
+  canModifyTask,
+  canUpdateTaskDetails,
+  fetchSession,
+  type Actor,
+  type EventAccessInfo,
+  type TaskStatus,
+} from "@/lib/permissions";
 import { fuzzyMatches } from "@/lib/fuzzyFilter";
 import { eventNameOf, managerNamesOf, searchTasks } from "@/lib/fuzzyTasks";
 import { ApiError, apiJson } from "@/lib/api-json";
@@ -46,7 +64,7 @@ import { useFieldValidation } from "@/hooks/use-field-validation";
 import { isInPast, validateTask } from "@/lib/validation";
 
 type Member = { memberId: number; name: string; email: string };
-type EventItem = { eventId: number; name: string };
+type EventItem = EventAccessInfo & { eventId: number; name: string };
 type Task = {
   taskId: number;
   name: string;
@@ -55,6 +73,7 @@ type Task = {
   bookableId: number;
   eventId?: number | null;
   budget?: string | number | null;
+  status: TaskStatus;
   taskManagers?: { memberId: number; member?: Member | null }[];
 };
 
@@ -73,6 +92,8 @@ export default function TasksDemo() {
   const [deadline, setDeadline] = useState("");
   const [budget, setBudget] = useState("");
   const [eventId, setEventId] = useState("");
+  const [status, setStatus] = useState<TaskStatus>("backlog");
+  const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">("all");
   const [managerIds, setManagerIds] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -84,20 +105,20 @@ export default function TasksDemo() {
     email: string;
     search: string;
   } | null>(null);
-  const [can, setCan] = useState<Capabilities>(() => taskPermissions(null));
+  const [actor, setActor] = useState<Actor>({ role: null, memberId: null });
   const validation = useFieldValidation({ name, deadline, budget }, validateTask);
 
   async function refresh() {
-    const [tasks, eventList, memberList, role] = await Promise.all([
+    const [tasks, eventList, memberList, session] = await Promise.all([
       apiJson("/api/tasks"),
       apiJson("/api/events"),
       apiJson("/api/members"),
-      fetchSessionRole(),
+      fetchSession(),
     ]);
     setItems(tasks);
     setEvents(eventList);
     setMembers(memberList);
-    setCan(taskPermissions(role));
+    setActor(session ?? { role: null, memberId: null });
   }
 
   useEffect(() => {
@@ -109,7 +130,42 @@ export default function TasksDemo() {
     [events],
   );
 
-  const matches = useMemo(() => searchTasks(query, items, eventNames), [query, items, eventNames]);
+  const eventsById = useMemo(
+    () => new Map(events.map((event) => [event.eventId, event])),
+    [events],
+  );
+  const eventOf = (task: Pick<Task, "eventId">) =>
+    task.eventId != null ? (eventsById.get(task.eventId) ?? null) : null;
+
+  /** What the signed-in person may do with one task (mirrors the API's checks). */
+  function rightsFor(task: Task) {
+    const event = eventOf(task);
+    return {
+      edit: canUpdateTaskDetails(actor, { taskManagers: task.taskManagers ?? [] }, event),
+      full: canModifyTask(actor, event),
+    };
+  }
+
+  const matches = useMemo(
+    () =>
+      searchTasks(query, items, eventNames).filter(
+        ({ task }) => statusFilter === "all" || task.status === statusFilter,
+      ),
+    [query, items, eventNames, statusFilter],
+  );
+
+  async function changeStatus(task: Task, next: TaskStatus) {
+    setError("");
+    setPending(true);
+    try {
+      await apiJson(`/api/tasks/${task.taskId}`, "PATCH", { status: next });
+      await refresh();
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setPending(false);
+    }
+  }
 
   function resetForm() {
     setSelectedId(null);
@@ -118,26 +174,28 @@ export default function TasksDemo() {
     setDeadline("");
     setBudget("");
     setEventId("");
+    setStatus("backlog");
     setManagerIds([]);
     setPendingManager(null);
     validation.reset();
   }
 
   function openCreate() {
-    if (!can.create) return;
+    if (!canCreate) return;
     resetForm();
     setError("");
     setDialogOpen(true);
   }
 
   function openEdit(task: Task) {
-    if (!can.edit) return;
+    if (!rightsFor(task).edit) return;
     setSelectedId(task.taskId);
     setName(task.name);
     setDescription(task.description ?? "");
     setDeadline(toDatetimeLocal(task.deadline));
     setBudget(task.budget == null ? "" : String(task.budget));
     setEventId(task.eventId != null ? String(task.eventId) : "");
+    setStatus(task.status);
     setManagerIds((task.taskManagers ?? []).map((tm) => String(tm.memberId)));
     validation.reset();
     setError("");
@@ -154,14 +212,18 @@ export default function TasksDemo() {
     }
   }
 
+  // Events the person may put a task in: Members only their own, Managers the
+  // ones they manage (or none at all).
   const eventOptions = useMemo(
     () =>
-      events.map((event) => ({
-        id: String(event.eventId),
-        name: event.name,
-        search: event.name,
-      })),
-    [events],
+      events
+        .filter((event) => canCreateTask(actor, event) || event.eventId === Number(eventId))
+        .map((event) => ({
+          id: String(event.eventId),
+          name: event.name,
+          search: event.name,
+        })),
+    [events, actor, eventId],
   );
 
   const managerOptions = useMemo(
@@ -183,7 +245,18 @@ export default function TasksDemo() {
   const selectedEvent = eventOptions.find((option) => option.id === eventId) ?? null;
 
   const isEditing = selectedId != null;
-  const canSubmit = isEditing ? can.edit : can.create;
+  const selectedTask = isEditing ? (items.find((t) => t.taskId === selectedId) ?? null) : null;
+  // Creating: Executives and Managers anywhere they manage; Members need an event.
+  const canCreate =
+    canCreateTask(actor, null) || events.some((event) => canCreateTask(actor, event));
+  const canSubmit = isEditing ? !!selectedTask && rightsFor(selectedTask).edit : canCreate;
+  // Moving a task between events and assigning people need full rights over it;
+  // a Member creating one is placing it in their own event but cannot assign.
+  const canAssign = isEditing
+    ? !!selectedTask && rightsFor(selectedTask).full
+    : canCreateTask(actor, null) || canModifyTask(actor, eventsById.get(Number(eventId)) ?? null);
+  const canMoveEvent = isEditing ? canAssign : canCreate;
+  const canSetBudget = canEditBudget(actor);
 
   function managerLabel(id: string) {
     return managerOptions.find((option) => option.id === id)?.name ?? "Unknown";
@@ -242,7 +315,23 @@ export default function TasksDemo() {
               <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                 {query ? `${matches.length} of ${items.length}` : `${items.length} total`}
               </span>
-              <Button type="button" size="sm" disabled={!can.create} onClick={openCreate}>
+              <Select
+                value={statusFilter}
+                onValueChange={(value) => setStatusFilter((value ?? "all") as TaskStatus | "all")}
+              >
+                <SelectTrigger aria-label="Filter by status" className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  {TASK_STATUSES.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {TASK_STATUS_LABELS[value]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button type="button" size="sm" disabled={!canCreate} onClick={openCreate}>
                 <PlusIcon />
                 New task
               </Button>
@@ -269,6 +358,7 @@ export default function TasksDemo() {
                       <TableHead className="w-12">ID</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Event</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead>Deadline</TableHead>
                       <TableHead>Budget</TableHead>
                       <TableHead>Managers</TableHead>
@@ -280,6 +370,7 @@ export default function TasksDemo() {
                       const eventName = eventNameOf(task, eventNames);
                       const managerNames = managerNamesOf(task);
                       const budgetLabel = formatBudget(task.budget);
+                      const rights = rightsFor(task);
                       return (
                         <TableRow key={task.taskId}>
                           <TableCell className="text-xs text-muted-foreground tabular-nums">
@@ -289,7 +380,7 @@ export default function TasksDemo() {
                             <button
                               type="button"
                               className="w-full text-left font-medium hover:underline disabled:cursor-not-allowed disabled:no-underline"
-                              disabled={!can.edit}
+                              disabled={!rights.edit}
                               onClick={() => openEdit(task)}
                             >
                               {nameMatch
@@ -307,6 +398,28 @@ export default function TasksDemo() {
                           <TableCell className="text-sm">
                             {eventName || <span className="text-muted-foreground">Unassigned</span>}
                           </TableCell>
+                          <TableCell>
+                            <Select
+                              value={task.status}
+                              onValueChange={(value) => value && changeStatus(task, value)}
+                              disabled={pending || !rights.edit}
+                            >
+                              <SelectTrigger
+                                size="sm"
+                                aria-label={`Status of ${task.name}`}
+                                className="w-36"
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {TASK_STATUSES.map((value) => (
+                                  <SelectItem key={value} value={value}>
+                                    {TASK_STATUS_LABELS[value]}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
                           <TableCell className="text-sm whitespace-nowrap">
                             {formatDateTime(task.deadline)}
                           </TableCell>
@@ -323,7 +436,7 @@ export default function TasksDemo() {
                               type="button"
                               size="xs"
                               variant="destructive"
-                              disabled={pending || !can.delete}
+                              disabled={pending || !rights.full}
                               onClick={async () => {
                                 setError("");
                                 setPending(true);
@@ -363,13 +476,16 @@ export default function TasksDemo() {
               const parsedBudget = budget.trim() === "" ? null : Number(budget);
               setPending(true);
               try {
+                // Send only what this person may change; the API refuses the rest.
                 const payload = {
                   name: name.trim(),
                   description: description.trim(),
                   deadline: new Date(deadline).toISOString(),
-                  budget: parsedBudget,
-                  eventId: eventId ? Number(eventId) : null,
-                  managerIds: managerIds.map(Number),
+                  status,
+                  ...(canSetBudget ? { budget: parsedBudget } : {}),
+                  // A Member creating a task still has to place it in their event.
+                  ...(canMoveEvent ? { eventId: eventId ? Number(eventId) : null } : {}),
+                  ...(canAssign ? { managerIds: managerIds.map(Number) } : {}),
                 };
                 if (isEditing) {
                   await apiJson(`/api/tasks/${selectedId}`, "PATCH", payload);
@@ -466,11 +582,31 @@ export default function TasksDemo() {
                       setBudget(e.target.value);
                       validation.touch("budget");
                     }}
-                    disabled={!canSubmit}
+                    disabled={!canSubmit || !canSetBudget}
                     {...validation.fieldProps("budget", "task-budget")}
                   />
                   <FieldError id="task-budget-error">{validation.errorFor("budget")}</FieldError>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="task-status">Status</Label>
+                <Select
+                  value={status}
+                  onValueChange={(value) => setStatus((value ?? "backlog") as TaskStatus)}
+                  disabled={!canSubmit}
+                >
+                  <SelectTrigger id="task-status" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TASK_STATUSES.map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {TASK_STATUS_LABELS[value]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -486,7 +622,7 @@ export default function TasksDemo() {
                   <ComboboxInput
                     id="task-event"
                     placeholder="Search events..."
-                    disabled={!canSubmit}
+                    disabled={!canSubmit || !canMoveEvent}
                     showClear
                     className="w-full"
                   />
@@ -537,7 +673,7 @@ export default function TasksDemo() {
                   <ComboboxInput
                     id="task-manager"
                     placeholder="Search members..."
-                    disabled={!canSubmit || availableManagers.length === 0}
+                    disabled={!canSubmit || !canAssign || availableManagers.length === 0}
                     className="w-full"
                   />
                   <ComboboxContent>
@@ -572,7 +708,7 @@ export default function TasksDemo() {
                           size="icon-xs"
                           variant="ghost"
                           aria-label={`Remove ${managerLabel(id)}`}
-                          disabled={!canSubmit}
+                          disabled={!canSubmit || !canAssign}
                           onClick={() =>
                             setManagerIds(managerIds.filter((managerId) => managerId !== id))
                           }

@@ -129,12 +129,13 @@ describe("POST /api/auth/signup", () => {
     expect(authCookie(response)).toMatchObject({ httpOnly: true });
   });
 
+  // Self-service signup must never hand out an elevated role.
   it.each([
-    ["Manager", "Manager"],
-    ["Admin", "Admin"],
+    ["Manager", "Member"],
+    ["Executive", "Member"],
     ["Superuser", "Member"],
     [undefined, "Member"],
-  ])("maps requested role %s to %s", async (requested, stored) => {
+  ])("ignores requested role %s and stores %s", async (requested, stored) => {
     prismaMock.member.findUnique.mockResolvedValue(null);
     prismaMock.member.create.mockResolvedValue(member as never);
 

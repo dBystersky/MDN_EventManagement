@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { validateAllocation } from "@/lib/validation";
-import { getAuthSession, isGuest } from "@/lib/auth";
+import { getAuthSession } from "@/lib/auth";
 import { getAllocation, updateAllocation, deleteAllocation } from "@/lib/resourceAllocations";
 import { conflictsForAllocation } from "@/lib/conflictQueries";
 import { isBadRequest, validationFailed } from "@/lib/api-errors";
@@ -12,13 +12,6 @@ type RouteParams = {
 };
 
 export async function GET(request: Request, context: RouteParams) {
-  if (isGuest(await getAuthSession())) {
-    return NextResponse.json(
-      { error: "Forbidden — guests have read-only calendar access" },
-      { status: 403 },
-    );
-  }
-
   const { allocationId } = await context.params;
   const id = Number(allocationId);
 
@@ -32,12 +25,6 @@ export async function GET(request: Request, context: RouteParams) {
 
 export async function PATCH(request: Request, context: RouteParams) {
   const session = await getAuthSession();
-  if (isGuest(session)) {
-    return NextResponse.json(
-      { error: "Forbidden — guests have read-only calendar access" },
-      { status: 403 },
-    );
-  }
 
   const { allocationId } = await context.params;
   const id = Number(allocationId);
@@ -85,12 +72,6 @@ export async function PATCH(request: Request, context: RouteParams) {
 
 export async function DELETE(request: Request, context: RouteParams) {
   const session = await getAuthSession();
-  if (isGuest(session)) {
-    return NextResponse.json(
-      { error: "Forbidden — guests have read-only calendar access" },
-      { status: 403 },
-    );
-  }
 
   const { allocationId } = await context.params;
   const id = Number(allocationId);

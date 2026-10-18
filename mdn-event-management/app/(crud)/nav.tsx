@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { LogoutButton } from "./logout-button";
 
 const LINKS = [
+  { href: "/overview", label: "Overview" },
   { href: "/calendar", label: "Calendar" },
   { href: "/events", label: "Events" },
   { href: "/tasks", label: "Tasks" },
@@ -28,14 +29,11 @@ type CrudNavProps = {
 
 export function CrudNav({ user }: CrudNavProps) {
   const pathname = usePathname();
-  const isGuest = user?.role === "Guest";
-  const links = isGuest
-    ? LINKS.filter((l) => l.href === "/calendar")
-    : LINKS.filter((l) => l.href !== "/audit-log" || canViewAuditLog(user?.role));
+  const links = LINKS.filter((l) => l.href !== "/audit-log" || canViewAuditLog(user?.role));
 
   return (
     <aside className="flex w-full shrink-0 flex-col overflow-y-auto bg-linear-to-b from-primary from-0% via-primary via-[45%] to-secondary px-4 py-6 text-primary-foreground md:sticky md:top-0 md:h-svh md:w-72">
-      <Link href={isGuest ? "/calendar" : "/events"} className="flex items-center gap-2.5 px-1">
+      <Link href="/overview" className="flex items-center gap-2.5 px-1">
         <Image
           src="/mdn_logo.webp"
           alt="Monash Deep Neuron"

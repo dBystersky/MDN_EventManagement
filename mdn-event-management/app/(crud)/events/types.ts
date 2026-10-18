@@ -1,4 +1,4 @@
-export type Member = { memberId: number; name: string; email: string };
+export type Member = { memberId: number; name: string; email: string; role?: string };
 
 export type Resource = {
   resourceId: number;
@@ -31,6 +31,7 @@ export type EventItem = {
   totalBudget?: string;
   tasks?: Task[];
   eventManagers?: { memberId: number; member?: Member }[];
+  eventMembers?: { memberId: number; member?: Member }[];
   bookable?: {
     resourceAllocations?: { resourceId: number; resource?: { name: string } }[];
   };

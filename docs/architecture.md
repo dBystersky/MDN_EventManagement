@@ -62,16 +62,27 @@ and `/api/auth/logout`. Pages redirect to `/login`; API routes answer `401`.
 The session is a JWT in an httpOnly `mdn_auth_token` cookie, signed and read by
 `lib/auth.ts`. Server code gets the current user from `getAuthSession()`.
 
-Accounts are created by an admin (`/members`, backed by `/api/admin/members`) or
+Accounts are created by an executive (`/members`, backed by `/api/admin/members`) or
 by the seed script. `/signup` redirects to `/login` — self-signup is off.
 
-## Known gaps
+## Roles
 
-Two things look done but are not, so do not rely on them:
+Three roles (`MemberRole`): **Executive**, **Manager**, **Member**. The rules are
+in `lib/permissions.ts` (shared with the UI) and enforced server-side in the
+route handlers via `lib/access.ts`.
 
-- **Roles are not enforced.** `lib/permissions.ts` has `ENFORCED = false`, so
-  everyone gets full access. It only greys out buttons; it stops nobody from
-  calling the API directly. Real enforcement means route handlers checking
-  `getAuthSession()` server-side.
-- **The `Member`/`Manager`/`Admin` enum exists** in the schema and rides in the
-  token, but nothing reads it for authorisation yet.
+| | Executive | Manager | Member |
+| --- | --- | --- | --- |
+| See events | all | all | only events they belong to (`EventMember`) |
+| Create / delete events, choose event managers | yes | no | no |
+| Edit an event | all | ones they manage (`EventManager`) | no |
+| Assign Members to an event | yes | events they manage | no |
+| Create tasks | anywhere | events they manage, or no event | in events they belong to |
+| Edit / delete / assign tasks | all | tasks of events they manage | no |
+| Update a task's status, name, description, deadline | all | tasks of events they manage | tasks in their events or assigned to them |
+| Set budgets | yes | yes, on tasks they can edit | no |
+| Audit log, create accounts | yes | no | no |
+
+Task status is `backlog`, `ready_to_do`, `in_progress`, `blocked` or `done`.
+Locations, resources, resource types and allocations are not role-gated.
+Self-service signup always creates a Member.

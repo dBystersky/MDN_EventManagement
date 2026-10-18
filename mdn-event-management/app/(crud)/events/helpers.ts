@@ -119,6 +119,23 @@ export function managerPickerOptions(
   ];
 }
 
+/** People who can be attached to an event as plain Members. */
+export function memberPickerOptions(
+  members: Member[],
+  selectedEvent: EventItem | undefined,
+): Option[] {
+  return [
+    ...members
+      .filter((member) => member.role === undefined || member.role === "Member")
+      .map((member) => ({ id: String(member.memberId), label: member.name })),
+    ...orphanOptions(
+      selectedEvent?.eventMembers,
+      (em) => members.some((member) => member.memberId === em.memberId),
+      (em) => (em.member?.name ? { id: String(em.memberId), label: em.member.name } : null),
+    ),
+  ];
+}
+
 export function resourcePickerOptions(
   resources: Resource[],
   selectedEvent: EventItem | undefined,

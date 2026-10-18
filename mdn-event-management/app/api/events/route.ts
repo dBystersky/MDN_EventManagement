@@ -4,13 +4,20 @@ import { createEvent, listEvents, parseEventSubtasks } from "@/lib/events";
 import { conflictsForEvent } from "@/lib/conflictQueries";
 import { isBadRequest, validationFailed } from "@/lib/api-errors";
 import { Prisma } from "@/generated/prisma/client";
-import { getAuthSession, isGuest } from "@/lib/auth";
+import { forbidden, requireSession } from "@/lib/access";
+import { canCreateEvent, canEditBudget, isMember } from "@/lib/permissions";
 import { recordAudit } from "@/lib/audit";
 
 // Function to get all events from the API
 export async function GET() {
+  const auth = await requireSession();
+  if (auth.denied) return auth.denied;
+
   try {
-    const events = await listEvents();
+    // Members only ever see the events they belong to.
+    const events = await listEvents(
+      isMember(auth.actor) ? { memberId: auth.session.member_id } : undefined,
+    );
     return NextResponse.json(events, { status: 200 });
   } catch (error) {
     return NextResponse.json({ error: `Failed to get events: ${error}` }, { status: 500 });
@@ -19,15 +26,19 @@ export async function GET() {
 
 // Function to create a new event
 export async function POST(request: Request) {
-  const session = await getAuthSession();
-  if (isGuest(session)) {
-    return NextResponse.json(
-      { error: "Forbidden — guests have read-only calendar access" },
-      { status: 403 },
-    );
-  }
+  const auth = await requireSession();
+  if (auth.denied) return auth.denied;
+  const { session, actor } = auth;
+  if (!canCreateEvent(actor)) return forbidden("only executives can create events");
 
   const body = await request.json();
+  if (
+    !canEditBudget(actor) &&
+    Array.isArray(body.subtasks) &&
+    body.subtasks.some((t: { budget?: unknown }) => t?.budget != null)
+  ) {
+    return forbidden("only executives and managers can set budgets");
+  }
 
   const invalid = validationFailed(validateEvent(body));
   if (invalid) return invalid;
@@ -41,6 +52,7 @@ export async function POST(request: Request) {
       endDate: new Date(body.endDate),
       locationId: Number(body.locationId),
       managerIds: Array.isArray(body.managerIds) ? body.managerIds.map(Number) : undefined,
+      memberIds: Array.isArray(body.memberIds) ? body.memberIds.map(Number) : undefined,
       resourceIds: Array.isArray(body.resourceIds) ? body.resourceIds.map(Number) : undefined,
       taskIds: Array.isArray(body.taskIds) ? body.taskIds.map(Number) : undefined,
       subtasks,

@@ -26,7 +26,7 @@ describe("POST /api/admin/members", () => {
   });
 
   it("returns 400 when fields are missing", async () => {
-    asUser("Admin");
+    asUser("Executive");
 
     const { status } = await read(await POST(jsonRequest("POST", { ...body, email: "" })));
 
@@ -34,7 +34,7 @@ describe("POST /api/admin/members", () => {
   });
 
   it("returns 400 when the email is taken", async () => {
-    asUser("Admin");
+    asUser("Executive");
     prismaMock.member.findUnique.mockResolvedValue({ memberId: 2 } as never);
 
     const { status } = await read(await POST(jsonRequest("POST", body)));
@@ -44,7 +44,7 @@ describe("POST /api/admin/members", () => {
   });
 
   it("creates the member with a hashed password and returns only public fields", async () => {
-    asUser("Admin");
+    asUser("Executive");
     prismaMock.member.findUnique.mockResolvedValue(null);
     const created = { memberId: 9, name: "Grace", email: "grace@mdn.test", role: "Manager" };
     prismaMock.member.create.mockResolvedValue(created as never);
@@ -77,7 +77,7 @@ describe("DELETE /api/admin/members/[id]", () => {
   });
 
   it("returns 400 for a non-numeric id", async () => {
-    asUser("Admin");
+    asUser("Executive");
 
     const { status } = await read(await DELETE(jsonRequest("DELETE"), params({ id: "abc" })));
 
@@ -85,7 +85,7 @@ describe("DELETE /api/admin/members/[id]", () => {
   });
 
   it("refuses to let an admin delete their own account", async () => {
-    asUser("Admin", { member_id: 5 });
+    asUser("Executive", { member_id: 5 });
 
     const { status, json } = await read(await DELETE(jsonRequest("DELETE"), params({ id: "5" })));
 
@@ -95,7 +95,7 @@ describe("DELETE /api/admin/members/[id]", () => {
   });
 
   it("deletes another member", async () => {
-    asUser("Admin", { member_id: 1 });
+    asUser("Executive", { member_id: 1 });
 
     const { status } = await read(await DELETE(jsonRequest("DELETE"), params({ id: "5" })));
 
@@ -104,7 +104,7 @@ describe("DELETE /api/admin/members/[id]", () => {
   });
 
   it("returns 500 when the delete fails", async () => {
-    asUser("Admin", { member_id: 1 });
+    asUser("Executive", { member_id: 1 });
     prismaMock.member.delete.mockRejectedValue(new Error("fk violation"));
 
     const { status } = await read(await DELETE(jsonRequest("DELETE"), params({ id: "5" })));

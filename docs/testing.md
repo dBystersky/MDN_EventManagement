@@ -43,7 +43,7 @@ Helpers in `tests/helpers/`:
 |--------|-----|
 | `prismaMock`, `prismaError("P2025")` | Stub queries; throw a Prisma error |
 | `jsonRequest`, `params`, `read` | Build a request, a dynamic route's params, and read the response |
-| `asUser("Admin")`, `asAnonymous()` | Sign the request in, with a real JWT |
+| `asUser("Executive")`, `asAnonymous()` | Sign the request in, with a real JWT |
 
 Two things that catch people:
 

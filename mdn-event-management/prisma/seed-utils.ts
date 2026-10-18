@@ -27,7 +27,7 @@ export function createClient() {
 
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@mdn.com";
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "changeme123";
-const ADMIN_NAME = process.env.SEED_ADMIN_NAME ?? "MDN Admin";
+const ADMIN_NAME = process.env.SEED_ADMIN_NAME ?? "MDN Executive";
 
 /**
  * Creates the master Admin account, or returns the existing one untouched.
@@ -57,7 +57,7 @@ export async function createAdmin(prisma: Db) {
       name: ADMIN_NAME,
       email: ADMIN_EMAIL,
       password: hashed,
-      role: "Admin",
+      role: "Executive",
     },
   });
 
@@ -108,6 +108,7 @@ const APP_TABLES = [
   "audit_logs",
   "resource_allocations",
   "task_managers",
+  "event_members",
   "event_managers",
   "tasks",
   "events",

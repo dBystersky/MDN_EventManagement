@@ -6,21 +6,21 @@ import { MemberRole } from "@/generated/prisma/client";
 import { validationFailed } from "@/lib/api-errors";
 import { validateMember } from "@/lib/validation";
 
-/** Only Admin sessions may call these handlers. */
-async function requireAdmin() {
+/** Only Executive sessions may call these handlers. */
+async function requireExecutive() {
   const session = await getAuthSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
-  if (session.role !== "Admin") {
-    return NextResponse.json({ error: "Forbidden — Admin only" }, { status: 403 });
+  if (session.role !== "Executive") {
+    return NextResponse.json({ error: "Forbidden — Executive only" }, { status: 403 });
   }
   return null; // OK
 }
 
-/** POST /api/admin/members — create a new member (Admin only) */
+/** POST /api/admin/members — create a new member (Executive only) */
 export async function POST(request: Request) {
-  const denied = await requireAdmin();
+  const denied = await requireExecutive();
   if (denied) return denied;
 
   try {
@@ -42,8 +42,7 @@ export async function POST(request: Request) {
 
     let memberRole: MemberRole = MemberRole.Member;
     if (role === "Manager") memberRole = MemberRole.Manager;
-    if (role === "Admin") memberRole = MemberRole.Admin;
-    if (role === "Guest") memberRole = MemberRole.Guest;
+    if (role === "Executive") memberRole = MemberRole.Executive;
 
     const member = await prisma.member.create({
       data: {

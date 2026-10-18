@@ -22,6 +22,7 @@ const eventInclude = {
     },
   },
   eventManagers: { include: { member: { select: memberPublicSelect } } },
+  eventMembers: { include: { member: { select: memberPublicSelect } } },
   tasks: {
     include: {
       taskManagers: { include: { member: { select: memberPublicSelect } } },
@@ -106,6 +107,7 @@ type createEventInput = {
   endDate: Date;
   locationId: number;
   managerIds?: number[];
+  memberIds?: number[];
   resourceIds?: number[];
   taskIds?: number[];
   subtasks?: EventSubtaskInput[];
@@ -212,6 +214,9 @@ export async function createEvent(input: createEventInput) {
         eventManagers: input.managerIds?.length
           ? { create: input.managerIds.map((memberId: number) => ({ memberId })) }
           : undefined,
+        eventMembers: input.memberIds?.length
+          ? { create: [...new Set(input.memberIds)].map((memberId) => ({ memberId })) }
+          : undefined,
       },
       include: eventInclude,
     });
@@ -233,8 +238,13 @@ export async function createEvent(input: createEventInput) {
   });
 }
 
-export async function listEvents() {
+/** `memberId` narrows the list to events that member belongs to. */
+export async function listEvents(filter?: { memberId?: number }) {
   return prisma.event.findMany({
+    where:
+      filter?.memberId !== undefined
+        ? { eventMembers: { some: { memberId: filter.memberId } } }
+        : undefined,
     orderBy: { date: "asc" },
     include: eventInclude,
   });
@@ -254,6 +264,7 @@ type updateEventInput = {
   endDate?: Date;
   locationId?: number;
   managerIds?: number[];
+  memberIds?: number[];
   resourceIds?: number[];
   taskIds?: number[];
   subtasks?: EventSubtaskInput[];
@@ -288,6 +299,14 @@ export async function updateEvent(eventId: number, input: updateEventInput) {
               eventManagers: {
                 deleteMany: {},
                 create: input.managerIds.map((memberId) => ({ memberId })),
+              },
+            }
+          : {}),
+        ...(input.memberIds !== undefined
+          ? {
+              eventMembers: {
+                deleteMany: {},
+                create: [...new Set(input.memberIds)].map((memberId) => ({ memberId })),
               },
             }
           : {}),
@@ -328,6 +347,7 @@ export async function deleteEvent(eventId: number) {
   return prisma.$transaction(async (tx) => {
     // delete all associated event managers
     await tx.eventManager.deleteMany({ where: { eventId } });
+    await tx.eventMember.deleteMany({ where: { eventId } });
 
     // delete all associated allocations that are linked to event
     await tx.resourceAllocation.deleteMany({

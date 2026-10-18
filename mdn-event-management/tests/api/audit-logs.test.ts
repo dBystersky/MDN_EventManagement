@@ -22,13 +22,13 @@ describe("GET /api/audit-logs", () => {
     expect((await GET(jsonRequest("GET"))).status).toBe(401);
   });
 
-  it.each(["Member", "Manager", "Guest"] as const)("is closed to %s accounts", async (role) => {
+  it.each(["Member", "Manager"] as const)("is closed to %s accounts", async (role) => {
     asUser("Member", { role });
     expect((await GET(jsonRequest("GET"))).status).toBe(403);
   });
 
   it("lists entries newest first for admins, with filters", async () => {
-    asUser("Admin");
+    asUser("Executive");
     prismaMock.auditLog.findMany.mockResolvedValue([{ auditId: 1 }] as never);
 
     const { status, json } = await read(
@@ -49,7 +49,7 @@ describe("GET /api/audit-logs", () => {
 
 describe("recording changes", () => {
   beforeEach(() => {
-    asUser("Manager", { member_id: 1, name: "Pat" });
+    asUser("Executive", { member_id: 1, name: "Pat" });
     prismaMock.task.create.mockResolvedValue(task as never);
   });
 
@@ -73,6 +73,7 @@ describe("recording changes", () => {
   });
 
   it("records which fields an update touched", async () => {
+    prismaMock.task.findUnique.mockResolvedValueOnce({ eventId: null, taskManagers: [] } as never);
     prismaMock.task.findUniqueOrThrow.mockResolvedValue({ eventId: null } as never);
     prismaMock.task.update.mockResolvedValue(task as never);
 
@@ -98,7 +99,7 @@ describe("recording changes", () => {
 });
 
 describe("coverage of the remaining areas", () => {
-  beforeEach(() => asUser("Admin", { member_id: 2, name: "Ada" }));
+  beforeEach(() => asUser("Executive", { member_id: 2, name: "Ada" }));
 
   it("logs resource, resource type and location changes", async () => {
     const { POST: createResource } = await import("@/app/api/resources/route");

@@ -15,6 +15,8 @@ export function EventList({
   items,
   selectedId,
   members,
+  canDelete,
+  canEditEvent,
   conflictsFor,
   onSelect,
   onDelete,
@@ -22,6 +24,9 @@ export function EventList({
   items: EventItem[];
   selectedId: number | null;
   members: Member[];
+  canDelete: boolean;
+  /** Whether the signed-in person may change this event (else it opens read-only). */
+  canEditEvent: (event: EventItem) => boolean;
   /** This event's clashes, empty when it has none. */
   conflictsFor: (eventId: number) => readonly Conflict[];
   onSelect: (event: EventItem) => void;
@@ -80,14 +85,17 @@ export function EventList({
                       <ConflictBadge conflicts={conflicts} />
                       <Badge variant="secondary">{ev.location?.name ?? "No venue"}</Badge>
                       <Badge variant="outline">${ev.totalBudget ?? "0"}</Badge>
-                      <Button
-                        type="button"
-                        size="xs"
-                        variant="destructive"
-                        onClick={() => onDelete(ev.eventId)}
-                      >
-                        Delete
-                      </Button>
+                      {!canEditEvent(ev) && <Badge variant="outline">View only</Badge>}
+                      {canDelete && (
+                        <Button
+                          type="button"
+                          size="xs"
+                          variant="destructive"
+                          onClick={() => onDelete(ev.eventId)}
+                        >
+                          Delete
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </li>

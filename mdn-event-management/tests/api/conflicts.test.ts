@@ -6,7 +6,7 @@
  * rejected, and an inverted range is the one thing that is rejected.
  */
 
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { GET as LIST } from "@/app/api/conflicts/route";
 import { POST as PREVIEW } from "@/app/api/conflicts/preview/route";
 import { POST as CREATE_EVENT } from "@/app/api/events/route";
@@ -14,6 +14,11 @@ import { POST as CREATE_ALLOCATION } from "@/app/api/resource-allocations/route"
 import { asUser } from "../helpers/auth";
 import { prismaMock } from "../helpers/prisma";
 import { jsonRequest, read } from "../helpers/request";
+
+// Role rules are covered in access.test.ts; these tests exercise behaviour as an executive.
+beforeEach(() => {
+  asUser("Executive");
+});
 
 /** 2 Nov 2026 at `hour`, UTC. */
 function at(hour: number) {
@@ -70,15 +75,6 @@ describe("GET /api/conflicts", () => {
     const { json } = await read(await LIST());
 
     expect(json).toEqual([]);
-  });
-
-  it("returns 403 for a guest", async () => {
-    asUser("Member", { role: "Guest" });
-
-    const { status } = await read(await LIST());
-
-    expect(status).toBe(403);
-    expect(prismaMock.event.findMany).not.toHaveBeenCalled();
   });
 });
 

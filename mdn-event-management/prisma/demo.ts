@@ -56,7 +56,7 @@ function plus(d: Date, ms: number) {
 // Data
 // ---------------------------------------------------------------------------
 
-type Role = "Member" | "Manager" | "Admin" | "Guest";
+type Role = "Member" | "Manager" | "Executive";
 
 const MEMBERS: { key: string; name: string; role: Role }[] = [
   { key: "priya", name: "Priya Raman", role: "Manager" },
@@ -69,7 +69,7 @@ const MEMBERS: { key: string; name: string; role: Role }[] = [
   { key: "arjun", name: "Arjun Mehta", role: "Member" },
   { key: "chloe", name: "Chloe Bennett", role: "Member" },
   { key: "daniel", name: "Daniel Kim", role: "Member" },
-  { key: "olivia", name: "Olivia Hart", role: "Guest" },
+  { key: "olivia", name: "Olivia Hart", role: "Member" },
 ];
 
 const LOCATIONS: { key: string; name: string }[] = [
@@ -587,7 +587,7 @@ async function populate(tx: Db, passwordHash: string) {
 
   const admin = await createAdmin(tx);
 
-  // Members — created by the admin on day one.
+  // Members — created by the executive on day one.
   const memberIds = new Map<string, number>();
   const actors = new Map<string, Actor>();
   for (const [i, m] of MEMBERS.entries()) {
@@ -661,6 +661,11 @@ async function populate(tx: Db, passwordHash: string) {
 
   // A task books its resources for the default window from its deadline,
   // the same as `defaultWindowFrom` in lib/resourceAllocations.ts.
+  let statusCount = 0;
+  const OPEN_STATUSES = ["backlog", "ready_to_do", "in_progress", "blocked"] as const;
+  const statusFor = (deadline: Date) =>
+    deadline < NOW ? ("done" as const) : OPEN_STATUSES[statusCount++ % OPEN_STATUSES.length];
+
   async function createTask(spec: TaskSpec, eventId: number | null, createdAt: Date) {
     const task = await tx.task.create({
       data: {
@@ -668,6 +673,8 @@ async function populate(tx: Db, passwordHash: string) {
         description: spec.description,
         deadline: spec.deadline,
         budget: spec.budget,
+        // Past deadlines are done; the rest are spread across the board.
+        status: statusFor(spec.deadline),
         event: eventId != null ? { connect: { eventId } } : undefined,
         bookable: {
           create: {
@@ -732,6 +739,13 @@ async function populate(tx: Db, passwordHash: string) {
         },
         eventManagers: {
           create: spec.managers.map((key) => ({ memberId: lookup(memberIds, key) })),
+        },
+        // Members working the event — on its crew list or on any of its tasks —
+        // can see it and its tasks. Managers and executives see everything anyway.
+        eventMembers: {
+          create: [...new Set([...spec.managers, ...spec.tasks.flatMap((t) => t.managers)])]
+            .filter((key) => MEMBERS.find((m) => m.key === key)?.role === "Member")
+            .map((key) => ({ memberId: lookup(memberIds, key) })),
         },
       },
     });
@@ -933,8 +947,8 @@ run(async (prisma) => {
     `\n✅ Demo data loaded: ${members} members, ${events} events, ${tasks} tasks, ` +
       `${allocations} resource bookings, ${auditLogs} audit log entries.`,
   );
-  console.log(`\nDemo logins (password "${DEMO_PASSWORD}" for all but the admin):`);
-  for (const role of ["Manager", "Member", "Guest"] as const) {
+  console.log(`\nDemo logins (password "${DEMO_PASSWORD}" for all but the executive):`);
+  for (const role of ["Manager", "Member"] as const) {
     const m = MEMBERS.find((x) => x.role === role)!;
     const [first, last] = m.name.toLowerCase().split(" ");
     console.log(`   ${role.padEnd(8)} ${first}.${last}@mdn.com`);

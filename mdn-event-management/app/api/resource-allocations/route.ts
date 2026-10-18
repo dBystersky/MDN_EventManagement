@@ -3,18 +3,11 @@ import { validateAllocation } from "@/lib/validation";
 import { createAllocation, listAllocations } from "@/lib/resourceAllocations";
 import { conflictsForAllocation } from "@/lib/conflictQueries";
 import { isBadRequest, validationFailed } from "@/lib/api-errors";
-import { getAuthSession, isGuest } from "@/lib/auth";
+import { getAuthSession } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { Prisma } from "@/generated/prisma/client";
 
 export async function GET() {
-  if (isGuest(await getAuthSession())) {
-    return NextResponse.json(
-      { error: "Forbidden — guests have read-only calendar access" },
-      { status: 403 },
-    );
-  }
-
   try {
     const allocations = await listAllocations();
     return NextResponse.json(allocations, { status: 200 });
@@ -28,12 +21,6 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const session = await getAuthSession();
-  if (isGuest(session)) {
-    return NextResponse.json(
-      { error: "Forbidden — guests have read-only calendar access" },
-      { status: 403 },
-    );
-  }
 
   const body = await request.json();
 

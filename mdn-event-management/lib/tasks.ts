@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 import { recalculateEventTotalBudget } from "@/lib/events";
 import { memberPublicSelect } from "@/lib/members";
 import { shiftBookableAllocations } from "@/lib/resourceAllocations";
+import type { TaskStatus } from "@/lib/permissions";
 
 const taskInclude = {
   bookable: true,
@@ -15,6 +17,7 @@ type createTaskInput = {
   managerIds?: number[];
   eventId?: number | null;
   budget?: number | null;
+  status?: TaskStatus;
 };
 
 export async function createTask(input: createTaskInput) {
@@ -25,6 +28,7 @@ export async function createTask(input: createTaskInput) {
         description: input.description,
         deadline: input.deadline,
         budget: input.budget ?? undefined,
+        status: input.status,
         event: input.eventId != null ? { connect: { eventId: input.eventId } } : undefined,
         bookable: { create: { bookableType: "Task" } },
         taskManagers: input.managerIds?.length
@@ -42,9 +46,21 @@ export async function createTask(input: createTaskInput) {
   });
 }
 
-export async function listTasks(filter?: { eventId?: number }) {
+/**
+ * `memberId` narrows to what a Member may see: tasks in events they belong to,
+ * or tasks they are assigned to directly.
+ */
+export async function listTasks(filter?: { eventId?: number; memberId?: number }) {
+  const where: Prisma.TaskWhereInput = {};
+  if (filter?.eventId !== undefined) where.eventId = filter.eventId;
+  if (filter?.memberId !== undefined) {
+    where.OR = [
+      { event: { eventMembers: { some: { memberId: filter.memberId } } } },
+      { taskManagers: { some: { memberId: filter.memberId } } },
+    ];
+  }
   return prisma.task.findMany({
-    where: filter?.eventId !== undefined ? { eventId: filter.eventId } : undefined,
+    where: Object.keys(where).length ? where : undefined,
     orderBy: { deadline: "asc" },
     include: taskInclude,
   });
@@ -64,6 +80,7 @@ type updateTaskInput = {
   eventId?: number | null;
   budget?: number | null;
   managerIds?: number[];
+  status?: TaskStatus;
 };
 
 export async function updateTask(taskId: number, input: updateTaskInput) {
@@ -80,6 +97,7 @@ export async function updateTask(taskId: number, input: updateTaskInput) {
         description: input.description,
         deadline: input.deadline,
         budget: input.budget,
+        status: input.status,
         event:
           input.eventId === undefined
             ? undefined

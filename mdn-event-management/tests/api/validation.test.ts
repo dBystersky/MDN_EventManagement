@@ -7,7 +7,7 @@
  * that a PATCH which leaves fields out still goes through.
  */
 
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { POST as CREATE_EVENT } from "@/app/api/events/route";
 import { PATCH as UPDATE_EVENT } from "@/app/api/events/[eventId]/route";
 import { POST as CREATE_LOCATION } from "@/app/api/locations/route";
@@ -20,6 +20,11 @@ import { POST as CREATE_MEMBER } from "@/app/api/admin/members/route";
 import { asUser } from "../helpers/auth";
 import { prismaMock } from "../helpers/prisma";
 import { jsonRequest, params, read } from "../helpers/request";
+
+// Role rules are covered in access.test.ts; these tests exercise behaviour as an executive.
+beforeEach(() => {
+  asUser("Executive");
+});
 
 type Rejection = { error: string; fieldErrors: Record<string, string> };
 
@@ -55,6 +60,10 @@ describe("events", () => {
   });
 
   it("lets a PATCH leave untouched fields out", async () => {
+    prismaMock.event.findUnique.mockResolvedValueOnce({
+      eventManagers: [],
+      eventMembers: [],
+    } as never);
     prismaMock.event.findUniqueOrThrow
       .mockResolvedValueOnce({
         date: new Date(event.date),
@@ -71,6 +80,10 @@ describe("events", () => {
   });
 
   it("still rejects a PATCH that blanks a field", async () => {
+    prismaMock.event.findUnique.mockResolvedValueOnce({
+      eventManagers: [],
+      eventMembers: [],
+    } as never);
     await expectRejected(
       await UPDATE_EVENT(jsonRequest("PATCH", { name: "" }), params({ eventId: "3" })),
       ["name"],
@@ -129,7 +142,7 @@ describe("members", () => {
   const member = { name: "Grace", email: "grace@mdn.test", password: "hunter22", role: "Manager" };
 
   it("rejects a malformed email or a short password", async () => {
-    asUser("Admin");
+    asUser("Executive");
 
     await expectRejected(await CREATE_MEMBER(jsonRequest("POST", { ...member, email: "grace" })), [
       "email",
@@ -142,7 +155,7 @@ describe("members", () => {
   });
 
   it("reports a taken email against the email field", async () => {
-    asUser("Admin");
+    asUser("Executive");
     prismaMock.member.findUnique.mockResolvedValue({ memberId: 2 } as never);
 
     await expectRejected(await CREATE_MEMBER(jsonRequest("POST", member)), ["email"]);

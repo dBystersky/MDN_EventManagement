@@ -1,7 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { DELETE, GET, PATCH } from "@/app/api/events/[eventId]/route";
+import { asUser } from "../helpers/auth";
 import { prismaError, prismaMock } from "../helpers/prisma";
 import { jsonRequest, params, read } from "../helpers/request";
+
+// Role rules are covered in access.test.ts; these tests exercise behaviour as an executive.
+beforeEach(() => {
+  asUser("Executive");
+});
 
 const ctx = params({ eventId: "3" });
 
@@ -49,6 +55,13 @@ describe("GET /api/events/[eventId]", () => {
 });
 
 describe("PATCH /api/events/[eventId]", () => {
+  beforeEach(() => {
+    prismaMock.event.findUnique.mockResolvedValueOnce({
+      eventManagers: [],
+      eventMembers: [],
+    } as never);
+  });
+
   it("updates fields and reschedules existing allocations when the span moves", async () => {
     existingEvent({ ...event, name: "Renamed" });
 
@@ -176,6 +189,13 @@ describe("PATCH /api/events/[eventId]", () => {
 });
 
 describe("DELETE /api/events/[eventId]", () => {
+  beforeEach(() => {
+    prismaMock.event.findUnique.mockResolvedValueOnce({
+      eventManagers: [],
+      eventMembers: [],
+    } as never);
+  });
+
   it("unlinks tasks instead of deleting them, then removes the event and bookable", async () => {
     prismaMock.event.findUniqueOrThrow.mockResolvedValue({ bookableId: 30 } as never);
 

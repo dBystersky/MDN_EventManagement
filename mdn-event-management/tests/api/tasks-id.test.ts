@@ -1,7 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { DELETE, GET, PATCH } from "@/app/api/tasks/[taskId]/route";
+import { asUser } from "../helpers/auth";
 import { prismaError, prismaMock } from "../helpers/prisma";
 import { jsonRequest, params, read } from "../helpers/request";
+
+// Role rules are covered in access.test.ts; these tests exercise behaviour as an executive.
+beforeEach(() => {
+  asUser("Executive");
+});
 
 const ctx = params({ taskId: "7" });
 
@@ -51,6 +57,10 @@ describe("GET /api/tasks/[taskId]", () => {
 });
 
 describe("PATCH /api/tasks/[taskId]", () => {
+  beforeEach(() => {
+    prismaMock.task.findUnique.mockResolvedValueOnce({ eventId: null, taskManagers: [] } as never);
+  });
+
   it("updates name, description and deadline", async () => {
     prismaMock.task.findUniqueOrThrow.mockResolvedValue({
       eventId: null,
@@ -121,6 +131,8 @@ describe("PATCH /api/tasks/[taskId]", () => {
 
   it("recalculates both totals when a task moves to another event", async () => {
     prismaMock.task.findUniqueOrThrow.mockResolvedValue({ eventId: 1 } as never);
+    // The target event, looked up to check the caller may move the task into it.
+    prismaMock.event.findUnique.mockResolvedValue({ eventManagers: [], eventMembers: [] } as never);
     prismaMock.task.update.mockResolvedValue({ ...task, eventId: 2 } as never);
     prismaMock.task.aggregate
       .mockResolvedValueOnce({ _sum: { budget: 25 } } as never)
@@ -174,6 +186,10 @@ describe("PATCH /api/tasks/[taskId]", () => {
 });
 
 describe("DELETE /api/tasks/[taskId]", () => {
+  beforeEach(() => {
+    prismaMock.task.findUnique.mockResolvedValueOnce({ eventId: null, taskManagers: [] } as never);
+  });
+
   it("removes managers, allocations, the task and its bookable", async () => {
     prismaMock.task.findUniqueOrThrow.mockResolvedValue({ bookableId: 70, eventId: null } as never);
 

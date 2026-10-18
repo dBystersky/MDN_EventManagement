@@ -1,7 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { GET, POST } from "@/app/api/tasks/route";
+import { asUser } from "../helpers/auth";
 import { prismaError, prismaMock } from "../helpers/prisma";
 import { jsonRequest, read } from "../helpers/request";
+
+// Role rules are covered in access.test.ts; these tests exercise behaviour as an executive.
+beforeEach(() => {
+  asUser("Executive");
+  prismaMock.event.findUnique.mockResolvedValue({ eventManagers: [], eventMembers: [] } as never);
+});
 
 const task = {
   taskId: 7,

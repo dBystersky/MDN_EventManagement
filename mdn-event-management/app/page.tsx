@@ -19,7 +19,7 @@ const UPCOMING_LIMIT = 6;
 // internal (budgets, managers, tasks, resources) reaches unauthenticated visitors.
 export default async function Home() {
   const session = await getAuthSession();
-  if (session && session.role !== "Guest") redirect("/events");
+  if (session) redirect("/overview");
 
   const allEvents = await prisma.event.findMany({
     orderBy: { date: "asc" },

@@ -1,7 +1,7 @@
 import { signToken, type UserSession } from "@/lib/auth";
 import { cookieJar } from "./cookie-jar";
 
-type Role = "Member" | "Manager" | "Admin";
+type Role = "Member" | "Manager" | "Executive";
 
 /** Signs the request in as a member with `role`, using a real JWT. */
 export function asUser(role: Role, overrides: Partial<UserSession> = {}): UserSession {

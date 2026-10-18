@@ -14,12 +14,20 @@ import { EventList } from "./event-list";
 import {
   existingSubtaskDetails,
   managerPickerOptions,
+  memberPickerOptions,
   resourcePickerOptions,
   taskPickerOptions,
   toDatetimeLocal,
 } from "./helpers";
 import type { DraftSubtask, EventItem, Location, Member, Resource, Task } from "./types";
 import { defaultEndFor } from "@/lib/datetime";
+import {
+  canAssignEventMembers,
+  canCreateEvent,
+  canModifyEvent,
+  fetchSession,
+  type Actor,
+} from "@/lib/permissions";
 
 export default function Events() {
   const [items, setItems] = useState<EventItem[]>([]);
@@ -44,6 +52,8 @@ export default function Events() {
   const [endDate, setEndDate] = useState("");
   const [locationId, setLocationId] = useState("");
   const [managerIds, setManagerIds] = useState<string[]>([]);
+  const [memberIds, setMemberIds] = useState<string[]>([]);
+  const [actor, setActor] = useState<Actor>({ role: null, memberId: null });
   const [resourceIds, setResourceIds] = useState<string[]>([]);
   const [taskIds, setTaskIds] = useState<string[]>([]);
   const [draftSubtasks, setDraftSubtasks] = useState<DraftSubtask[]>([]);
@@ -62,6 +72,13 @@ export default function Events() {
 
   const isEditing = selectedId != null;
   const selectedEvent = items.find((ev) => ev.eventId === selectedId);
+  // Mirrors the API: executives create/delete events and pick managers;
+  // managers edit the events they run; members only look.
+  const executive = canCreateEvent(actor);
+  const canEdit = isEditing ? !!selectedEvent && canModifyEvent(actor, selectedEvent) : executive;
+  const canAssignMembers = isEditing
+    ? !!selectedEvent && canAssignEventMembers(actor, selectedEvent)
+    : executive;
   const memberOptions = members.map((member) => ({
     id: String(member.memberId),
     label: member.name,
@@ -72,20 +89,23 @@ export default function Events() {
   }));
 
   async function refresh() {
-    const [events, locs, tasks, memberList, resourceList, conflictList] = await Promise.all([
-      apiJson("/api/events"),
-      apiJson("/api/locations"),
-      apiJson("/api/tasks"),
-      apiJson("/api/members"),
-      apiJson("/api/resources"),
-      apiJson("/api/conflicts"),
-    ]);
+    const [events, locs, tasks, memberList, resourceList, conflictList, session] =
+      await Promise.all([
+        apiJson("/api/events"),
+        apiJson("/api/locations"),
+        apiJson("/api/tasks"),
+        apiJson("/api/members"),
+        apiJson("/api/resources"),
+        apiJson("/api/conflicts"),
+        fetchSession(),
+      ]);
     setItems(events);
     setLocations(locs);
     setAllTasks(tasks);
     setMembers(memberList);
     setResources(resourceList);
     setConflicts(conflictList);
+    setActor(session ?? { role: null, memberId: null });
   }
 
   /** eventId → its clashes, so the list can badge a row without a scan. */
@@ -182,6 +202,7 @@ export default function Events() {
     setEndDate("");
     setLocationId("");
     setManagerIds([]);
+    setMemberIds([]);
     setResourceIds([]);
     setTaskIds([]);
     clearSubtaskComposer();
@@ -196,6 +217,7 @@ export default function Events() {
     setEndDate(toDatetimeLocal(ev.endDate));
     setLocationId(ev.location?.locationId != null ? String(ev.location.locationId) : "");
     setManagerIds((ev.eventManagers ?? []).map((em) => String(em.memberId)));
+    setMemberIds((ev.eventMembers ?? []).map((em) => String(em.memberId)));
     setResourceIds(
       (ev.bookable?.resourceAllocations ?? []).map((allocation) => String(allocation.resourceId)),
     );
@@ -234,7 +256,9 @@ export default function Events() {
       date: new Date(date).toISOString(),
       endDate: new Date(endDate).toISOString(),
       locationId: Number(locationId),
-      managerIds: managerIds.map(Number),
+      // The API refuses fields this person may not change, so only send theirs.
+      ...(executive ? { managerIds: managerIds.map(Number) } : {}),
+      ...(canAssignMembers ? { memberIds: memberIds.map(Number) } : {}),
       resourceIds: resourceIds.map(Number),
       taskIds: taskIds.map(Number),
       subtasks: draftSubtasks.map((subtask) => ({
@@ -295,6 +319,12 @@ export default function Events() {
             managerIds={managerIds}
             onManagerIdsChange={setManagerIds}
             managerPickerOptions={managerPickerOptions(members, selectedEvent)}
+            canEdit={canEdit}
+            canEditManagers={executive}
+            canAssignMembers={canAssignMembers}
+            memberIds={memberIds}
+            onMemberIdsChange={setMemberIds}
+            memberPickerOptions={memberPickerOptions(members, selectedEvent)}
             resourceIds={resourceIds}
             onResourceIdsChange={setResourceIds}
             resourcePickerOptions={resourcePickerOptions(resources, selectedEvent)}
@@ -338,6 +368,8 @@ export default function Events() {
             items={items}
             selectedId={selectedId}
             members={members}
+            canDelete={executive}
+            canEditEvent={(ev) => canModifyEvent(actor, ev)}
             conflictsFor={(eventId) => conflictIndex.get(eventId) ?? []}
             onSelect={selectEvent}
             onDelete={async (eventId) => {

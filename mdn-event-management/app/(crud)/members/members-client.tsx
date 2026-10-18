@@ -51,10 +51,9 @@ type Member = {
 };
 
 const ROLE_BADGE: Record<string, string> = {
-  Admin: "bg-primary/10 text-primary border-primary/20",
+  Executive: "bg-primary/10 text-primary border-primary/20",
   Manager: "bg-secondary/60 text-secondary-foreground border-secondary",
   Member: "bg-muted text-muted-foreground border-border",
-  Guest: "bg-accent text-accent-foreground border-accent",
 };
 
 export default function MembersPage() {
@@ -157,14 +156,14 @@ export default function MembersPage() {
     }
   }
 
-  const isAdmin = sessionRole === "Admin";
+  const isExecutive = sessionRole === "Executive";
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold">Members</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          View all members{isAdmin ? " and manage accounts" : ""}.
+          View all members{isExecutive ? " and manage accounts" : ""}.
         </p>
       </div>
 
@@ -190,14 +189,14 @@ export default function MembersPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
-                  {isAdmin && <TableHead className="w-16" />}
+                  {isExecutive && <TableHead className="w-16" />}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {members.length === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={isAdmin ? 4 : 3}
+                      colSpan={isExecutive ? 4 : 3}
                       className="text-center text-muted-foreground py-8"
                     >
                       No members yet.
@@ -215,7 +214,7 @@ export default function MembersPage() {
                         {m.role}
                       </span>
                     </TableCell>
-                    {isAdmin && (
+                    {isExecutive && (
                       <TableCell>
                         <Button
                           variant="ghost"
@@ -244,8 +243,8 @@ export default function MembersPage() {
         </Card>
       )}
 
-      {/* Create account form — Admin only */}
-      {isAdmin && (
+      {/* Create account form — Executive only */}
+      {isExecutive && (
         <Card>
           <CardHeader>
             <CardTitle>Create account</CardTitle>
@@ -328,8 +327,7 @@ export default function MembersPage() {
                     <SelectContent>
                       <SelectItem value="Member">Member</SelectItem>
                       <SelectItem value="Manager">Manager</SelectItem>
-                      <SelectItem value="Admin">Admin</SelectItem>
-                      <SelectItem value="Guest">Guest</SelectItem>
+                      <SelectItem value="Executive">Executive</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -41,6 +41,12 @@ export function EventForm({
   managerIds,
   onManagerIdsChange,
   managerPickerOptions,
+  canEdit,
+  canEditManagers,
+  canAssignMembers,
+  memberIds,
+  onMemberIdsChange,
+  memberPickerOptions,
   resourceIds,
   onResourceIdsChange,
   resourcePickerOptions,
@@ -85,6 +91,14 @@ export function EventForm({
   managerIds: string[];
   onManagerIdsChange: (ids: string[]) => void;
   managerPickerOptions: Option[];
+  /** False for people who may look but not change this event (or create one). */
+  canEdit: boolean;
+  /** Choosing an event's managers is executive-only. */
+  canEditManagers: boolean;
+  canAssignMembers: boolean;
+  memberIds: string[];
+  onMemberIdsChange: (ids: string[]) => void;
+  memberPickerOptions: Option[];
   resourceIds: string[];
   onResourceIdsChange: (ids: string[]) => void;
   resourcePickerOptions: Option[];
@@ -128,113 +142,135 @@ export function EventForm({
         }}
       >
         <CardContent className="space-y-4 pb-4">
-          <Field id="event-name" label="Event name" error={validation.errorFor("name")}>
-            <Input
-              id="event-name"
-              placeholder="Name"
-              value={name}
-              onChange={(e) => onNameChange(e.target.value)}
-              required
-              {...validation.fieldProps("name", "event-name")}
-            />
-          </Field>
-          <Field id="event-description" label="Description">
-            <Textarea
-              id="event-description"
-              placeholder="Description"
-              value={description}
-              onChange={(e) => onDescriptionChange(e.target.value)}
-            />
-          </Field>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field
-              id="event-date"
-              label="Starts"
-              error={validation.errorFor("date")}
-              hint={isInPast(date) ? "This is in the past." : undefined}
-            >
+          <fieldset disabled={!canEdit} className="contents">
+            {!canEdit && (
+              <p className="text-sm text-muted-foreground">
+                {isEditing
+                  ? "You can view this event but only its managers and executives can change it."
+                  : "Only executives can create events."}
+              </p>
+            )}
+            <Field id="event-name" label="Event name" error={validation.errorFor("name")}>
               <Input
-                id="event-date"
-                type="datetime-local"
-                value={date}
-                onChange={(e) => onDateChange(e.target.value)}
+                id="event-name"
+                placeholder="Name"
+                value={name}
+                onChange={(e) => onNameChange(e.target.value)}
                 required
-                {...validation.fieldProps("date", "event-date")}
+                {...validation.fieldProps("name", "event-name")}
               />
             </Field>
-            {/* An event needs a real span, not just a start: clash detection has
+            <Field id="event-description" label="Description">
+              <Textarea
+                id="event-description"
+                placeholder="Description"
+                value={description}
+                onChange={(e) => onDescriptionChange(e.target.value)}
+              />
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                id="event-date"
+                label="Starts"
+                error={validation.errorFor("date")}
+                hint={isInPast(date) ? "This is in the past." : undefined}
+              >
+                <Input
+                  id="event-date"
+                  type="datetime-local"
+                  value={date}
+                  onChange={(e) => onDateChange(e.target.value)}
+                  required
+                  {...validation.fieldProps("date", "event-date")}
+                />
+              </Field>
+              {/* An event needs a real span, not just a start: clash detection has
                 nothing to compare without one. Prefilled to two hours after the
                 start, which is only a default. */}
-            <Field id="event-end-date" label="Ends" error={validation.errorFor("endDate")}>
-              <Input
-                id="event-end-date"
-                type="datetime-local"
-                value={endDate}
-                min={date || undefined}
-                onChange={(e) => onEndDateChange(e.target.value)}
-                required
-                {...validation.fieldProps("endDate", "event-end-date")}
-              />
-            </Field>
-          </div>
-          {/* Its own row rather than a lone cell in a two-column grid, which
+              <Field id="event-end-date" label="Ends" error={validation.errorFor("endDate")}>
+                <Input
+                  id="event-end-date"
+                  type="datetime-local"
+                  value={endDate}
+                  min={date || undefined}
+                  onChange={(e) => onEndDateChange(e.target.value)}
+                  required
+                  {...validation.fieldProps("endDate", "event-end-date")}
+                />
+              </Field>
+            </div>
+            {/* Its own row rather than a lone cell in a two-column grid, which
               would leave the select stranded at half width. */}
-          <div>
-            <Field id="event-location" label="Location" error={validation.errorFor("locationId")}>
-              <OptionSelect
-                id="event-location"
-                value={locationId}
-                placeholder="Location..."
-                options={locationOptions}
-                onChange={onLocationIdChange}
-                validation={validation.fieldProps("locationId", "event-location")}
+            <div>
+              <Field id="event-location" label="Location" error={validation.errorFor("locationId")}>
+                <OptionSelect
+                  id="event-location"
+                  value={locationId}
+                  placeholder="Location..."
+                  options={locationOptions}
+                  onChange={onLocationIdChange}
+                  validation={validation.fieldProps("locationId", "event-location")}
+                />
+              </Field>
+            </div>
+            <fieldset disabled={!canEdit || !canEditManagers} className="contents">
+              <AssignmentPicker
+                key={`managers-${selectedId ?? "new"}`}
+                id="event-manager"
+                label="Event managers"
+                placeholder="Select a member..."
+                selectedIds={managerIds}
+                onChange={onManagerIdsChange}
+                options={managerPickerOptions}
               />
-            </Field>
-          </div>
-          <AssignmentPicker
-            key={`managers-${selectedId ?? "new"}`}
-            id="event-manager"
-            label="Event managers"
-            placeholder="Select a member..."
-            selectedIds={managerIds}
-            onChange={onManagerIdsChange}
-            options={managerPickerOptions}
-          />
-          <AssignmentPicker
-            key={`resources-${selectedId ?? "new"}`}
-            id="event-resource"
-            label="Resources"
-            placeholder="Select a resource..."
-            selectedIds={resourceIds}
-            onChange={onResourceIdsChange}
-            options={resourcePickerOptions}
-          />
-          <EventSubtasks
-            selectedId={selectedId}
-            taskIds={taskIds}
-            onTaskIdsChange={onTaskIdsChange}
-            taskPickerOptions={taskPickerOptions}
-            draftSubtasks={draftSubtasks}
-            onRemoveDraft={onRemoveDraft}
-            subtaskTitle={subtaskTitle}
-            onSubtaskTitleChange={onSubtaskTitleChange}
-            subtaskAssigneeId={subtaskAssigneeId}
-            onSubtaskAssigneeIdChange={onSubtaskAssigneeIdChange}
-            subtaskDeadline={subtaskDeadline}
-            onSubtaskDeadlineChange={onSubtaskDeadlineChange}
-            subtaskValidation={subtaskValidation}
-            subtaskResourceIds={subtaskResourceIds}
-            onSubtaskResourceIdsChange={onSubtaskResourceIdsChange}
-            memberOptions={memberOptions}
-            members={members}
-            resources={resources}
-            onAddDraft={onAddDraft}
-            existingDetails={existingDetails}
-          />
-          <ConflictAlert
-            conflicts={conflicts}
-            hint="Clashes are flagged, not blocked — you can still save this event."
-          />
+            </fieldset>
+            <fieldset disabled={!canEdit || !canAssignMembers} className="contents">
+              <AssignmentPicker
+                key={`members-${selectedId ?? "new"}`}
+                id="event-member"
+                label="Event members"
+                placeholder="Select a member..."
+                selectedIds={memberIds}
+                onChange={onMemberIdsChange}
+                options={memberPickerOptions}
+              />
+            </fieldset>
+            <AssignmentPicker
+              key={`resources-${selectedId ?? "new"}`}
+              id="event-resource"
+              label="Resources"
+              placeholder="Select a resource..."
+              selectedIds={resourceIds}
+              onChange={onResourceIdsChange}
+              options={resourcePickerOptions}
+            />
+            <EventSubtasks
+              selectedId={selectedId}
+              taskIds={taskIds}
+              onTaskIdsChange={onTaskIdsChange}
+              taskPickerOptions={taskPickerOptions}
+              draftSubtasks={draftSubtasks}
+              onRemoveDraft={onRemoveDraft}
+              subtaskTitle={subtaskTitle}
+              onSubtaskTitleChange={onSubtaskTitleChange}
+              subtaskAssigneeId={subtaskAssigneeId}
+              onSubtaskAssigneeIdChange={onSubtaskAssigneeIdChange}
+              subtaskDeadline={subtaskDeadline}
+              onSubtaskDeadlineChange={onSubtaskDeadlineChange}
+              subtaskValidation={subtaskValidation}
+              subtaskResourceIds={subtaskResourceIds}
+              onSubtaskResourceIdsChange={onSubtaskResourceIdsChange}
+              memberOptions={memberOptions}
+              members={members}
+              resources={resources}
+              onAddDraft={onAddDraft}
+              existingDetails={existingDetails}
+            />
+            <ConflictAlert
+              conflicts={conflicts}
+              hint="Clashes are flagged, not blocked — you can still save this event."
+            />
+          </fieldset>
         </CardContent>
         <CardFooter className="justify-end gap-2">
           {isEditing && (
@@ -242,7 +278,9 @@ export function EventForm({
               Cancel
             </Button>
           )}
-          <Button type="submit">{isEditing ? "Update" : "Create"}</Button>
+          <Button type="submit" disabled={!canEdit}>
+            {isEditing ? "Update" : "Create"}
+          </Button>
         </CardFooter>
       </form>
     </Card>

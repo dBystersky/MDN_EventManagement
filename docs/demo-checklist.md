@@ -54,9 +54,9 @@ Skip this if the app already runs for you. The details are in
 | Role | Email | Password |
 |------|-------|----------|
 | Admin | `admin@mdn.com` | `changeme123` (or `SEED_ADMIN_*` from `.env`) |
-| Manager | `priya.raman@mdn.com` | `demo1234` |
-| Member | `ethan.wong@mdn.com` | `demo1234` |
-| Guest | `olivia.hart@mdn.com` | `demo1234` |
+| Manager | `manager@mdn.com` | `demo1234` |
+| Member | `member@mdn.com` | `demo1234` |
+| Guest | `guest@mdn.com` | `demo1234` |
 
 `db:demo` prints these at the end too.
 

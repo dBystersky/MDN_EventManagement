@@ -56,11 +56,13 @@ function plus(d: Date, ms: number) {
 // Data
 // ---------------------------------------------------------------------------
 
-const MEMBERS: { key: string; name: string; role: MemberRole }[] = [
-  { key: "priya", name: "Priya Raman", role: MemberRole.Manager },
+// The first member of each role logs in as <role>@mdn.com, so the demo logins
+// are easy to remember; everyone else gets first.last@mdn.com.
+const MEMBERS: { key: string; name: string; role: MemberRole; email?: string }[] = [
+  { key: "priya", name: "Priya Raman", role: MemberRole.Manager, email: "manager@mdn.com" },
   { key: "lachlan", name: "Lachlan Nguyen", role: MemberRole.Manager },
   { key: "aisha", name: "Aisha Karim", role: MemberRole.Manager },
-  { key: "ethan", name: "Ethan Wong", role: MemberRole.Member },
+  { key: "ethan", name: "Ethan Wong", role: MemberRole.Member, email: "member@mdn.com" },
   { key: "sophie", name: "Sophie Tran", role: MemberRole.Member },
   { key: "mateo", name: "Mateo Rossi", role: MemberRole.Member },
   { key: "hannah", name: "Hannah Lee", role: MemberRole.Member },
@@ -69,6 +71,12 @@ const MEMBERS: { key: string; name: string; role: MemberRole }[] = [
   { key: "daniel", name: "Daniel Kim", role: MemberRole.Member },
   { key: "olivia", name: "Olivia Hart", role: MemberRole.Member },
 ];
+
+function emailOf(m: (typeof MEMBERS)[number]) {
+  if (m.email) return m.email;
+  const [first, last] = m.name.toLowerCase().split(" ");
+  return `${first}.${last}@mdn.com`;
+}
 
 const LOCATIONS: { key: string; name: string }[] = [
   { key: "lab", name: "MDN Lab, Woodside Building G.24" },
@@ -589,11 +597,10 @@ async function populate(tx: Db, passwordHash: string) {
   const memberIds = new Map<string, number>();
   const actors = new Map<string, Actor>();
   for (const [i, m] of MEMBERS.entries()) {
-    const [first, last] = m.name.toLowerCase().split(" ");
     const member = await tx.member.create({
       data: {
         name: m.name,
-        email: `${first}.${last}@mdn.com`,
+        email: emailOf(m),
         password: passwordHash,
         role: m.role,
       },
@@ -948,7 +955,6 @@ run(async (prisma) => {
   console.log(`\nDemo logins (password "${DEMO_PASSWORD}" for all but the executive):`);
   for (const role of ["Manager", "Member"] as const) {
     const m = MEMBERS.find((x) => x.role === role)!;
-    const [first, last] = m.name.toLowerCase().split(" ");
-    console.log(`   ${role.padEnd(8)} ${first}.${last}@mdn.com`);
+    console.log(`   ${role.padEnd(8)} ${emailOf(m)}`);
   }
 });

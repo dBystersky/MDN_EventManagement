@@ -6,6 +6,7 @@ a couple of minutes.
 | Page | Read it when |
 |------|--------------|
 | [getting-started.md](./getting-started.md) | You just cloned the repo and want the app running |
+| [demo-checklist.md](./demo-checklist.md) | You are about to demo the app and want it set up with realistic data |
 | [architecture.md](./architecture.md) | You need to know where code goes, or how the data model fits together |
 | [database.md](./database.md) | You are changing the schema, or your local DB is out of sync |
 | [testing.md](./testing.md) | You are writing or running tests |

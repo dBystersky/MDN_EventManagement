@@ -165,198 +165,196 @@ export default function CalendarPage() {
 
   return (
     <section className="min-w-0 space-y-6">
-        <header>
-          <h1 className="text-2xl font-bold">Calendar</h1>
-        </header>
+      <header>
+        <h1 className="text-2xl font-bold">Calendar</h1>
+      </header>
 
-        {error && (
-          <Alert variant="destructive">
-            <CircleAlertIcon />
-            <AlertTitle>Something went wrong</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+      {error && (
+        <Alert variant="destructive">
+          <CircleAlertIcon />
+          <AlertTitle>Something went wrong</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Month view</CardTitle>
-            <CardDescription>
-              Events land on their date, tasks on their deadline. Select a day to see the details.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="outline"
-                  aria-label="Previous month"
-                  onClick={() => setViewDate((d) => shiftMonth(d, -1))}
-                >
-                  <ChevronLeftIcon />
-                </Button>
-                <h2 className="min-w-40 text-center font-heading text-lg font-medium">
-                  {viewDate.toLocaleDateString("en-AU", { month: "long", year: "numeric" })}
-                </h2>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="outline"
-                  aria-label="Next month"
-                  onClick={() => setViewDate((d) => shiftMonth(d, 1))}
-                >
-                  <ChevronRightIcon />
-                </Button>
-                <Button type="button" size="sm" variant="ghost" onClick={goToday}>
-                  Today
-                </Button>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={showEvents ? "default" : "outline"}
-                  onClick={() => setShowEvents((v) => !v)}
-                >
-                  Events
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={showTasks ? "secondary" : "outline"}
-                  onClick={() => setShowTasks((v) => !v)}
-                >
-                  Tasks
-                </Button>
-              </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Month view</CardTitle>
+          <CardDescription>
+            Events land on their date, tasks on their deadline. Select a day to see the details.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                aria-label="Previous month"
+                onClick={() => setViewDate((d) => shiftMonth(d, -1))}
+              >
+                <ChevronLeftIcon />
+              </Button>
+              <h2 className="min-w-40 text-center font-heading text-lg font-medium">
+                {viewDate.toLocaleDateString("en-AU", { month: "long", year: "numeric" })}
+              </h2>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                aria-label="Next month"
+                onClick={() => setViewDate((d) => shiftMonth(d, 1))}
+              >
+                <ChevronRightIcon />
+              </Button>
+              <Button type="button" size="sm" variant="ghost" onClick={goToday}>
+                Today
+              </Button>
             </div>
+            <div className="flex items-center gap-1.5">
+              <Button
+                type="button"
+                size="sm"
+                variant={showEvents ? "default" : "outline"}
+                onClick={() => setShowEvents((v) => !v)}
+              >
+                Events
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={showTasks ? "secondary" : "outline"}
+                onClick={() => setShowTasks((v) => !v)}
+              >
+                Tasks
+              </Button>
+            </div>
+          </div>
 
-            <div className="grid min-w-0 grid-cols-7 gap-1.5">
-              {WEEKDAYS.map((day) => (
+          <div className="grid min-w-0 grid-cols-7 gap-1.5">
+            {WEEKDAYS.map((day) => (
+              <div
+                key={day}
+                className="px-1 pb-1 text-center text-xs font-medium text-muted-foreground"
+              >
+                {day}
+              </div>
+            ))}
+            {days.map((day) => {
+              const key = toDateKey(day);
+              const inMonth = day.getMonth() === viewDate.getMonth();
+              const isToday = key === todayKey;
+              const isSelected = key === selectedKey;
+              const items = itemsForDay(key);
+              const visible = items.slice(0, 3);
+              const overflow = items.length - visible.length;
+
+              return (
                 <div
-                  key={day}
-                  className="px-1 pb-1 text-center text-xs font-medium text-muted-foreground"
+                  key={key}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedDate(day)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") setSelectedDate(day);
+                  }}
+                  className={cn(
+                    "flex min-h-24 min-w-0 cursor-pointer flex-col items-start gap-1 rounded-lg border p-1.5 text-left transition-colors",
+                    inMonth ? "bg-card" : "bg-muted/40 text-muted-foreground",
+                    isSelected ? "ring-2 ring-primary" : "border-border",
+                    isToday && "border-primary",
+                  )}
                 >
-                  {day}
-                </div>
-              ))}
-              {days.map((day) => {
-                const key = toDateKey(day);
-                const inMonth = day.getMonth() === viewDate.getMonth();
-                const isToday = key === todayKey;
-                const isSelected = key === selectedKey;
-                const items = itemsForDay(key);
-                const visible = items.slice(0, 3);
-                const overflow = items.length - visible.length;
-
-                return (
-                  <div
-                    key={key}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setSelectedDate(day)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") setSelectedDate(day);
-                    }}
-                    className={cn(
-                      "flex min-h-24 min-w-0 cursor-pointer flex-col items-start gap-1 rounded-lg border p-1.5 text-left transition-colors",
-                      inMonth ? "bg-card" : "bg-muted/40 text-muted-foreground",
-                      isSelected ? "ring-2 ring-primary" : "border-border",
-                      isToday && "border-primary",
-                    )}
+                  <span
+                    className={cn("text-xs font-medium tabular-nums", isToday && "text-primary")}
                   >
-                    <span
-                      className={cn("text-xs font-medium tabular-nums", isToday && "text-primary")}
-                    >
-                      {day.getDate()}
-                    </span>
-                    <div className="flex w-full flex-col gap-0.5">
-                      {visible.map((item) =>
-                        item.type === "event" ? (
-                          <button
-                            key={`${item.type}-${item.id}`}
-                            type="button"
-                            className="w-full text-left"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (item.event) setPreviewEvent(item.event);
-                            }}
-                          >
-                            <Badge variant="default" className="w-full justify-start truncate">
-                              {item.name}
-                            </Badge>
-                          </button>
-                        ) : (
-                          <Badge
-                            key={`${item.type}-${item.id}`}
-                            variant="secondary"
-                            className="w-full justify-start truncate"
-                          >
+                    {day.getDate()}
+                  </span>
+                  <div className="flex w-full flex-col gap-0.5">
+                    {visible.map((item) =>
+                      item.type === "event" ? (
+                        <button
+                          key={`${item.type}-${item.id}`}
+                          type="button"
+                          className="w-full text-left"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (item.event) setPreviewEvent(item.event);
+                          }}
+                        >
+                          <Badge variant="default" className="w-full justify-start truncate">
                             {item.name}
                           </Badge>
-                        ),
-                      )}
-                      {overflow > 0 && (
-                        <span className="text-[0.65rem] text-muted-foreground">
-                          +{overflow} more
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="space-y-2 border-t pt-4">
-              <h3 className="font-heading text-sm font-medium">
-                {selectedDate.toLocaleDateString("en-AU", {
-                  weekday: "long",
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </h3>
-              {selectedItems.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nothing scheduled.</p>
-              ) : (
-                <ul className="space-y-1.5">
-                  {selectedItems.map((item) => {
-                    const content = (
-                      <>
-                        <Badge variant={item.type === "event" ? "default" : "secondary"}>
-                          {item.type === "event" ? "Event" : "Task"}
+                        </button>
+                      ) : (
+                        <Badge
+                          key={`${item.type}-${item.id}`}
+                          variant="secondary"
+                          className="w-full justify-start truncate"
+                        >
+                          {item.name}
                         </Badge>
-                        <span className="font-medium">{item.name}</span>
-                        <span className="text-muted-foreground">{formatTime(item.time)}</span>
-                        {item.eventName && (
-                          <span className="text-muted-foreground">· {item.eventName}</span>
-                        )}
-                      </>
-                    );
-                    return (
-                      <li key={`${item.type}-${item.id}`}>
-                        {item.type === "event" ? (
-                          <button
-                            type="button"
-                            className="flex w-full flex-wrap items-center gap-2 rounded-md p-1 text-left text-sm hover:bg-muted"
-                            onClick={() => item.event && setPreviewEvent(item.event)}
-                          >
-                            {content}
-                          </button>
-                        ) : (
-                          <div className="flex flex-wrap items-center gap-2 p-1 text-sm">
-                            {content}
-                          </div>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                      ),
+                    )}
+                    {overflow > 0 && (
+                      <span className="text-[0.65rem] text-muted-foreground">+{overflow} more</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="space-y-2 border-t pt-4">
+            <h3 className="font-heading text-sm font-medium">
+              {selectedDate.toLocaleDateString("en-AU", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </h3>
+            {selectedItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nothing scheduled.</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {selectedItems.map((item) => {
+                  const content = (
+                    <>
+                      <Badge variant={item.type === "event" ? "default" : "secondary"}>
+                        {item.type === "event" ? "Event" : "Task"}
+                      </Badge>
+                      <span className="font-medium">{item.name}</span>
+                      <span className="text-muted-foreground">{formatTime(item.time)}</span>
+                      {item.eventName && (
+                        <span className="text-muted-foreground">· {item.eventName}</span>
+                      )}
+                    </>
+                  );
+                  return (
+                    <li key={`${item.type}-${item.id}`}>
+                      {item.type === "event" ? (
+                        <button
+                          type="button"
+                          className="flex w-full flex-wrap items-center gap-2 rounded-md p-1 text-left text-sm hover:bg-muted"
+                          onClick={() => item.event && setPreviewEvent(item.event)}
+                        >
+                          {content}
+                        </button>
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-2 p-1 text-sm">
+                          {content}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       <Dialog open={previewEvent != null} onOpenChange={(open) => !open && setPreviewEvent(null)}>
         <DialogContent className="sm:max-w-lg">

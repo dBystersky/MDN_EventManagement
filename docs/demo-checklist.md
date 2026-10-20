@@ -30,6 +30,12 @@ this machine has no Node.
 
 ## Before every demo
 
+`scripts/demo.sh` does the steps below except `git pull`: it starts (or creates)
+Postgres, creates `.env` if it is missing, then installs, loads the demo data,
+builds and starts. It falls back to the `node:24` container when there is no
+Node. Use `--keep-data` to restart without reloading, or `--dev` for the dev
+server. The steps by hand:
+
 - [ ] Postgres is running: `docker start mdn-postgres`
 - [ ] Code is current on the branch you are demoing: `git pull`, then
       `npm install` (this also regenerates the Prisma client)

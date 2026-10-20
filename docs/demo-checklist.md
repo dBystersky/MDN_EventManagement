@@ -6,7 +6,9 @@ Tick these off before showing the app to anyone. Every command runs from
 ## First time on this machine
 
 Skip this if the app already runs for you. The details are in
-[getting-started.md](./getting-started.md).
+[getting-started.md](./getting-started.md), including how to
+[run Node in a container](./getting-started.md#running-node-in-a-container) if
+this machine has no Node.
 
 - [ ] Start Postgres on port 5433 (swap `docker` for `podman` if that is what you have):
 
@@ -15,7 +17,7 @@ Skip this if the app already runs for you. The details are in
     -e POSTGRES_USER=app_user \
     -e POSTGRES_PASSWORD=app_password \
     -e POSTGRES_DB=event_management \
-    postgres:17
+    docker.io/library/postgres:17
   ```
 
 - [ ] Configure and install:
@@ -45,7 +47,9 @@ Skip this if the app already runs for you. The details are in
   npm run build && npm start
   ```
 
-  `npm run dev` works too if you need to change code mid-demo.
+  `npm run dev` works too if you need to change code mid-demo. If the build
+  fails type checking in `.next/dev/types`, that is leftover output from an
+  older dev run: `rm -rf .next` and build again.
 
 - [ ] Open <http://localhost:3000>
 

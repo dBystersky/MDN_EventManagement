@@ -53,16 +53,16 @@ Skip this if the app already runs for you. The details are in
 
 | Role | Email | Password |
 |------|-------|----------|
-| Admin | `admin@mdn.com` | `changeme123` (or `SEED_ADMIN_*` from `.env`) |
+| Executive | `executive@mdn.com` | `changeme123` (or `SEED_ADMIN_*` from `.env`) |
 | Manager | `manager@mdn.com` | `demo1234` |
 | Member | `member@mdn.com` | `demo1234` |
-| Guest | `guest@mdn.com` | `demo1234` |
 
-`db:demo` prints these at the end too.
+`db:demo` prints these at the end too. Members only see the events and tasks
+they are on; Managers and the Executive see everything.
 
 ## Quick sanity check
 
-- [ ] Sign in as the admin
+- [ ] Sign in as the Executive; you land on Overview
 - [ ] Events and Calendar show upcoming events, not just past ones
 - [ ] The two planted clashes are flagged:
   - venue: "Research Project Showcase" and "Sponsor Info Session" share a
@@ -73,7 +73,7 @@ Skip this if the app already runs for you. The details are in
 
 ## Afterwards
 
-- [ ] Optional: reset to just the admin account with `npm run db:init -- --yes`
+- [ ] Optional: reset to just the Executive account with `npm run db:init -- --yes`
 - [ ] `docker stop mdn-postgres`
 
 If something breaks, see "Something went wrong" in

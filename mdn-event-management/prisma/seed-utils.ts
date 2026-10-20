@@ -25,7 +25,7 @@ export function createClient() {
   return new PrismaClient({ adapter });
 }
 
-const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@mdn.com";
+const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "executive@mdn.com";
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "changeme123";
 const ADMIN_NAME = process.env.SEED_ADMIN_NAME ?? "MDN Executive";
 

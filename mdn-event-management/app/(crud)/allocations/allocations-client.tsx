@@ -312,10 +312,12 @@ export default function AllocationsDemo() {
               <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                 {query ? `${matches.length} of ${items.length}` : `${items.length} total`}
               </span>
-              <Button type="button" size="sm" disabled={!can.create} onClick={openCreate}>
-                <PlusIcon />
-                New allocation
-              </Button>
+              {can.create && (
+                <Button type="button" size="sm" onClick={openCreate}>
+                  <PlusIcon />
+                  New allocation
+                </Button>
+              )}
             </div>
 
             {items.length === 0 ? (
@@ -349,38 +351,45 @@ export default function AllocationsDemo() {
                       const typeName = allocation.resource?.resourceTypeRel?.name;
                       const duration = formatDuration(allocation.startTime, allocation.endTime);
                       const rowConflicts = conflictIndex.get(allocation.allocationId) ?? [];
+                      const label = (
+                        <>
+                          {resourceMatch
+                            ? resourceMatch.highlight((match, i) => (
+                                <mark key={i} className="rounded-xs bg-primary/20 text-foreground">
+                                  {match}
+                                </mark>
+                              ))
+                            : (allocation.resource?.name ?? "Unknown resource")}
+                          {typeName && (
+                            <Badge
+                              variant="outline"
+                              className="type-swatch"
+                              style={resourceTypeStyle(typeName)}
+                            >
+                              {typeName}
+                            </Badge>
+                          )}
+                        </>
+                      );
                       return (
                         <TableRow key={allocation.allocationId}>
                           <TableCell className="text-xs text-muted-foreground tabular-nums">
                             {allocation.allocationId}
                           </TableCell>
                           <TableCell>
-                            <button
-                              type="button"
-                              className="flex w-full flex-wrap items-center gap-2 text-left font-medium hover:underline disabled:cursor-not-allowed disabled:no-underline"
-                              disabled={!can.edit}
-                              onClick={() => openEdit(allocation)}
-                            >
-                              {resourceMatch
-                                ? resourceMatch.highlight((match, i) => (
-                                    <mark
-                                      key={i}
-                                      className="rounded-xs bg-primary/20 text-foreground"
-                                    >
-                                      {match}
-                                    </mark>
-                                  ))
-                                : (allocation.resource?.name ?? "Unknown resource")}
-                              {typeName && (
-                                <Badge
-                                  variant="outline"
-                                  className="type-swatch"
-                                  style={resourceTypeStyle(typeName)}
-                                >
-                                  {typeName}
-                                </Badge>
-                              )}
-                            </button>
+                            {can.edit ? (
+                              <button
+                                type="button"
+                                className="flex w-full flex-wrap items-center gap-2 text-left font-medium hover:underline"
+                                onClick={() => openEdit(allocation)}
+                              >
+                                {label}
+                              </button>
+                            ) : (
+                              <span className="flex flex-wrap items-center gap-2 font-medium">
+                                {label}
+                              </span>
+                            )}
                           </TableCell>
                           <TableCell>
                             <span className="flex flex-wrap items-center gap-2">
@@ -412,30 +421,32 @@ export default function AllocationsDemo() {
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              type="button"
-                              size="xs"
-                              variant="destructive"
-                              disabled={pending || !can.delete}
-                              onClick={async () => {
-                                setError("");
-                                setPending(true);
-                                try {
-                                  await apiJson(
-                                    `/api/resource-allocations/${allocation.allocationId}`,
-                                    "DELETE",
-                                  );
-                                  if (selectedId === allocation.allocationId) resetForm();
-                                  await refresh();
-                                } catch (err) {
-                                  setError(String(err));
-                                } finally {
-                                  setPending(false);
-                                }
-                              }}
-                            >
-                              Delete
-                            </Button>
+                            {can.delete && (
+                              <Button
+                                type="button"
+                                size="xs"
+                                variant="destructive"
+                                disabled={pending}
+                                onClick={async () => {
+                                  setError("");
+                                  setPending(true);
+                                  try {
+                                    await apiJson(
+                                      `/api/resource-allocations/${allocation.allocationId}`,
+                                      "DELETE",
+                                    );
+                                    if (selectedId === allocation.allocationId) resetForm();
+                                    await refresh();
+                                  } catch (err) {
+                                    setError(String(err));
+                                  } finally {
+                                    setPending(false);
+                                  }
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            )}
                           </TableCell>
                         </TableRow>
                       );

@@ -90,20 +90,23 @@ export function OptionSelect({
   );
 }
 
-export function RemovableChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+/** Without `onRemove` the chip is a plain label — no "×" for people who can't remove it. */
+export function RemovableChip({ label, onRemove }: { label: string; onRemove?: () => void }) {
   const text = label || "Unknown";
   return (
-    <Badge variant="secondary" className="gap-1 pr-1">
+    <Badge variant="secondary" className={onRemove ? "gap-1 pr-1" : undefined}>
       {text}
-      <Button
-        type="button"
-        size="icon-xs"
-        variant="ghost"
-        aria-label={`Remove ${text}`}
-        onClick={onRemove}
-      >
-        <XIcon />
-      </Button>
+      {onRemove && (
+        <Button
+          type="button"
+          size="icon-xs"
+          variant="ghost"
+          aria-label={`Remove ${text}`}
+          onClick={onRemove}
+        >
+          <XIcon />
+        </Button>
+      )}
     </Badge>
   );
 }
@@ -116,6 +119,7 @@ export function AssignmentPicker({
   selectedIds,
   onChange,
   showSelected = true,
+  readOnly = false,
 }: {
   id: string;
   label: string;
@@ -124,6 +128,8 @@ export function AssignmentPicker({
   selectedIds: string[];
   onChange: (ids: string[]) => void;
   showSelected?: boolean;
+  /** Lists the selection only, with no way to add or remove. */
+  readOnly?: boolean;
 }) {
   const [pendingId, setPendingId] = useState("");
   const available = options.filter((option) => !selectedIds.includes(option.id));
@@ -132,36 +138,43 @@ export function AssignmentPicker({
 
   return (
     <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
-      <div className="flex gap-2">
-        <OptionSelect
-          id={id}
-          value={pendingId}
-          placeholder={placeholder}
-          options={available}
-          onChange={setPendingId}
-          className="min-w-0 flex-1"
-        />
-        <Button
-          type="button"
-          variant="secondary"
-          disabled={!pendingId}
-          onClick={() => {
-            if (!pendingId || selectedIds.includes(pendingId)) return;
-            onChange([...selectedIds, pendingId]);
-            setPendingId("");
-          }}
-        >
-          Add
-        </Button>
-      </div>
+      <Label htmlFor={readOnly ? undefined : id}>{label}</Label>
+      {!readOnly && (
+        <div className="flex gap-2">
+          <OptionSelect
+            id={id}
+            value={pendingId}
+            placeholder={placeholder}
+            options={available}
+            onChange={setPendingId}
+            className="min-w-0 flex-1"
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!pendingId}
+            onClick={() => {
+              if (!pendingId || selectedIds.includes(pendingId)) return;
+              onChange([...selectedIds, pendingId]);
+              setPendingId("");
+            }}
+          >
+            Add
+          </Button>
+        </div>
+      )}
+      {readOnly && showSelected && selectedIds.length === 0 && (
+        <p className="text-sm text-muted-foreground">None</p>
+      )}
       {showSelected && selectedIds.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {selectedIds.map((selectedId) => (
             <RemovableChip
               key={selectedId}
               label={labelFor(selectedId)}
-              onRemove={() => onChange(selectedIds.filter((id) => id !== selectedId))}
+              onRemove={
+                readOnly ? undefined : () => onChange(selectedIds.filter((id) => id !== selectedId))
+              }
             />
           ))}
         </div>

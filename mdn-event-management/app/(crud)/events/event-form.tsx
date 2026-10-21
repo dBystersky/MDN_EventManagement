@@ -51,6 +51,8 @@ export function EventForm({
   onResourceIdsChange,
   resourcePickerOptions,
   taskIds,
+  savedTaskIds,
+  taskEventId,
   onTaskIdsChange,
   taskPickerOptions,
   draftSubtasks,
@@ -103,6 +105,8 @@ export function EventForm({
   onResourceIdsChange: (ids: string[]) => void;
   resourcePickerOptions: Option[];
   taskIds: string[];
+  savedTaskIds: string[];
+  taskEventId: (taskId: string) => number | null;
   onTaskIdsChange: (ids: string[]) => void;
   taskPickerOptions: Option[];
   draftSubtasks: DraftSubtask[];
@@ -118,7 +122,7 @@ export function EventForm({
   memberOptions: Option[];
   members: Member[];
   resources: Resource[];
-  onAddDraft: () => void;
+  onAddDraft: () => boolean;
   existingDetails: (taskId: string) => { name: string; detail: string };
   onCancel: () => void;
   onSubmit: (form: HTMLFormElement) => Promise<void>;
@@ -126,11 +130,13 @@ export function EventForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{isEditing ? "Update event" : "Event details"}</CardTitle>
+        <CardTitle>{isEditing && canEdit ? "Update event" : "Event details"}</CardTitle>
         <CardDescription>
-          {isEditing
-            ? "Change the selected event, then save."
-            : "Name the event, add a brief, then pick a time and venue."}
+          {!canEdit
+            ? "The selected event."
+            : isEditing
+              ? "Change the selected event, then save."
+              : "Name the event, add a brief, then pick a time and venue."}
         </CardDescription>
       </CardHeader>
       {/* noValidate: the inline errors below replace the browser's bubbles. */}
@@ -145,9 +151,7 @@ export function EventForm({
           <fieldset disabled={!canEdit} className="contents">
             {!canEdit && (
               <p className="text-sm text-muted-foreground">
-                {isEditing
-                  ? "You can view this event but only its managers and executives can change it."
-                  : "Only executives can create events."}
+                View only — this event&apos;s managers and executives can change it.
               </p>
             )}
             <Field id="event-name" label="Event name" error={validation.errorFor("name")}>
@@ -213,28 +217,26 @@ export function EventForm({
                 />
               </Field>
             </div>
-            <fieldset disabled={!canEdit || !canEditManagers} className="contents">
-              <AssignmentPicker
-                key={`managers-${selectedId ?? "new"}`}
-                id="event-manager"
-                label="Event managers"
-                placeholder="Select a member..."
-                selectedIds={managerIds}
-                onChange={onManagerIdsChange}
-                options={managerPickerOptions}
-              />
-            </fieldset>
-            <fieldset disabled={!canEdit || !canAssignMembers} className="contents">
-              <AssignmentPicker
-                key={`members-${selectedId ?? "new"}`}
-                id="event-member"
-                label="Event members"
-                placeholder="Select a member..."
-                selectedIds={memberIds}
-                onChange={onMemberIdsChange}
-                options={memberPickerOptions}
-              />
-            </fieldset>
+            <AssignmentPicker
+              key={`managers-${selectedId ?? "new"}`}
+              id="event-manager"
+              label="Event managers"
+              placeholder="Select a member..."
+              selectedIds={managerIds}
+              onChange={onManagerIdsChange}
+              options={managerPickerOptions}
+              readOnly={!canEdit || !canEditManagers}
+            />
+            <AssignmentPicker
+              key={`members-${selectedId ?? "new"}`}
+              id="event-member"
+              label="Event members"
+              placeholder="Select a member..."
+              selectedIds={memberIds}
+              onChange={onMemberIdsChange}
+              options={memberPickerOptions}
+              readOnly={!canEdit || !canAssignMembers}
+            />
             <AssignmentPicker
               key={`resources-${selectedId ?? "new"}`}
               id="event-resource"
@@ -243,10 +245,13 @@ export function EventForm({
               selectedIds={resourceIds}
               onChange={onResourceIdsChange}
               options={resourcePickerOptions}
+              readOnly={!canEdit}
             />
             <EventSubtasks
               selectedId={selectedId}
               taskIds={taskIds}
+              savedTaskIds={savedTaskIds}
+              taskEventId={taskEventId}
               onTaskIdsChange={onTaskIdsChange}
               taskPickerOptions={taskPickerOptions}
               draftSubtasks={draftSubtasks}
@@ -265,6 +270,7 @@ export function EventForm({
               resources={resources}
               onAddDraft={onAddDraft}
               existingDetails={existingDetails}
+              readOnly={!canEdit}
             />
             <ConflictAlert
               conflicts={conflicts}
@@ -275,12 +281,10 @@ export function EventForm({
         <CardFooter className="justify-end gap-2">
           {isEditing && (
             <Button type="button" variant="ghost" onClick={onCancel}>
-              Cancel
+              {canEdit ? "Cancel" : "Close"}
             </Button>
           )}
-          <Button type="submit" disabled={!canEdit}>
-            {isEditing ? "Update" : "Create"}
-          </Button>
+          {canEdit && <Button type="submit">{isEditing ? "Update" : "Create"}</Button>}
         </CardFooter>
       </form>
     </Card>

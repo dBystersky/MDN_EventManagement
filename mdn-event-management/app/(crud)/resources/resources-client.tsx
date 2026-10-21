@@ -218,10 +218,12 @@ export default function ResourcesDemo() {
               <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                 {query ? `${matches.length} of ${items.length}` : `${items.length} total`}
               </span>
-              <Button type="button" size="sm" disabled={!can.create} onClick={openCreate}>
-                <PlusIcon />
-                New resource
-              </Button>
+              {can.create && (
+                <Button type="button" size="sm" onClick={openCreate}>
+                  <PlusIcon />
+                  New resource
+                </Button>
+              )}
             </div>
 
             {items.length === 0 ? (
@@ -298,39 +300,43 @@ export default function ResourcesDemo() {
                               >
                                 <CalendarClockIcon />
                               </Button>
-                              <Button
-                                type="button"
-                                size="xs"
-                                variant="secondary"
-                                disabled={pending || !can.edit}
-                                onClick={() => openEdit(resource)}
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                type="button"
-                                size="xs"
-                                variant="destructive"
-                                disabled={pending || !can.delete}
-                                onClick={async () => {
-                                  setError("");
-                                  setPending(true);
-                                  try {
-                                    await apiJson(
-                                      `/api/resources/${resource.resourceId}`,
-                                      "DELETE",
-                                    );
-                                    if (selectedId === resource.resourceId) resetForm();
-                                    await refresh();
-                                  } catch (err) {
-                                    setError(String(err));
-                                  } finally {
-                                    setPending(false);
-                                  }
-                                }}
-                              >
-                                Delete
-                              </Button>
+                              {can.edit && (
+                                <Button
+                                  type="button"
+                                  size="xs"
+                                  variant="secondary"
+                                  disabled={pending}
+                                  onClick={() => openEdit(resource)}
+                                >
+                                  Edit
+                                </Button>
+                              )}
+                              {can.delete && (
+                                <Button
+                                  type="button"
+                                  size="xs"
+                                  variant="destructive"
+                                  disabled={pending}
+                                  onClick={async () => {
+                                    setError("");
+                                    setPending(true);
+                                    try {
+                                      await apiJson(
+                                        `/api/resources/${resource.resourceId}`,
+                                        "DELETE",
+                                      );
+                                      if (selectedId === resource.resourceId) resetForm();
+                                      await refresh();
+                                    } catch (err) {
+                                      setError(String(err));
+                                    } finally {
+                                      setPending(false);
+                                    }
+                                  }}
+                                >
+                                  Delete
+                                </Button>
+                              )}
                             </span>
                           </TableCell>
                         </TableRow>
@@ -386,17 +392,18 @@ export default function ResourcesDemo() {
             <Button type="button" variant="ghost" onClick={() => setTimelineFor(null)}>
               Close
             </Button>
-            <Button
-              type="button"
-              disabled={!can.edit}
-              onClick={() => {
-                const target = timelineFor;
-                setTimelineFor(null);
-                if (target) openEdit(target);
-              }}
-            >
-              Edit resource
-            </Button>
+            {can.edit && (
+              <Button
+                type="button"
+                onClick={() => {
+                  const target = timelineFor;
+                  setTimelineFor(null);
+                  if (target) openEdit(target);
+                }}
+              >
+                Edit resource
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

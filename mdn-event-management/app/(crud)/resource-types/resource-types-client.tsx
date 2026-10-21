@@ -89,6 +89,7 @@ export default function ResourceTypesDemo() {
   }
 
   const isEditing = selectedId != null;
+  const canSubmit = isEditing ? can.edit : can.create;
 
   return (
     <section>
@@ -105,80 +106,87 @@ export default function ResourceTypesDemo() {
           </Alert>
         )}
 
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
-          <Card>
-            <CardHeader>
-              <CardTitle>{isEditing ? "Update type" : "Type details"}</CardTitle>
-              <CardDescription>
-                {isEditing
-                  ? "Change the selected type, then save."
-                  : "Name a category that resources can belong to, like Projector or Venue."}
-              </CardDescription>
-            </CardHeader>
-            <form
-              noValidate
-              onSubmit={async (e) => {
-                e.preventDefault();
-                setError("");
-                if (!validation.checkBeforeSubmit(e.currentTarget)) return;
-                setPending(true);
-                try {
-                  if (isEditing) {
-                    await apiJson(`/api/resource-types/${selectedId}`, "PATCH", { name });
-                  } else {
-                    await apiJson("/api/resource-types", "POST", { name });
+        <div
+          className={
+            canSubmit
+              ? "grid items-start gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]"
+              : "grid items-start gap-6"
+          }
+        >
+          {canSubmit && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{isEditing ? "Update type" : "Type details"}</CardTitle>
+                <CardDescription>
+                  {isEditing
+                    ? "Change the selected type, then save."
+                    : "Name a category that resources can belong to, like Projector or Venue."}
+                </CardDescription>
+              </CardHeader>
+              <form
+                noValidate
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setError("");
+                  if (!validation.checkBeforeSubmit(e.currentTarget)) return;
+                  setPending(true);
+                  try {
+                    if (isEditing) {
+                      await apiJson(`/api/resource-types/${selectedId}`, "PATCH", { name });
+                    } else {
+                      await apiJson("/api/resource-types", "POST", { name });
+                    }
+                    resetForm();
+                    await refresh();
+                  } catch (err) {
+                    if (err instanceof ApiError && validation.setServerErrors(err.fieldErrors)) {
+                      return;
+                    }
+                    setError(String(err));
+                  } finally {
+                    setPending(false);
                   }
-                  resetForm();
-                  await refresh();
-                } catch (err) {
-                  if (err instanceof ApiError && validation.setServerErrors(err.fieldErrors)) {
-                    return;
-                  }
-                  setError(String(err));
-                } finally {
-                  setPending(false);
-                }
-              }}
-            >
-              <CardContent className="space-y-4 pb-4">
-                <div className="space-y-2">
-                  <Label htmlFor="type-name">Type name</Label>
-                  <Input
-                    id="type-name"
-                    placeholder="Name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    disabled={isEditing ? !can.edit : !can.create}
-                    required
-                    {...validation.fieldProps("name", "type-name")}
-                  />
-                  <FieldError id="type-name-error">{validation.errorFor("name")}</FieldError>
-                  {name.trim() && (
-                    <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                      Colour:
-                      <Badge
-                        variant="outline"
-                        className="type-swatch"
-                        style={resourceTypeStyle(name)}
-                      >
-                        {name}
-                      </Badge>
-                    </p>
+                }}
+              >
+                <CardContent className="space-y-4 pb-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="type-name">Type name</Label>
+                    <Input
+                      id="type-name"
+                      placeholder="Name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      {...validation.fieldProps("name", "type-name")}
+                    />
+                    <FieldError id="type-name-error">{validation.errorFor("name")}</FieldError>
+                    {name.trim() && (
+                      <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                        Colour:
+                        <Badge
+                          variant="outline"
+                          className="type-swatch"
+                          style={resourceTypeStyle(name)}
+                        >
+                          {name}
+                        </Badge>
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+                <CardFooter className="justify-end gap-2">
+                  {isEditing && (
+                    <Button type="button" variant="ghost" onClick={resetForm}>
+                      Cancel
+                    </Button>
                   )}
-                </div>
-              </CardContent>
-              <CardFooter className="justify-end gap-2">
-                {isEditing && (
-                  <Button type="button" variant="ghost" onClick={resetForm}>
-                    Cancel
+                  <Button type="submit" disabled={pending}>
+                    {isEditing ? "Update" : "Create"}
                   </Button>
-                )}
-                <Button type="submit" disabled={pending || (isEditing ? !can.edit : !can.create)}>
-                  {isEditing ? "Update" : "Create"}
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
+                </CardFooter>
+              </form>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -226,12 +234,12 @@ export default function ResourceTypesDemo() {
                             <Badge variant="secondary">
                               {count === 1 ? "1 resource" : `${count} resources`}
                             </Badge>
-                            {!confirming && (
+                            {can.delete && !confirming && (
                               <Button
                                 type="button"
                                 size="xs"
                                 variant="destructive"
-                                disabled={pending || !can.delete}
+                                disabled={pending}
                                 onClick={() => {
                                   setError("");
                                   // Deleting a type cascades through its

@@ -258,6 +258,8 @@ export default function TasksDemo() {
     : canCreateTask(actor, null) || canModifyTask(actor, eventsById.get(Number(eventId)) ?? null);
   const canMoveEvent = isEditing ? canAssign : canCreate;
   const canSetBudget = canEditBudget(actor);
+  // The Actions column only appears when at least one shown row can be deleted.
+  const anyDeletable = matches.some(({ task }) => rightsFor(task).full);
 
   function managerLabel(id: string) {
     return managerOptions.find((option) => option.id === id)?.name ?? "Unknown";
@@ -333,10 +335,12 @@ export default function TasksDemo() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button type="button" size="sm" disabled={!canCreate} onClick={openCreate}>
-                <PlusIcon />
-                New task
-              </Button>
+              {canCreate && (
+                <Button type="button" size="sm" onClick={openCreate}>
+                  <PlusIcon />
+                  New task
+                </Button>
+              )}
             </div>
 
             {items.length === 0 ? (
@@ -364,7 +368,7 @@ export default function TasksDemo() {
                       <TableHead>Deadline</TableHead>
                       <TableHead>Budget</TableHead>
                       <TableHead>Managers</TableHead>
-                      <TableHead className="w-0 text-right">Actions</TableHead>
+                      {anyDeletable && <TableHead className="w-0 text-right">Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -373,57 +377,62 @@ export default function TasksDemo() {
                       const managerNames = managerNamesOf(task);
                       const budgetLabel = formatBudget(task.budget);
                       const rights = rightsFor(task);
+                      const label = nameMatch
+                        ? nameMatch.highlight((match, i) => (
+                            <mark key={i} className="rounded-xs bg-primary/20 text-foreground">
+                              {match}
+                            </mark>
+                          ))
+                        : task.name;
                       return (
                         <TableRow key={task.taskId}>
                           <TableCell className="text-xs text-muted-foreground tabular-nums">
                             {task.taskId}
                           </TableCell>
                           <TableCell>
-                            <button
-                              type="button"
-                              className="w-full text-left font-medium hover:underline disabled:cursor-not-allowed disabled:no-underline"
-                              disabled={!rights.edit}
-                              onClick={() => openEdit(task)}
-                            >
-                              {nameMatch
-                                ? nameMatch.highlight((match, i) => (
-                                    <mark
-                                      key={i}
-                                      className="rounded-xs bg-primary/20 text-foreground"
-                                    >
-                                      {match}
-                                    </mark>
-                                  ))
-                                : task.name}
-                            </button>
+                            {rights.edit ? (
+                              <button
+                                type="button"
+                                className="w-full text-left font-medium hover:underline"
+                                onClick={() => openEdit(task)}
+                              >
+                                {label}
+                              </button>
+                            ) : (
+                              <span className="font-medium">{label}</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-sm">
                             {eventName || <span className="text-muted-foreground">Unassigned</span>}
                           </TableCell>
                           <TableCell>
-                            <Select
-                              items={TASK_STATUS_ITEMS}
-                              value={task.status}
-                              onValueChange={(value) => value && changeStatus(task, value)}
-                              disabled={pending || !rights.edit}
-                            >
-                              <SelectTrigger
-                                size="sm"
-                                aria-label={`Status of ${task.name}`}
-                                className="w-36"
+                            {!rights.edit ? (
+                              <TaskStatusBadge status={task.status} />
+                            ) : (
+                              <Select
+                                items={TASK_STATUS_ITEMS}
+                                value={task.status}
+                                onValueChange={(value) => value && changeStatus(task, value)}
+                                disabled={pending}
                               >
-                                <SelectValue>
-                                  {(value: TaskStatus) => <TaskStatusBadge status={value} />}
-                                </SelectValue>
-                              </SelectTrigger>
-                              <SelectContent>
-                                {TASK_STATUSES.map((value) => (
-                                  <SelectItem key={value} value={value}>
-                                    <TaskStatusBadge status={value} />
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                                <SelectTrigger
+                                  size="sm"
+                                  aria-label={`Status of ${task.name}`}
+                                  className="w-36"
+                                >
+                                  <SelectValue>
+                                    {(value: TaskStatus) => <TaskStatusBadge status={value} />}
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {TASK_STATUSES.map((value) => (
+                                    <SelectItem key={value} value={value}>
+                                      <TaskStatusBadge status={value} />
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
                           </TableCell>
                           <TableCell className="text-sm whitespace-nowrap">
                             {formatDateTime(task.deadline)}
@@ -436,29 +445,33 @@ export default function TasksDemo() {
                               <span className="text-muted-foreground">Unassigned</span>
                             )}
                           </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              type="button"
-                              size="xs"
-                              variant="destructive"
-                              disabled={pending || !rights.full}
-                              onClick={async () => {
-                                setError("");
-                                setPending(true);
-                                try {
-                                  await apiJson(`/api/tasks/${task.taskId}`, "DELETE");
-                                  if (selectedId === task.taskId) resetForm();
-                                  await refresh();
-                                } catch (err) {
-                                  setError(String(err));
-                                } finally {
-                                  setPending(false);
-                                }
-                              }}
-                            >
-                              Delete
-                            </Button>
-                          </TableCell>
+                          {anyDeletable && (
+                            <TableCell className="text-right">
+                              {rights.full && (
+                                <Button
+                                  type="button"
+                                  size="xs"
+                                  variant="destructive"
+                                  disabled={pending}
+                                  onClick={async () => {
+                                    setError("");
+                                    setPending(true);
+                                    try {
+                                      await apiJson(`/api/tasks/${task.taskId}`, "DELETE");
+                                      if (selectedId === task.taskId) resetForm();
+                                      await refresh();
+                                    } catch (err) {
+                                      setError(String(err));
+                                    } finally {
+                                      setPending(false);
+                                    }
+                                  }}
+                                >
+                                  Delete
+                                </Button>
+                              )}
+                            </TableCell>
+                          )}
                         </TableRow>
                       );
                     })}
@@ -552,7 +565,7 @@ export default function TasksDemo() {
                 />
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className={canSetBudget ? "grid gap-4 sm:grid-cols-2" : "grid gap-4"}>
                 <div className="space-y-2">
                   <Label htmlFor="task-deadline">Deadline</Label>
                   <Input
@@ -574,24 +587,26 @@ export default function TasksDemo() {
                     <FieldDescription>This is in the past.</FieldDescription>
                   )}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="task-budget">Budget</Label>
-                  <Input
-                    id="task-budget"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="Optional"
-                    value={budget}
-                    onChange={(e) => {
-                      setBudget(e.target.value);
-                      validation.touch("budget");
-                    }}
-                    disabled={!canSubmit || !canSetBudget}
-                    {...validation.fieldProps("budget", "task-budget")}
-                  />
-                  <FieldError id="task-budget-error">{validation.errorFor("budget")}</FieldError>
-                </div>
+                {canSetBudget && (
+                  <div className="space-y-2">
+                    <Label htmlFor="task-budget">Budget</Label>
+                    <Input
+                      id="task-budget"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="Optional"
+                      value={budget}
+                      onChange={(e) => {
+                        setBudget(e.target.value);
+                        validation.touch("budget");
+                      }}
+                      disabled={!canSubmit}
+                      {...validation.fieldProps("budget", "task-budget")}
+                    />
+                    <FieldError id="task-budget-error">{validation.errorFor("budget")}</FieldError>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -616,36 +631,44 @@ export default function TasksDemo() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="task-event">Event</Label>
-                <Combobox
-                  items={eventOptions}
-                  value={selectedEvent}
-                  onValueChange={(option) => setEventId(option ? option.id : "")}
-                  itemToStringLabel={(option) => option.name}
-                  isItemEqualToValue={(a, b) => a?.id === b?.id}
-                  filter={(item, query) => fuzzyMatches(item.search, query)}
-                >
-                  <ComboboxInput
-                    id="task-event"
-                    placeholder="Search events..."
-                    disabled={!canSubmit || !canMoveEvent}
-                    showClear
-                    className="w-full"
-                  />
-                  <ComboboxContent>
-                    <ComboboxEmpty>No events match.</ComboboxEmpty>
-                    <ComboboxList>
-                      <ComboboxCollection>
-                        {(option: (typeof eventOptions)[number]) => (
-                          <ComboboxItem key={option.id} value={option}>
-                            <span className="truncate">{option.name}</span>
-                          </ComboboxItem>
-                        )}
-                      </ComboboxCollection>
-                    </ComboboxList>
-                  </ComboboxContent>
-                </Combobox>
-                {events.length === 0 && (
+                <Label htmlFor={canMoveEvent ? "task-event" : undefined}>Event</Label>
+                {!canMoveEvent ? (
+                  <p className="text-sm">
+                    {eventsById.get(Number(eventId))?.name ?? (
+                      <span className="text-muted-foreground">Unassigned</span>
+                    )}
+                  </p>
+                ) : (
+                  <Combobox
+                    items={eventOptions}
+                    value={selectedEvent}
+                    onValueChange={(option) => setEventId(option ? option.id : "")}
+                    itemToStringLabel={(option) => option.name}
+                    isItemEqualToValue={(a, b) => a?.id === b?.id}
+                    filter={(item, query) => fuzzyMatches(item.search, query)}
+                  >
+                    <ComboboxInput
+                      id="task-event"
+                      placeholder="Search events..."
+                      disabled={!canSubmit}
+                      showClear
+                      className="w-full"
+                    />
+                    <ComboboxContent>
+                      <ComboboxEmpty>No events match.</ComboboxEmpty>
+                      <ComboboxList>
+                        <ComboboxCollection>
+                          {(option: (typeof eventOptions)[number]) => (
+                            <ComboboxItem key={option.id} value={option}>
+                              <span className="truncate">{option.name}</span>
+                            </ComboboxItem>
+                          )}
+                        </ComboboxCollection>
+                      </ComboboxList>
+                    </ComboboxContent>
+                  </Combobox>
+                )}
+                {canMoveEvent && events.length === 0 && (
                   <p className="text-xs text-muted-foreground">
                     No events exist yet.{" "}
                     <Link href="/events" className="text-primary underline underline-offset-4">
@@ -657,77 +680,87 @@ export default function TasksDemo() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="task-manager">Managers</Label>
-                <Combobox
-                  key={managerIds.join("-") || "none"}
-                  items={availableManagers}
-                  value={pendingManager}
-                  onValueChange={(option) => {
-                    if (!option) {
+                <Label htmlFor={canAssign ? "task-manager" : undefined}>Managers</Label>
+                {canAssign && (
+                  <Combobox
+                    key={managerIds.join("-") || "none"}
+                    items={availableManagers}
+                    value={pendingManager}
+                    onValueChange={(option) => {
+                      if (!option) {
+                        setPendingManager(null);
+                        return;
+                      }
+                      if (!managerIds.includes(option.id)) {
+                        setManagerIds([...managerIds, option.id]);
+                      }
                       setPendingManager(null);
-                      return;
-                    }
-                    if (!managerIds.includes(option.id)) {
-                      setManagerIds([...managerIds, option.id]);
-                    }
-                    setPendingManager(null);
-                  }}
-                  itemToStringLabel={(option) => option.name}
-                  isItemEqualToValue={(a, b) => a?.id === b?.id}
-                  filter={(item, query) => fuzzyMatches(item.search, query)}
-                >
-                  <ComboboxInput
-                    id="task-manager"
-                    placeholder="Search members..."
-                    disabled={!canSubmit || !canAssign || availableManagers.length === 0}
-                    className="w-full"
-                  />
-                  <ComboboxContent>
-                    <ComboboxEmpty>No members match.</ComboboxEmpty>
-                    <ComboboxList>
-                      <ComboboxCollection>
-                        {(option: (typeof managerOptions)[number]) => (
-                          <ComboboxItem key={option.id} value={option}>
-                            <span className="flex min-w-0 flex-1 flex-col">
-                              <span className="truncate">{option.name}</span>
-                              <span className="truncate text-xs text-muted-foreground">
-                                {option.email}
+                    }}
+                    itemToStringLabel={(option) => option.name}
+                    isItemEqualToValue={(a, b) => a?.id === b?.id}
+                    filter={(item, query) => fuzzyMatches(item.search, query)}
+                  >
+                    <ComboboxInput
+                      id="task-manager"
+                      placeholder="Search members..."
+                      disabled={!canSubmit || availableManagers.length === 0}
+                      className="w-full"
+                    />
+                    <ComboboxContent>
+                      <ComboboxEmpty>No members match.</ComboboxEmpty>
+                      <ComboboxList>
+                        <ComboboxCollection>
+                          {(option: (typeof managerOptions)[number]) => (
+                            <ComboboxItem key={option.id} value={option}>
+                              <span className="flex min-w-0 flex-1 flex-col">
+                                <span className="truncate">{option.name}</span>
+                                <span className="truncate text-xs text-muted-foreground">
+                                  {option.email}
+                                </span>
                               </span>
-                            </span>
-                          </ComboboxItem>
-                        )}
-                      </ComboboxCollection>
-                    </ComboboxList>
-                  </ComboboxContent>
-                </Combobox>
-                {members.length === 0 ? (
+                            </ComboboxItem>
+                          )}
+                        </ComboboxCollection>
+                      </ComboboxList>
+                    </ComboboxContent>
+                  </Combobox>
+                )}
+                {canAssign && members.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
                     No members exist yet. Sign up accounts first to assign managers.
                   </p>
                 ) : managerIds.length > 0 ? (
                   <div className="flex flex-wrap gap-1.5">
                     {managerIds.map((id) => (
-                      <Badge key={id} variant="secondary" className="gap-1 pr-1">
+                      <Badge
+                        key={id}
+                        variant="secondary"
+                        className={canAssign ? "gap-1 pr-1" : undefined}
+                      >
                         {managerLabel(id)}
-                        <Button
-                          type="button"
-                          size="icon-xs"
-                          variant="ghost"
-                          aria-label={`Remove ${managerLabel(id)}`}
-                          disabled={!canSubmit || !canAssign}
-                          onClick={() =>
-                            setManagerIds(managerIds.filter((managerId) => managerId !== id))
-                          }
-                        >
-                          <XIcon />
-                        </Button>
+                        {canAssign && (
+                          <Button
+                            type="button"
+                            size="icon-xs"
+                            variant="ghost"
+                            aria-label={`Remove ${managerLabel(id)}`}
+                            disabled={!canSubmit}
+                            onClick={() =>
+                              setManagerIds(managerIds.filter((managerId) => managerId !== id))
+                            }
+                          >
+                            <XIcon />
+                          </Button>
+                        )}
                       </Badge>
                     ))}
                   </div>
-                ) : (
+                ) : canAssign ? (
                   <p className="text-xs text-muted-foreground">
                     Optional. Search a member to add them.
                   </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Unassigned</p>
                 )}
               </div>
             </div>

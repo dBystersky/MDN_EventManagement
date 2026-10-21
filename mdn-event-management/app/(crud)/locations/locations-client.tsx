@@ -161,10 +161,12 @@ export default function LocationsDemo() {
               <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                 {query ? `${matches.length} of ${items.length}` : `${items.length} total`}
               </span>
-              <Button type="button" size="sm" disabled={!can.create} onClick={openCreate}>
-                <PlusIcon />
-                New location
-              </Button>
+              {can.create && (
+                <Button type="button" size="sm" onClick={openCreate}>
+                  <PlusIcon />
+                  New location
+                </Button>
+              )}
             </div>
 
             {items.length === 0 ? (
@@ -207,36 +209,43 @@ export default function LocationsDemo() {
                         </TableCell>
                         <TableCell className="text-right">
                           <span className="flex justify-end gap-1">
-                            <Button
-                              type="button"
-                              size="xs"
-                              variant="secondary"
-                              disabled={pending || !can.edit}
-                              onClick={() => openEdit(location)}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              type="button"
-                              size="xs"
-                              variant="destructive"
-                              disabled={pending || !can.delete}
-                              onClick={async () => {
-                                setError("");
-                                setPending(true);
-                                try {
-                                  await apiJson(`/api/locations/${location.locationId}`, "DELETE");
-                                  if (selectedId === location.locationId) resetForm();
-                                  await refresh();
-                                } catch (err) {
-                                  setError(String(err));
-                                } finally {
-                                  setPending(false);
-                                }
-                              }}
-                            >
-                              Delete
-                            </Button>
+                            {can.edit && (
+                              <Button
+                                type="button"
+                                size="xs"
+                                variant="secondary"
+                                disabled={pending}
+                                onClick={() => openEdit(location)}
+                              >
+                                Edit
+                              </Button>
+                            )}
+                            {can.delete && (
+                              <Button
+                                type="button"
+                                size="xs"
+                                variant="destructive"
+                                disabled={pending}
+                                onClick={async () => {
+                                  setError("");
+                                  setPending(true);
+                                  try {
+                                    await apiJson(
+                                      `/api/locations/${location.locationId}`,
+                                      "DELETE",
+                                    );
+                                    if (selectedId === location.locationId) resetForm();
+                                    await refresh();
+                                  } catch (err) {
+                                    setError(String(err));
+                                  } finally {
+                                    setPending(false);
+                                  }
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            )}
                           </span>
                         </TableCell>
                       </TableRow>

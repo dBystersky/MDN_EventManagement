@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { CalendarClockIcon, CircleAlertIcon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -36,12 +35,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { fetchSessionRole, resourcePermissions, type Capabilities } from "@/lib/permissions";
+import {
+  fetchSessionRole,
+  resourcePermissions,
+  resourceTypePermissions,
+  type Capabilities,
+} from "@/lib/permissions";
 import { resourceTypeStyle } from "@/lib/resourceTypeColor";
 import { fuzzyMatches } from "@/lib/fuzzyFilter";
 import { searchResources, typeNameOf } from "@/lib/fuzzyResources";
 import type { Booking } from "@/lib/timeline";
 import { ResourceTimeline } from "./resource-timeline";
+import { ResourceTypesPanel } from "./resource-types-panel";
 import { ApiError, apiJson } from "@/lib/api-json";
 import { useFieldValidation } from "@/hooks/use-field-validation";
 import { validateResource } from "@/lib/validation";
@@ -78,6 +83,7 @@ export default function ResourcesDemo() {
   const [bookableNames, setBookableNames] = useState<Map<number, string>>(new Map());
   const [timelineFor, setTimelineFor] = useState<Resource | null>(null);
   const [can, setCan] = useState<Capabilities>(() => resourcePermissions(null));
+  const [typeCan, setTypeCan] = useState<Capabilities>(() => resourceTypePermissions(null));
   const validation = useFieldValidation({ name, resourceTypeId }, validateResource);
 
   async function refresh() {
@@ -99,6 +105,7 @@ export default function ResourcesDemo() {
       ]),
     );
     setCan(resourcePermissions(role));
+    setTypeCan(resourceTypePermissions(role));
   }
 
   useEffect(() => {
@@ -183,165 +190,174 @@ export default function ResourcesDemo() {
           </Alert>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Resource list</CardTitle>
-            <CardDescription>
-              Search by resource or type name, then select a row to edit it.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative min-w-0 flex-1">
-                <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="resource-search"
-                  type="search"
-                  placeholder="Search resources..."
-                  aria-label="Search resources"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  className="w-full pl-8"
-                />
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+          <Card className="min-w-0">
+            <CardHeader>
+              <CardTitle>Resource list</CardTitle>
+              <CardDescription>
+                Search by resource or type name, then select a row to edit it.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="resource-search"
+                    type="search"
+                    placeholder="Search resources..."
+                    aria-label="Search resources"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    className="w-full pl-8"
+                  />
+                </div>
+                {query && (
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    aria-label="Clear search"
+                    onClick={() => setQuery("")}
+                  >
+                    <XIcon />
+                  </Button>
+                )}
+                <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                  {query ? `${matches.length} of ${items.length}` : `${items.length} total`}
+                </span>
+                {can.create && (
+                  <Button type="button" size="sm" onClick={openCreate}>
+                    <PlusIcon />
+                    New resource
+                  </Button>
+                )}
               </div>
-              {query && (
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  variant="ghost"
-                  aria-label="Clear search"
-                  onClick={() => setQuery("")}
-                >
-                  <XIcon />
-                </Button>
-              )}
-              <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                {query ? `${matches.length} of ${items.length}` : `${items.length} total`}
-              </span>
-              <Button type="button" size="sm" disabled={!can.create} onClick={openCreate}>
-                <PlusIcon />
-                New resource
-              </Button>
-            </div>
 
-            {items.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No resources yet. Create one to see it listed here.
-              </p>
-            ) : matches.length === 0 ? (
-              <div className="space-y-3">
+              {items.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No resources match &ldquo;{query}&rdquo;.
+                  No resources yet. Create one to see it listed here.
                 </p>
-                <Button type="button" size="sm" variant="secondary" onClick={() => setQuery("")}>
-                  Clear search
-                </Button>
-              </div>
-            ) : (
-              <div className="min-w-0 overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">ID</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead className="w-0 text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {matches.map(({ resource, nameMatch }) => {
-                      const typeName = typeNameOf(resource, types);
-                      return (
-                        <TableRow key={resource.resourceId}>
-                          <TableCell className="text-xs text-muted-foreground tabular-nums">
-                            {resource.resourceId}
-                          </TableCell>
-                          <TableCell>
-                            <button
-                              type="button"
-                              className="w-full text-left font-medium hover:underline"
-                              title={`Show when ${resource.name} is booked`}
-                              onClick={() => setTimelineFor(resource)}
-                            >
-                              {nameMatch
-                                ? nameMatch.highlight((match, i) => (
-                                    <mark
-                                      key={i}
-                                      className="rounded-xs bg-primary/20 text-foreground"
-                                    >
-                                      {match}
-                                    </mark>
-                                  ))
-                                : resource.name}
-                            </button>
-                          </TableCell>
-                          <TableCell>
-                            {typeName && (
-                              <Badge
-                                variant="outline"
-                                className="type-swatch"
-                                style={resourceTypeStyle(typeName)}
-                              >
-                                {typeName}
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className="flex justify-end gap-1">
-                              <Button
+              ) : matches.length === 0 ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    No resources match &ldquo;{query}&rdquo;.
+                  </p>
+                  <Button type="button" size="sm" variant="secondary" onClick={() => setQuery("")}>
+                    Clear search
+                  </Button>
+                </div>
+              ) : (
+                <div className="min-w-0 overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12">ID</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead className="w-0 text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {matches.map(({ resource, nameMatch }) => {
+                        const typeName = typeNameOf(resource, types);
+                        return (
+                          <TableRow key={resource.resourceId}>
+                            <TableCell className="text-xs text-muted-foreground tabular-nums">
+                              {resource.resourceId}
+                            </TableCell>
+                            <TableCell>
+                              <button
                                 type="button"
-                                size="xs"
-                                variant="ghost"
-                                aria-label={`Show bookings for ${resource.name}`}
-                                disabled={pending}
+                                className="w-full text-left font-medium hover:underline"
+                                title={`Show when ${resource.name} is booked`}
                                 onClick={() => setTimelineFor(resource)}
                               >
-                                <CalendarClockIcon />
-                              </Button>
-                              <Button
-                                type="button"
-                                size="xs"
-                                variant="secondary"
-                                disabled={pending || !can.edit}
-                                onClick={() => openEdit(resource)}
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                type="button"
-                                size="xs"
-                                variant="destructive"
-                                disabled={pending || !can.delete}
-                                onClick={async () => {
-                                  setError("");
-                                  setPending(true);
-                                  try {
-                                    await apiJson(
-                                      `/api/resources/${resource.resourceId}`,
-                                      "DELETE",
-                                    );
-                                    if (selectedId === resource.resourceId) resetForm();
-                                    await refresh();
-                                  } catch (err) {
-                                    setError(String(err));
-                                  } finally {
-                                    setPending(false);
-                                  }
-                                }}
-                              >
-                                Delete
-                              </Button>
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                                {nameMatch
+                                  ? nameMatch.highlight((match, i) => (
+                                      <mark
+                                        key={i}
+                                        className="rounded-xs bg-primary/20 text-foreground"
+                                      >
+                                        {match}
+                                      </mark>
+                                    ))
+                                  : resource.name}
+                              </button>
+                            </TableCell>
+                            <TableCell>
+                              {typeName && (
+                                <Badge
+                                  variant="outline"
+                                  className="type-swatch"
+                                  style={resourceTypeStyle(typeName)}
+                                >
+                                  {typeName}
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <span className="flex justify-end gap-1">
+                                <Button
+                                  type="button"
+                                  size="xs"
+                                  variant="ghost"
+                                  aria-label={`Show bookings for ${resource.name}`}
+                                  disabled={pending}
+                                  onClick={() => setTimelineFor(resource)}
+                                >
+                                  <CalendarClockIcon />
+                                </Button>
+                                {can.edit && (
+                                  <Button
+                                    type="button"
+                                    size="xs"
+                                    variant="secondary"
+                                    disabled={pending}
+                                    onClick={() => openEdit(resource)}
+                                  >
+                                    Edit
+                                  </Button>
+                                )}
+                                {can.delete && (
+                                  <Button
+                                    type="button"
+                                    size="xs"
+                                    variant="destructive"
+                                    disabled={pending}
+                                    onClick={async () => {
+                                      setError("");
+                                      setPending(true);
+                                      try {
+                                        await apiJson(
+                                          `/api/resources/${resource.resourceId}`,
+                                          "DELETE",
+                                        );
+                                        if (selectedId === resource.resourceId) resetForm();
+                                        await refresh();
+                                      } catch (err) {
+                                        setError(String(err));
+                                      } finally {
+                                        setPending(false);
+                                      }
+                                    }}
+                                  >
+                                    Delete
+                                  </Button>
+                                )}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          <ResourceTypesPanel types={types} resources={items} can={typeCan} onChanged={refresh} />
+        </div>
       </div>
 
       <Dialog
@@ -386,17 +402,18 @@ export default function ResourcesDemo() {
             <Button type="button" variant="ghost" onClick={() => setTimelineFor(null)}>
               Close
             </Button>
-            <Button
-              type="button"
-              disabled={!can.edit}
-              onClick={() => {
-                const target = timelineFor;
-                setTimelineFor(null);
-                if (target) openEdit(target);
-              }}
-            >
-              Edit resource
-            </Button>
+            {can.edit && (
+              <Button
+                type="button"
+                onClick={() => {
+                  const target = timelineFor;
+                  setTimelineFor(null);
+                  if (target) openEdit(target);
+                }}
+              >
+                Edit resource
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -506,14 +523,7 @@ export default function ResourcesDemo() {
                 </FieldError>
                 {types.length === 0 && (
                   <p className="text-xs text-muted-foreground">
-                    No types exist yet.{" "}
-                    <Link
-                      href="/resource-types"
-                      className="text-primary underline underline-offset-4"
-                    >
-                      Create a resource type
-                    </Link>{" "}
-                    first.
+                    No types yet — add one in the Types panel first.
                   </p>
                 )}
               </div>

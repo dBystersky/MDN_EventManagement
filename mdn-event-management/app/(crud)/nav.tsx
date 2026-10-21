@@ -18,7 +18,6 @@ const LINKS = [
   { href: "/allocations", label: "Allocations" },
   { href: "/locations", label: "Locations" },
   { href: "/resources", label: "Resources" },
-  { href: "/resource-types", label: "Resource types" },
   { href: "/members", label: "Members" },
   { href: "/audit-log", label: "Audit log" },
 ];

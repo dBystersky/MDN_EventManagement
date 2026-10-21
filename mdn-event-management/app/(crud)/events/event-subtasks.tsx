@@ -1,14 +1,35 @@
 "use client";
 
-import { XIcon } from "lucide-react";
+import { useState } from "react";
+import Link from "next/link";
+import { PlusIcon, XIcon } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Combobox,
+  ComboboxCollection,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
 import type { FieldValidation } from "@/hooks/use-field-validation";
+import { fuzzyMatches } from "@/lib/fuzzyFilter";
 import type { SubtaskDraftField } from "@/lib/validation";
 
-import { AssignmentPicker, Field, OptionSelect } from "./form-controls";
+import { Field, OptionSelect } from "./form-controls";
 import { formatSubtaskDate, names } from "./helpers";
 import { ResourceSearch } from "./resource-search";
 import type { DraftSubtask, Member, Option, Resource } from "./types";
@@ -16,34 +37,63 @@ import type { DraftSubtask, Member, Option, Resource } from "./types";
 function SubtaskRow({
   title,
   detail,
+  badge,
+  href,
+  onOpen,
   onRemove,
 }: {
   title: string;
   detail: string;
-  onRemove: () => void;
+  /** A saved task opens on the Tasks page… */
+  href?: string;
+  /** …and an unsaved draft reopens in the subtask dialog. */
+  onOpen?: () => void;
+  /** Marks a row that only exists once the event is saved. */
+  badge?: string;
+  /** Left out when the event is view-only. */
+  onRemove?: () => void;
 }) {
   return (
     <li className="flex items-start justify-between gap-3 rounded-lg border bg-background p-3">
       <div className="min-w-0">
-        <p className="text-sm font-medium">{title}</p>
+        <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+          {href ? (
+            <Link href={href} className="hover:underline">
+              {title}
+            </Link>
+          ) : onOpen ? (
+            <button type="button" className="text-left hover:underline" onClick={onOpen}>
+              {title}
+            </button>
+          ) : (
+            title
+          )}
+          {badge && <Badge variant="outline">{badge}</Badge>}
+        </p>
         <p className="text-xs text-muted-foreground">{detail}</p>
       </div>
-      <Button
-        type="button"
-        size="icon-xs"
-        variant="ghost"
-        aria-label={`Remove ${title}`}
-        onClick={onRemove}
-      >
-        <XIcon />
-      </Button>
+      {onRemove && (
+        <Button
+          type="button"
+          size="icon-xs"
+          variant="ghost"
+          aria-label={`Remove ${title}`}
+          onClick={onRemove}
+        >
+          <XIcon />
+        </Button>
+      )}
     </li>
   );
 }
 
+type AttachOption = Option & { search: string };
+
 export function EventSubtasks({
-  selectedId,
   taskIds,
+  savedTaskIds,
+  taskEventId,
+  selectedId,
   onTaskIdsChange,
   taskPickerOptions,
   draftSubtasks,
@@ -62,9 +112,14 @@ export function EventSubtasks({
   resources,
   onAddDraft,
   existingDetails,
+  readOnly = false,
 }: {
-  selectedId: number | null;
   taskIds: string[];
+  /** The tasks the event had when it was opened; anything else is newly attached. */
+  savedTaskIds: string[];
+  /** The event a task currently belongs to, if any. */
+  taskEventId: (taskId: string) => number | null;
+  selectedId: number | null;
   onTaskIdsChange: (ids: string[]) => void;
   taskPickerOptions: Option[];
   draftSubtasks: DraftSubtask[];
@@ -75,99 +130,95 @@ export function EventSubtasks({
   onSubtaskAssigneeIdChange: (value: string) => void;
   subtaskDeadline: string;
   onSubtaskDeadlineChange: (value: string) => void;
-  /** Speaks up only when "Add subtask" is pressed — the composer is optional. */
+  /** Speaks up only when "Add to event" is pressed. */
   subtaskValidation: FieldValidation<SubtaskDraftField>;
   subtaskResourceIds: string[];
   onSubtaskResourceIdsChange: (ids: string[]) => void;
   memberOptions: Option[];
   members: Member[];
   resources: Resource[];
-  onAddDraft: () => void;
+  /** Adds the composed subtask as a draft; false when the composer is incomplete. */
+  /** Adds the composed subtask, or replaces draft `replaceKey`; false when incomplete. */
+  onAddDraft: (replaceKey?: string) => boolean;
   existingDetails: (taskId: string) => { name: string; detail: string };
+  /** Lists the subtasks only — no adding and no removing. */
+  readOnly?: boolean;
 }) {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  /** The draft being edited in the dialog, or null when composing a new one. */
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+
+  const attachOptions: AttachOption[] = taskPickerOptions
+    .filter((option) => !taskIds.includes(option.id))
+    .map((option) => ({ ...option, search: option.label }));
+
+  function clearComposer() {
+    onSubtaskTitleChange("");
+    onSubtaskAssigneeIdChange("");
+    onSubtaskDeadlineChange("");
+    onSubtaskResourceIdsChange([]);
+    subtaskValidation.reset();
+  }
+
+  /** Every way in or out of the dialog starts the next one blank. */
+  function handleOpenChange(open: boolean) {
+    clearComposer();
+    setEditingKey(null);
+    setDialogOpen(open);
+  }
+
+  function openDraft(draft: DraftSubtask) {
+    handleOpenChange(true);
+    onSubtaskTitleChange(draft.name);
+    onSubtaskAssigneeIdChange(draft.assigneeId);
+    onSubtaskDeadlineChange(draft.deadline);
+    onSubtaskResourceIdsChange(draft.resourceIds);
+    setEditingKey(draft.key);
+  }
+
+  function submitDraft() {
+    if (onAddDraft(editingKey ?? undefined)) {
+      setEditingKey(null);
+      setDialogOpen(false);
+    }
+  }
+
+  const count = taskIds.length + draftSubtasks.length;
+
   return (
     <div className="space-y-4 rounded-xl border bg-muted/30 p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <p className="text-sm font-medium">Event subtasks</p>
-        <p className="text-xs text-muted-foreground">Create assignments scoped to this event.</p>
+        <p className="text-sm font-medium">Subtasks</p>
+        <p className="text-xs text-muted-foreground">{count === 1 ? "1 task" : `${count} tasks`}</p>
       </div>
 
-      {/* Selected tasks are listed below, not as picker badges. */}
-      <AssignmentPicker
-        key={`tasks-${selectedId ?? "new"}`}
-        id="event-task"
-        label="Attach existing task"
-        placeholder="Select a task..."
-        showSelected={false}
-        selectedIds={taskIds}
-        onChange={onTaskIdsChange}
-        options={taskPickerOptions}
-      />
-
-      {/* The id scopes where a failed "Add subtask" moves focus to. */}
-      <div id="subtask-composer" className="space-y-4">
-        <Field id="subtask-title" label="Subtask title" error={subtaskValidation.errorFor("name")}>
-          <Input
-            id="subtask-title"
-            placeholder="e.g. Finish slides for the welcome talk"
-            value={subtaskTitle}
-            onChange={(e) => onSubtaskTitleChange(e.target.value)}
-            {...subtaskValidation.fieldProps("name", "subtask-title", { touchOnBlur: false })}
-          />
-        </Field>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field id="subtask-assignee" label="Assignee">
-            <OptionSelect
-              id="subtask-assignee"
-              value={subtaskAssigneeId}
-              placeholder="Select a member..."
-              options={memberOptions}
-              onChange={onSubtaskAssigneeIdChange}
-            />
-          </Field>
-          <Field
-            id="subtask-deadline"
-            label="Due date"
-            error={subtaskValidation.errorFor("deadline")}
-          >
-            <Input
-              id="subtask-deadline"
-              type="date"
-              value={subtaskDeadline}
-              onChange={(e) => onSubtaskDeadlineChange(e.target.value)}
-              {...subtaskValidation.fieldProps("deadline", "subtask-deadline", {
-                touchOnBlur: false,
-              })}
-            />
-          </Field>
-        </div>
-      </div>
-      <ResourceSearch
-        resources={resources}
-        selectedIds={subtaskResourceIds}
-        onChange={onSubtaskResourceIdsChange}
-      />
-      <div className="flex justify-end">
-        {/* Never disabled: pressing it says what is missing. */}
-        <Button type="button" variant="secondary" onClick={onAddDraft}>
-          Add subtask
-        </Button>
-      </div>
-
-      {taskIds.length === 0 && draftSubtasks.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No subtasks yet. Break this event into concrete assignments above.
-        </p>
+      {count === 0 ? (
+        <p className="text-sm text-muted-foreground">No subtasks yet.</p>
       ) : (
         <ul className="space-y-2">
           {taskIds.map((taskId) => {
             const details = existingDetails(taskId);
+            const attached = !savedTaskIds.includes(taskId);
+            const fromEvent = taskEventId(taskId);
+            const moving = attached && fromEvent != null && fromEvent !== selectedId;
             return (
               <SubtaskRow
                 key={`existing-${taskId}`}
                 title={details.name}
-                detail={details.detail}
-                onRemove={() => onTaskIdsChange(taskIds.filter((id) => id !== taskId))}
+                detail={
+                  moving
+                    ? [details.detail, `moves from event #${fromEvent} when you save`]
+                        .filter(Boolean)
+                        .join(" · ")
+                    : details.detail
+                }
+                badge={attached ? "Attached" : undefined}
+                href={`/tasks?task=${taskId}`}
+                onRemove={
+                  readOnly
+                    ? undefined
+                    : () => onTaskIdsChange(taskIds.filter((id) => id !== taskId))
+                }
               />
             );
           })}
@@ -191,12 +242,138 @@ export function EventSubtasks({
                 ]
                   .filter(Boolean)
                   .join(" · ")}
-                onRemove={() => onRemoveDraft(subtask.key)}
+                badge="New"
+                onOpen={readOnly ? undefined : () => openDraft(subtask)}
+                onRemove={readOnly ? undefined : () => onRemoveDraft(subtask.key)}
               />
             );
           })}
         </ul>
       )}
+
+      {!readOnly && (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="secondary" onClick={() => handleOpenChange(true)}>
+              <PlusIcon />
+              New subtask
+            </Button>
+            {/* Picking a task attaches it straight away; the input then clears. */}
+            <Combobox
+              key={taskIds.join("-") || "none"}
+              items={attachOptions}
+              value={null as AttachOption | null}
+              onValueChange={(option) => {
+                if (option && !taskIds.includes(option.id)) {
+                  onTaskIdsChange([...taskIds, option.id]);
+                }
+              }}
+              itemToStringLabel={(option) => option.label}
+              isItemEqualToValue={(a, b) => a?.id === b?.id}
+              filter={(item, query) => fuzzyMatches(item.search, query)}
+            >
+              <ComboboxInput
+                id="event-task"
+                aria-label="Attach existing task"
+                placeholder="Attach existing task..."
+                disabled={attachOptions.length === 0}
+                className="min-w-0 flex-1"
+              />
+              <ComboboxContent>
+                <ComboboxEmpty>No tasks match.</ComboboxEmpty>
+                <ComboboxList>
+                  <ComboboxCollection>
+                    {(option: AttachOption) => (
+                      <ComboboxItem key={option.id} value={option}>
+                        <span className="truncate">{option.label}</span>
+                      </ComboboxItem>
+                    )}
+                  </ComboboxCollection>
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            New subtasks and changes are saved when you save the event.
+          </p>
+        </>
+      )}
+
+      {/* Portalled out of the event form, so Enter here never saves the event. */}
+      <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingKey ? "Edit subtask" : "New subtask"}</DialogTitle>
+            <DialogDescription>
+              Added to this event&apos;s list now, created when you save the event.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* The id scopes where a failed "Add to event" moves focus to. */}
+          <div id="subtask-composer" className="space-y-4 py-2">
+            <Field
+              id="subtask-title"
+              label="Subtask title"
+              error={subtaskValidation.errorFor("name")}
+            >
+              <Input
+                id="subtask-title"
+                placeholder="e.g. Finish slides for the welcome talk"
+                value={subtaskTitle}
+                onChange={(e) => onSubtaskTitleChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    submitDraft();
+                  }
+                }}
+                {...subtaskValidation.fieldProps("name", "subtask-title", { touchOnBlur: false })}
+              />
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field id="subtask-assignee" label="Assignee">
+                <OptionSelect
+                  id="subtask-assignee"
+                  value={subtaskAssigneeId}
+                  placeholder="Select a member..."
+                  options={memberOptions}
+                  onChange={onSubtaskAssigneeIdChange}
+                />
+              </Field>
+              <Field
+                id="subtask-deadline"
+                label="Due date"
+                error={subtaskValidation.errorFor("deadline")}
+              >
+                <Input
+                  id="subtask-deadline"
+                  type="date"
+                  value={subtaskDeadline}
+                  onChange={(e) => onSubtaskDeadlineChange(e.target.value)}
+                  {...subtaskValidation.fieldProps("deadline", "subtask-deadline", {
+                    touchOnBlur: false,
+                  })}
+                />
+              </Field>
+            </div>
+            <ResourceSearch
+              resources={resources}
+              selectedIds={subtaskResourceIds}
+              onChange={onSubtaskResourceIdsChange}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)}>
+              Cancel
+            </Button>
+            {/* Never disabled: pressing it says what is missing. */}
+            <Button type="button" onClick={submitDraft}>
+              {editingKey ? "Save subtask" : "Add to event"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

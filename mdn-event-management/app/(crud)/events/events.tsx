@@ -79,6 +79,9 @@ export default function Events() {
   const canAssignMembers = isEditing
     ? !!selectedEvent && canAssignEventMembers(actor, selectedEvent)
     : executive;
+  // Only executives create events, so everyone else gets the form only once
+  // they pick an event to look at.
+  const showForm = isEditing || executive;
   const memberOptions = members.map((member) => ({
     id: String(member.memberId),
     label: member.name,
@@ -227,26 +230,31 @@ export default function Events() {
     setError("");
   }
 
-  function addDraftSubtask() {
+  /** False when the composer is incomplete, so its dialog stays open. */
+  function addDraftSubtask(replaceKey?: string): boolean {
     if (!subtaskValidation.checkBeforeSubmit(document.getElementById("subtask-composer"))) {
-      return;
+      return false;
     }
     const title = subtaskTitle.trim();
-    setDraftSubtasks((current) => [
-      ...current,
-      {
-        key: crypto.randomUUID(),
-        name: title,
-        assigneeId: subtaskAssigneeId,
-        deadline: subtaskDeadline,
-        resourceIds: subtaskResourceIds,
-      },
-    ]);
+    const draft = {
+      key: replaceKey ?? crypto.randomUUID(),
+      name: title,
+      assigneeId: subtaskAssigneeId,
+      deadline: subtaskDeadline,
+      resourceIds: subtaskResourceIds,
+    };
+    // Editing a draft keeps its place in the list.
+    setDraftSubtasks((current) =>
+      replaceKey
+        ? current.map((item) => (item.key === replaceKey ? draft : item))
+        : [...current, draft],
+    );
     setSubtaskTitle("");
     setSubtaskAssigneeId("");
     setSubtaskDeadline("");
     setSubtaskResourceIds([]);
     subtaskValidation.reset();
+    return true;
   }
 
   async function saveEvent() {
@@ -299,71 +307,83 @@ export default function Events() {
           </Alert>
         )}
 
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
-          <EventForm
-            isEditing={isEditing}
-            selectedId={selectedId}
-            name={name}
-            onNameChange={setName}
-            description={description}
-            onDescriptionChange={setDescription}
-            date={date}
-            onDateChange={changeDate}
-            endDate={endDate}
-            onEndDateChange={changeEndDate}
-            conflicts={draftConflicts}
-            locationId={locationId}
-            onLocationIdChange={changeLocationId}
-            validation={validation}
-            locationOptions={locationOptions}
-            managerIds={managerIds}
-            onManagerIdsChange={setManagerIds}
-            managerPickerOptions={managerPickerOptions(members, selectedEvent)}
-            canEdit={canEdit}
-            canEditManagers={executive}
-            canAssignMembers={canAssignMembers}
-            memberIds={memberIds}
-            onMemberIdsChange={setMemberIds}
-            memberPickerOptions={memberPickerOptions(members, selectedEvent)}
-            resourceIds={resourceIds}
-            onResourceIdsChange={setResourceIds}
-            resourcePickerOptions={resourcePickerOptions(resources, selectedEvent)}
-            taskIds={taskIds}
-            onTaskIdsChange={setTaskIds}
-            taskPickerOptions={taskPickerOptions(allTasks, selectedEvent, selectedId)}
-            draftSubtasks={draftSubtasks}
-            onRemoveDraft={(key) =>
-              setDraftSubtasks((current) => current.filter((item) => item.key !== key))
-            }
-            subtaskTitle={subtaskTitle}
-            onSubtaskTitleChange={setSubtaskTitle}
-            subtaskAssigneeId={subtaskAssigneeId}
-            onSubtaskAssigneeIdChange={setSubtaskAssigneeId}
-            subtaskDeadline={subtaskDeadline}
-            onSubtaskDeadlineChange={setSubtaskDeadline}
-            subtaskValidation={subtaskValidation}
-            subtaskResourceIds={subtaskResourceIds}
-            onSubtaskResourceIdsChange={setSubtaskResourceIds}
-            memberOptions={memberOptions}
-            members={members}
-            resources={resources}
-            onAddDraft={addDraftSubtask}
-            existingDetails={(taskId) => existingSubtaskDetails(taskId, selectedEvent, allTasks)}
-            onCancel={resetForm}
-            onSubmit={async (form) => {
-              setError("");
-              if (!validation.checkBeforeSubmit(form)) return;
-              try {
-                await saveEvent();
-              } catch (err) {
-                // Field errors go under their fields; only the rest needs a banner.
-                if (err instanceof ApiError && validation.setServerErrors(err.fieldErrors)) {
-                  return;
-                }
-                setError(String(err));
+        <div
+          className={
+            showForm
+              ? "grid items-start gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]"
+              : "grid items-start gap-6"
+          }
+        >
+          {showForm && (
+            <EventForm
+              isEditing={isEditing}
+              selectedId={selectedId}
+              name={name}
+              onNameChange={setName}
+              description={description}
+              onDescriptionChange={setDescription}
+              date={date}
+              onDateChange={changeDate}
+              endDate={endDate}
+              onEndDateChange={changeEndDate}
+              conflicts={draftConflicts}
+              locationId={locationId}
+              onLocationIdChange={changeLocationId}
+              validation={validation}
+              locationOptions={locationOptions}
+              managerIds={managerIds}
+              onManagerIdsChange={setManagerIds}
+              managerPickerOptions={managerPickerOptions(members, selectedEvent)}
+              canEdit={canEdit}
+              canEditManagers={executive}
+              canAssignMembers={canAssignMembers}
+              memberIds={memberIds}
+              onMemberIdsChange={setMemberIds}
+              memberPickerOptions={memberPickerOptions(members, selectedEvent)}
+              resourceIds={resourceIds}
+              onResourceIdsChange={setResourceIds}
+              resourcePickerOptions={resourcePickerOptions(resources, selectedEvent)}
+              taskIds={taskIds}
+              savedTaskIds={(selectedEvent?.tasks ?? []).map((task) => String(task.taskId))}
+              taskEventId={(taskId) =>
+                allTasks.find((task) => String(task.taskId) === taskId)?.eventId ?? null
               }
-            }}
-          />
+              onTaskIdsChange={setTaskIds}
+              taskPickerOptions={taskPickerOptions(allTasks, selectedEvent, selectedId)}
+              draftSubtasks={draftSubtasks}
+              onRemoveDraft={(key) =>
+                setDraftSubtasks((current) => current.filter((item) => item.key !== key))
+              }
+              subtaskTitle={subtaskTitle}
+              onSubtaskTitleChange={setSubtaskTitle}
+              subtaskAssigneeId={subtaskAssigneeId}
+              onSubtaskAssigneeIdChange={setSubtaskAssigneeId}
+              subtaskDeadline={subtaskDeadline}
+              onSubtaskDeadlineChange={setSubtaskDeadline}
+              subtaskValidation={subtaskValidation}
+              subtaskResourceIds={subtaskResourceIds}
+              onSubtaskResourceIdsChange={setSubtaskResourceIds}
+              memberOptions={memberOptions}
+              members={members}
+              resources={resources}
+              onAddDraft={addDraftSubtask}
+              existingDetails={(taskId) => existingSubtaskDetails(taskId, selectedEvent, allTasks)}
+              onCancel={resetForm}
+              onSubmit={async (form) => {
+                setError("");
+                if (!validation.checkBeforeSubmit(form)) return;
+                try {
+                  await saveEvent();
+                } catch (err) {
+                  // Field errors go under their fields; only the rest needs a banner.
+                  if (err instanceof ApiError && validation.setServerErrors(err.fieldErrors)) {
+                    return;
+                  }
+                  setError(String(err));
+                }
+              }}
+            />
+          )}
           <EventList
             items={items}
             selectedId={selectedId}

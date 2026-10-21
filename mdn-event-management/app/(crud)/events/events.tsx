@@ -231,21 +231,24 @@ export default function Events() {
   }
 
   /** False when the composer is incomplete, so its dialog stays open. */
-  function addDraftSubtask(): boolean {
+  function addDraftSubtask(replaceKey?: string): boolean {
     if (!subtaskValidation.checkBeforeSubmit(document.getElementById("subtask-composer"))) {
       return false;
     }
     const title = subtaskTitle.trim();
-    setDraftSubtasks((current) => [
-      ...current,
-      {
-        key: crypto.randomUUID(),
-        name: title,
-        assigneeId: subtaskAssigneeId,
-        deadline: subtaskDeadline,
-        resourceIds: subtaskResourceIds,
-      },
-    ]);
+    const draft = {
+      key: replaceKey ?? crypto.randomUUID(),
+      name: title,
+      assigneeId: subtaskAssigneeId,
+      deadline: subtaskDeadline,
+      resourceIds: subtaskResourceIds,
+    };
+    // Editing a draft keeps its place in the list.
+    setDraftSubtasks((current) =>
+      replaceKey
+        ? current.map((item) => (item.key === replaceKey ? draft : item))
+        : [...current, draft],
+    );
     setSubtaskTitle("");
     setSubtaskAssigneeId("");
     setSubtaskDeadline("");

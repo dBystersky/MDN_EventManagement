@@ -108,22 +108,57 @@ export default function TasksDemo() {
   } | null>(null);
   const [actor, setActor] = useState<Actor>({ role: null, memberId: null });
   const validation = useFieldValidation({ name, deadline, budget }, validateTask);
+  /** A task linked to by URL, waiting to be opened on the next render. */
+  const [linkedTask, setLinkedTask] = useState<Task | null>(null);
 
-  async function refresh() {
-    const [tasks, eventList, memberList, session] = await Promise.all([
-      apiJson("/api/tasks"),
-      apiJson("/api/events"),
-      apiJson("/api/members"),
-      fetchSession(),
-    ]);
+  /** Fills the dialog with `task`; callers reset validation first if it may be stale. */
+  function showEditForm(task: Task) {
+    setSelectedId(task.taskId);
+    setName(task.name);
+    setDescription(task.description ?? "");
+    setDeadline(toDatetimeLocal(task.deadline));
+    setBudget(task.budget == null ? "" : String(task.budget));
+    setEventId(task.eventId != null ? String(task.eventId) : "");
+    setStatus(task.status);
+    setManagerIds((task.taskManagers ?? []).map((tm) => String(tm.memberId)));
+    setError("");
+    setDialogOpen(true);
+  }
+
+  /** `openFromUrl`: on first load, `/tasks?task=ID` (linked from an event's subtasks) opens that task. */
+  async function refresh(openFromUrl = false) {
+    const [tasks, eventList, memberList, session]: [Task[], EventItem[], Member[], Actor | null] =
+      await Promise.all([
+        apiJson("/api/tasks"),
+        apiJson("/api/events"),
+        apiJson("/api/members"),
+        fetchSession(),
+      ]);
     setItems(tasks);
     setEvents(eventList);
     setMembers(memberList);
-    setActor(session ?? { role: null, memberId: null });
+    const actor = session ?? { role: null, memberId: null };
+    setActor(actor);
+    if (!openFromUrl) return;
+
+    const requested = new URLSearchParams(window.location.search).get("task");
+    const task = requested ? tasks.find((t) => t.taskId === Number(requested)) : undefined;
+    if (!task) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    // `rightsFor` reads state that has not updated yet, so check against what was just fetched.
+    const event = eventList.find((ev) => ev.eventId === task.eventId) ?? null;
+    if (canUpdateTaskDetails(actor, { taskManagers: task.taskManagers ?? [] }, event)) {
+      setLinkedTask(task);
+    }
+  }
+
+  if (linkedTask) {
+    setLinkedTask(null);
+    showEditForm(linkedTask);
   }
 
   useEffect(() => {
-    refresh().catch((e) => setError(String(e)));
+    refresh(true).catch((e) => setError(String(e)));
   }, []);
 
   const eventNames = useMemo(
@@ -190,17 +225,8 @@ export default function TasksDemo() {
 
   function openEdit(task: Task) {
     if (!rightsFor(task).edit) return;
-    setSelectedId(task.taskId);
-    setName(task.name);
-    setDescription(task.description ?? "");
-    setDeadline(toDatetimeLocal(task.deadline));
-    setBudget(task.budget == null ? "" : String(task.budget));
-    setEventId(task.eventId != null ? String(task.eventId) : "");
-    setStatus(task.status);
-    setManagerIds((task.taskManagers ?? []).map((tm) => String(tm.memberId)));
     validation.reset();
-    setError("");
-    setDialogOpen(true);
+    showEditForm(task);
   }
 
   /** Closing by any route — Cancel, Escape, backdrop, X — clears the form so the

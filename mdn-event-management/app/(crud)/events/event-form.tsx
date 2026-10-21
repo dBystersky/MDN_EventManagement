@@ -122,7 +122,7 @@ export function EventForm({
   memberOptions: Option[];
   members: Member[];
   resources: Resource[];
-  onAddDraft: () => boolean;
+  onAddDraft: (replaceKey?: string) => boolean;
   existingDetails: (taskId: string) => { name: string; detail: string };
   onCancel: () => void;
   onSubmit: (form: HTMLFormElement) => Promise<void>;

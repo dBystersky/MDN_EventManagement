@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { PlusIcon, XIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -37,10 +38,16 @@ function SubtaskRow({
   title,
   detail,
   badge,
+  href,
+  onOpen,
   onRemove,
 }: {
   title: string;
   detail: string;
+  /** A saved task opens on the Tasks page… */
+  href?: string;
+  /** …and an unsaved draft reopens in the subtask dialog. */
+  onOpen?: () => void;
   /** Marks a row that only exists once the event is saved. */
   badge?: string;
   /** Left out when the event is view-only. */
@@ -50,7 +57,17 @@ function SubtaskRow({
     <li className="flex items-start justify-between gap-3 rounded-lg border bg-background p-3">
       <div className="min-w-0">
         <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
-          {title}
+          {href ? (
+            <Link href={href} className="hover:underline">
+              {title}
+            </Link>
+          ) : onOpen ? (
+            <button type="button" className="text-left hover:underline" onClick={onOpen}>
+              {title}
+            </button>
+          ) : (
+            title
+          )}
           {badge && <Badge variant="outline">{badge}</Badge>}
         </p>
         <p className="text-xs text-muted-foreground">{detail}</p>
@@ -121,12 +138,15 @@ export function EventSubtasks({
   members: Member[];
   resources: Resource[];
   /** Adds the composed subtask as a draft; false when the composer is incomplete. */
-  onAddDraft: () => boolean;
+  /** Adds the composed subtask, or replaces draft `replaceKey`; false when incomplete. */
+  onAddDraft: (replaceKey?: string) => boolean;
   existingDetails: (taskId: string) => { name: string; detail: string };
   /** Lists the subtasks only — no adding and no removing. */
   readOnly?: boolean;
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  /** The draft being edited in the dialog, or null when composing a new one. */
+  const [editingKey, setEditingKey] = useState<string | null>(null);
 
   const attachOptions: AttachOption[] = taskPickerOptions
     .filter((option) => !taskIds.includes(option.id))
@@ -143,7 +163,24 @@ export function EventSubtasks({
   /** Every way in or out of the dialog starts the next one blank. */
   function handleOpenChange(open: boolean) {
     clearComposer();
+    setEditingKey(null);
     setDialogOpen(open);
+  }
+
+  function openDraft(draft: DraftSubtask) {
+    handleOpenChange(true);
+    onSubtaskTitleChange(draft.name);
+    onSubtaskAssigneeIdChange(draft.assigneeId);
+    onSubtaskDeadlineChange(draft.deadline);
+    onSubtaskResourceIdsChange(draft.resourceIds);
+    setEditingKey(draft.key);
+  }
+
+  function submitDraft() {
+    if (onAddDraft(editingKey ?? undefined)) {
+      setEditingKey(null);
+      setDialogOpen(false);
+    }
   }
 
   const count = taskIds.length + draftSubtasks.length;
@@ -176,6 +213,7 @@ export function EventSubtasks({
                     : details.detail
                 }
                 badge={attached ? "Attached" : undefined}
+                href={`/tasks?task=${taskId}`}
                 onRemove={
                   readOnly
                     ? undefined
@@ -205,6 +243,7 @@ export function EventSubtasks({
                   .filter(Boolean)
                   .join(" · ")}
                 badge="New"
+                onOpen={readOnly ? undefined : () => openDraft(subtask)}
                 onRemove={readOnly ? undefined : () => onRemoveDraft(subtask.key)}
               />
             );
@@ -264,7 +303,7 @@ export function EventSubtasks({
       <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>New subtask</DialogTitle>
+            <DialogTitle>{editingKey ? "Edit subtask" : "New subtask"}</DialogTitle>
             <DialogDescription>
               Added to this event&apos;s list now, created when you save the event.
             </DialogDescription>
@@ -285,7 +324,7 @@ export function EventSubtasks({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    if (onAddDraft()) setDialogOpen(false);
+                    submitDraft();
                   }
                 }}
                 {...subtaskValidation.fieldProps("name", "subtask-title", { touchOnBlur: false })}
@@ -329,13 +368,8 @@ export function EventSubtasks({
               Cancel
             </Button>
             {/* Never disabled: pressing it says what is missing. */}
-            <Button
-              type="button"
-              onClick={() => {
-                if (onAddDraft()) setDialogOpen(false);
-              }}
-            >
-              Add to event
+            <Button type="button" onClick={submitDraft}>
+              {editingKey ? "Save subtask" : "Add to event"}
             </Button>
           </DialogFooter>
         </DialogContent>

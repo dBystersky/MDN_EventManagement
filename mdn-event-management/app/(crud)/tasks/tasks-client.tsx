@@ -44,6 +44,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TASK_STATUS_ITEMS, TaskStatusBadge } from "@/components/task-status-badge";
 import { formatDateTime, toDatetimeLocal } from "@/lib/datetime";
 import {
   TASK_STATUSES,
@@ -316,6 +317,7 @@ export default function TasksDemo() {
                 {query ? `${matches.length} of ${items.length}` : `${items.length} total`}
               </span>
               <Select
+                items={[{ value: "all", label: "All statuses" }, ...TASK_STATUS_ITEMS]}
                 value={statusFilter}
                 onValueChange={(value) => setStatusFilter((value ?? "all") as TaskStatus | "all")}
               >
@@ -400,6 +402,7 @@ export default function TasksDemo() {
                           </TableCell>
                           <TableCell>
                             <Select
+                              items={TASK_STATUS_ITEMS}
                               value={task.status}
                               onValueChange={(value) => value && changeStatus(task, value)}
                               disabled={pending || !rights.edit}
@@ -409,12 +412,14 @@ export default function TasksDemo() {
                                 aria-label={`Status of ${task.name}`}
                                 className="w-36"
                               >
-                                <SelectValue />
+                                <SelectValue>
+                                  {(value: TaskStatus) => <TaskStatusBadge status={value} />}
+                                </SelectValue>
                               </SelectTrigger>
                               <SelectContent>
                                 {TASK_STATUSES.map((value) => (
                                   <SelectItem key={value} value={value}>
-                                    {TASK_STATUS_LABELS[value]}
+                                    <TaskStatusBadge status={value} />
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -592,6 +597,7 @@ export default function TasksDemo() {
               <div className="space-y-2">
                 <Label htmlFor="task-status">Status</Label>
                 <Select
+                  items={TASK_STATUS_ITEMS}
                   value={status}
                   onValueChange={(value) => setStatus((value ?? "backlog") as TaskStatus)}
                   disabled={!canSubmit}

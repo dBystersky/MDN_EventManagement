@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { CircleAlertIcon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -68,7 +69,7 @@ type Resource = {
 };
 type Task = { taskId: number; name: string; bookableId: number };
 type EventItem = { eventId: number; name: string; bookableId: number };
-type Bookable = { id: number; name: string; label: string; kind: string };
+type Bookable = { id: number; name: string; label: string; kind: string; href: string };
 
 export default function AllocationsDemo() {
   const [items, setItems] = useState<Allocation[]>([]);
@@ -114,12 +115,14 @@ export default function AllocationsDemo() {
         name: t.name,
         label: `Task: ${t.name}`,
         kind: "Task",
+        href: `/tasks?task=${t.taskId}`,
       })),
       ...(events as EventItem[]).map((e) => ({
         id: e.bookableId,
         name: e.name,
         label: `Event: ${e.name}`,
         kind: "Event",
+        href: `/events?event=${e.eventId}`,
       })),
     ]);
     setCan(allocationPermissions(role));
@@ -136,6 +139,7 @@ export default function AllocationsDemo() {
   /** bookableId → "Setup". The table shows the kind as its own badge, so the
    *  cell wants the bare name rather than the prefixed label. */
   const bookableNames = useMemo(() => new Map(bookables.map((b) => [b.id, b.name])), [bookables]);
+  const bookableHrefs = useMemo(() => new Map(bookables.map((b) => [b.id, b.href])), [bookables]);
 
   const matches = useMemo(
     () => searchAllocations(query, items, bookableLabels),
@@ -423,10 +427,16 @@ export default function AllocationsDemo() {
                                   {allocation.bookable.bookableType}
                                 </Badge>
                               )}
-                              <span className="text-sm">
-                                {bookableNames.get(allocation.bookableId) ??
-                                  `#${allocation.bookableId}`}
-                              </span>
+                              {bookableHrefs.has(allocation.bookableId) ? (
+                                <Link
+                                  href={bookableHrefs.get(allocation.bookableId)!}
+                                  className="text-sm hover:underline"
+                                >
+                                  {bookableNames.get(allocation.bookableId)}
+                                </Link>
+                              ) : (
+                                <span className="text-sm">#{allocation.bookableId}</span>
+                              )}
                               <ConflictBadge conflicts={rowConflicts} />
                             </span>
                           </TableCell>

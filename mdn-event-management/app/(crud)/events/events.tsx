@@ -91,7 +91,8 @@ export default function Events() {
     label: location.name,
   }));
 
-  async function refresh() {
+  /** `openFromUrl`: on first load, `/events?event=ID` (linked from tasks and allocations) selects that event. */
+  async function refresh(openFromUrl = false) {
     const [events, locs, tasks, memberList, resourceList, conflictList, session] =
       await Promise.all([
         apiJson("/api/events"),
@@ -109,13 +110,22 @@ export default function Events() {
     setResources(resourceList);
     setConflicts(conflictList);
     setActor(session ?? { role: null, memberId: null });
+    if (!openFromUrl) return;
+
+    const requested = new URLSearchParams(window.location.search).get("event");
+    const event = requested
+      ? (events as EventItem[]).find((ev) => ev.eventId === Number(requested))
+      : undefined;
+    if (!event) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    selectEvent(event);
   }
 
   /** eventId → its clashes, so the list can badge a row without a scan. */
   const conflictIndex = useMemo(() => conflictsByEvent(conflicts), [conflicts]);
 
   useEffect(() => {
-    refresh().catch((e) => setError(String(e)));
+    refresh(true).catch((e) => setError(String(e)));
   }, []);
 
   /**

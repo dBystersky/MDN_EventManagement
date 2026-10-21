@@ -37,6 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  SortableTableHead,
   Table,
   TableBody,
   TableCell,
@@ -59,9 +60,10 @@ import {
   type TaskStatus,
 } from "@/lib/permissions";
 import { fuzzyMatches } from "@/lib/fuzzyFilter";
-import { eventNameOf, managerNamesOf, searchTasks } from "@/lib/fuzzyTasks";
+import { eventNameOf, managerNamesOf, searchTasks, type TaskMatch } from "@/lib/fuzzyTasks";
 import { ApiError, apiJson } from "@/lib/api-json";
 import { useFieldValidation } from "@/hooks/use-field-validation";
+import { useTableSort } from "@/hooks/use-table-sort";
 import { isInPast, validateTask } from "@/lib/validation";
 
 type Member = { memberId: number; name: string; email: string };
@@ -189,6 +191,22 @@ export default function TasksDemo() {
       ),
     [query, items, eventNames, statusFilter],
   );
+
+  const sortAccessors = useMemo(
+    () => ({
+      id: ({ task }: TaskMatch<Task>) => task.taskId,
+      name: ({ task }: TaskMatch<Task>) => task.name,
+      event: ({ task }: TaskMatch<Task>) => eventNameOf(task, eventNames),
+      // Workflow order (backlog first), not alphabetical.
+      status: ({ task }: TaskMatch<Task>) => TASK_STATUSES.indexOf(task.status),
+      deadline: ({ task }: TaskMatch<Task>) => Date.parse(task.deadline),
+      budget: ({ task }: TaskMatch<Task>) =>
+        task.budget == null || task.budget === "" ? null : Number(task.budget),
+      managers: ({ task }: TaskMatch<Task>) => managerNamesOf(task),
+    }),
+    [eventNames],
+  );
+  const { sorted, sort, toggle } = useTableSort(matches, sortAccessors);
 
   async function changeStatus(task: Task, next: TaskStatus) {
     setError("");
@@ -387,18 +405,32 @@ export default function TasksDemo() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-12">ID</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Event</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Deadline</TableHead>
-                      <TableHead>Budget</TableHead>
-                      <TableHead>Managers</TableHead>
+                      <SortableTableHead className="w-12" sortKey="id" sort={sort} onSort={toggle}>
+                        ID
+                      </SortableTableHead>
+                      <SortableTableHead sortKey="name" sort={sort} onSort={toggle}>
+                        Name
+                      </SortableTableHead>
+                      <SortableTableHead sortKey="event" sort={sort} onSort={toggle}>
+                        Event
+                      </SortableTableHead>
+                      <SortableTableHead sortKey="status" sort={sort} onSort={toggle}>
+                        Status
+                      </SortableTableHead>
+                      <SortableTableHead sortKey="deadline" sort={sort} onSort={toggle}>
+                        Deadline
+                      </SortableTableHead>
+                      <SortableTableHead sortKey="budget" sort={sort} onSort={toggle}>
+                        Budget
+                      </SortableTableHead>
+                      <SortableTableHead sortKey="managers" sort={sort} onSort={toggle}>
+                        Managers
+                      </SortableTableHead>
                       {anyDeletable && <TableHead className="w-0 text-right">Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {matches.map(({ task, nameMatch }) => {
+                    {sorted.map(({ task, nameMatch }) => {
                       const eventName = eventNameOf(task, eventNames);
                       const managerNames = managerNamesOf(task);
                       const budgetLabel = formatBudget(task.budget);

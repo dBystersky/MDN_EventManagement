@@ -15,15 +15,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  SortableTableHead,
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
 import { apiJson } from "@/lib/api-json";
 import { formatDateTime } from "@/lib/datetime";
+import { useTableSort } from "@/hooks/use-table-sort";
 
 type AuditEntry = {
   auditId: number;
@@ -34,6 +35,13 @@ type AuditEntry = {
   entityId: number;
   summary: string;
   changes: { fields?: string[] } | null;
+};
+
+const SORT_ACCESSORS = {
+  when: (entry: AuditEntry) => Date.parse(entry.createdAt),
+  who: (entry: AuditEntry) => entry.actorName,
+  action: (entry: AuditEntry) => entry.action,
+  what: (entry: AuditEntry) => entry.summary,
 };
 
 const ALL = "all";
@@ -53,6 +61,7 @@ export default function AuditLogClient() {
   const [entityType, setEntityType] = useState(ALL);
   const [error, setError] = useState("");
   const [loaded, setLoaded] = useState(false);
+  const { sorted, sort, toggle } = useTableSort(entries, SORT_ACCESSORS);
 
   useEffect(() => {
     const query = entityType === ALL ? "" : `?entityType=${entityType}`;
@@ -114,14 +123,22 @@ export default function AuditLogClient() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>When</TableHead>
-                      <TableHead>Who</TableHead>
-                      <TableHead>Action</TableHead>
-                      <TableHead>What</TableHead>
+                      <SortableTableHead sortKey="when" sort={sort} onSort={toggle}>
+                        When
+                      </SortableTableHead>
+                      <SortableTableHead sortKey="who" sort={sort} onSort={toggle}>
+                        Who
+                      </SortableTableHead>
+                      <SortableTableHead sortKey="action" sort={sort} onSort={toggle}>
+                        Action
+                      </SortableTableHead>
+                      <SortableTableHead sortKey="what" sort={sort} onSort={toggle}>
+                        What
+                      </SortableTableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {entries.map((entry) => (
+                    {sorted.map((entry) => (
                       <TableRow key={entry.auditId}>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                           {formatDateTime(entry.createdAt)}

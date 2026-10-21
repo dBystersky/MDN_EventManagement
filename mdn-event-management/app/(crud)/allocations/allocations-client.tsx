@@ -28,6 +28,7 @@ import {
   ComboboxItem,
 } from "@/components/ui/combobox";
 import {
+  SortableTableHead,
   Table,
   TableBody,
   TableCell,
@@ -41,9 +42,10 @@ import { conflictsByAllocation, type Conflict } from "@/lib/conflicts";
 import { allocationPermissions, fetchSessionRole, type Capabilities } from "@/lib/permissions";
 import { resourceTypeStyle } from "@/lib/resourceTypeColor";
 import { fuzzyMatches } from "@/lib/fuzzyFilter";
-import { searchAllocations } from "@/lib/fuzzyAllocations";
+import { searchAllocations, type AllocationMatch } from "@/lib/fuzzyAllocations";
 import { ApiError, apiJson } from "@/lib/api-json";
 import { useFieldValidation } from "@/hooks/use-field-validation";
+import { useTableSort } from "@/hooks/use-table-sort";
 import { isInPast, validateAllocation } from "@/lib/validation";
 
 type Allocation = {
@@ -139,6 +141,19 @@ export default function AllocationsDemo() {
     () => searchAllocations(query, items, bookableLabels),
     [query, items, bookableLabels],
   );
+
+  const sortAccessors = useMemo(
+    () => ({
+      id: ({ allocation }: AllocationMatch<Allocation>) => allocation.allocationId,
+      resource: ({ allocation }: AllocationMatch<Allocation>) => allocation.resource?.name,
+      bookedFor: ({ allocation }: AllocationMatch<Allocation>) =>
+        bookableNames.get(allocation.bookableId),
+      start: ({ allocation }: AllocationMatch<Allocation>) => Date.parse(allocation.startTime),
+      end: ({ allocation }: AllocationMatch<Allocation>) => Date.parse(allocation.endTime),
+    }),
+    [bookableNames],
+  );
+  const { sorted, sort, toggle } = useTableSort(matches, sortAccessors);
 
   /** allocationId → its clashes, so a row can be badged without a scan. */
   const conflictIndex = useMemo(() => conflictsByAllocation(conflicts), [conflicts]);
@@ -338,16 +353,26 @@ export default function AllocationsDemo() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-12">ID</TableHead>
-                      <TableHead>Resource</TableHead>
-                      <TableHead>Booked for</TableHead>
-                      <TableHead>Start</TableHead>
-                      <TableHead>End</TableHead>
+                      <SortableTableHead className="w-12" sortKey="id" sort={sort} onSort={toggle}>
+                        ID
+                      </SortableTableHead>
+                      <SortableTableHead sortKey="resource" sort={sort} onSort={toggle}>
+                        Resource
+                      </SortableTableHead>
+                      <SortableTableHead sortKey="bookedFor" sort={sort} onSort={toggle}>
+                        Booked for
+                      </SortableTableHead>
+                      <SortableTableHead sortKey="start" sort={sort} onSort={toggle}>
+                        Start
+                      </SortableTableHead>
+                      <SortableTableHead sortKey="end" sort={sort} onSort={toggle}>
+                        End
+                      </SortableTableHead>
                       <TableHead className="w-0 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {matches.map(({ allocation, resourceMatch }) => {
+                    {sorted.map(({ allocation, resourceMatch }) => {
                       const typeName = allocation.resource?.resourceTypeRel?.name;
                       const duration = formatDuration(allocation.startTime, allocation.endTime);
                       const rowConflicts = conflictIndex.get(allocation.allocationId) ?? [];

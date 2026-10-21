@@ -20,8 +20,7 @@ Next.js project, frontend and API together.
 ## Docs
 
 Start at [docs/](./docs) — [getting-started.md](./docs/getting-started.md) takes
-you from clone to running app. The requirement list is
-[docs/RTM.md](./docs/RTM.md).
+you from clone to running app.
 
 ## Checks
 

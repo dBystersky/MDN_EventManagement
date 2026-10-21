@@ -8,9 +8,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { TaskStatusBadge } from "@/components/task-status-badge";
 import { apiJson } from "@/lib/api-json";
 import { formatDateTime } from "@/lib/datetime";
-import { TASK_STATUS_LABELS, isMember, type Actor, type TaskStatus } from "@/lib/permissions";
+import { isMember, type Actor, type TaskStatus } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 type EventItem = {
@@ -302,7 +303,7 @@ export default function OverviewPage() {
                         <Badge variant={late ? "destructive" : "secondary"}>
                           {relativeDay(t.deadline, today)}
                         </Badge>
-                        <Badge variant="outline">{TASK_STATUS_LABELS[t.status]}</Badge>
+                        <TaskStatusBadge status={t.status} />
                       </div>
                     </li>
                   );

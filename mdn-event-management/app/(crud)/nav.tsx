@@ -14,10 +14,10 @@ const LINKS = [
   { href: "/overview", label: "Overview" },
   { href: "/calendar", label: "Calendar" },
   { href: "/events", label: "Events" },
-  { href: "/tasks", label: "Tasks" },
-  { href: "/allocations", label: "Allocations" },
-  { href: "/locations", label: "Locations" },
+  { href: "/tasks", label: "Tasks", sub: true },
+  { href: "/allocations", label: "Allocations", sub: true },
   { href: "/resources", label: "Resources" },
+  { href: "/locations", label: "Locations" },
   { href: "/members", label: "Members" },
   { href: "/audit-log", label: "Audit log" },
 ];
@@ -85,9 +85,10 @@ export function CrudNav({ user }: CrudNavProps) {
               className={cn(
                 buttonVariants({
                   variant: "ghost",
-                  size: "lg",
+                  size: l.sub ? "default" : "lg",
                 }),
                 "justify-start rounded-full px-4 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground",
+                l.sub && "md:ml-6",
                 active &&
                   "bg-primary-foreground text-primary hover:bg-primary-foreground hover:text-primary",
               )}

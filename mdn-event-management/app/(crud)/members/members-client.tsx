@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  SortableTableHead,
   Table,
   TableBody,
   TableCell,
@@ -40,6 +41,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useFieldValidation } from "@/hooks/use-field-validation";
+import { useTableSort } from "@/hooks/use-table-sort";
 import { ApiError, apiJson } from "@/lib/api-json";
 import { MIN_PASSWORD_LENGTH, validateMember } from "@/lib/validation";
 
@@ -48,6 +50,18 @@ type Member = {
   name: string;
   email: string;
   role: string;
+};
+
+/** Seniority order for sorting the Role column; unknown roles go last. */
+const ROLE_ORDER = ["Executive", "Manager", "Member"];
+
+const SORT_ACCESSORS = {
+  name: (m: Member) => m.name,
+  email: (m: Member) => m.email,
+  role: (m: Member) => {
+    const rank = ROLE_ORDER.indexOf(m.role);
+    return rank === -1 ? ROLE_ORDER.length : rank;
+  },
 };
 
 const ROLE_BADGE: Record<string, string> = {
@@ -76,6 +90,7 @@ export default function MembersPage() {
   const [deleteTarget, setDeleteTarget] = useState<Member | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const { sorted, sort, toggle } = useTableSort(members, SORT_ACCESSORS);
 
   async function loadMembers() {
     try {
@@ -186,9 +201,15 @@ export default function MembersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
+                  <SortableTableHead sortKey="name" sort={sort} onSort={toggle}>
+                    Name
+                  </SortableTableHead>
+                  <SortableTableHead sortKey="email" sort={sort} onSort={toggle}>
+                    Email
+                  </SortableTableHead>
+                  <SortableTableHead sortKey="role" sort={sort} onSort={toggle}>
+                    Role
+                  </SortableTableHead>
                   {isExecutive && <TableHead className="w-16" />}
                 </TableRow>
               </TableHeader>
@@ -203,7 +224,7 @@ export default function MembersPage() {
                     </TableCell>
                   </TableRow>
                 )}
-                {members.map((m) => (
+                {sorted.map((m) => (
                   <TableRow key={m.memberId}>
                     <TableCell className="font-medium">{m.name}</TableCell>
                     <TableCell>{m.email}</TableCell>

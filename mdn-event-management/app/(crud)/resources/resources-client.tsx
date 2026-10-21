@@ -28,6 +28,7 @@ import {
   ComboboxItem,
 } from "@/components/ui/combobox";
 import {
+  SortableTableHead,
   Table,
   TableBody,
   TableCell,
@@ -43,11 +44,12 @@ import {
 } from "@/lib/permissions";
 import { resourceTypeStyle } from "@/lib/resourceTypeColor";
 import { fuzzyMatches } from "@/lib/fuzzyFilter";
-import { searchResources, typeNameOf } from "@/lib/fuzzyResources";
+import { searchResources, typeNameOf, type ResourceMatch } from "@/lib/fuzzyResources";
 import type { Booking } from "@/lib/timeline";
 import { ResourceTimeline } from "./resource-timeline";
 import { ResourceTypesPanel } from "./resource-types-panel";
 import { ApiError, apiJson } from "@/lib/api-json";
+import { useTableSort } from "@/hooks/use-table-sort";
 import { useFieldValidation } from "@/hooks/use-field-validation";
 import { validateResource } from "@/lib/validation";
 
@@ -173,6 +175,16 @@ export default function ResourcesDemo() {
 
   const matches = useMemo(() => searchResources(query, items, types), [query, items, types]);
 
+  const sortAccessors = useMemo(
+    () => ({
+      id: ({ resource }: ResourceMatch<Resource>) => resource.resourceId,
+      name: ({ resource }: ResourceMatch<Resource>) => resource.name,
+      type: ({ resource }: ResourceMatch<Resource>) => typeNameOf(resource, types),
+    }),
+    [types],
+  );
+  const { sorted, sort, toggle } = useTableSort(matches, sortAccessors);
+
   return (
     <section>
       <div className="space-y-6">
@@ -252,14 +264,25 @@ export default function ResourcesDemo() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-12">ID</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Type</TableHead>
+                        <SortableTableHead
+                          className="w-12"
+                          sortKey="id"
+                          sort={sort}
+                          onSort={toggle}
+                        >
+                          ID
+                        </SortableTableHead>
+                        <SortableTableHead sortKey="name" sort={sort} onSort={toggle}>
+                          Name
+                        </SortableTableHead>
+                        <SortableTableHead sortKey="type" sort={sort} onSort={toggle}>
+                          Type
+                        </SortableTableHead>
                         <TableHead className="w-0 text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {matches.map(({ resource, nameMatch }) => {
+                      {sorted.map(({ resource, nameMatch }) => {
                         const typeName = typeNameOf(resource, types);
                         return (
                           <TableRow key={resource.resourceId}>

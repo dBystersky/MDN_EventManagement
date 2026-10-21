@@ -19,6 +19,7 @@ import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  SortableTableHead,
   Table,
   TableBody,
   TableCell,
@@ -29,9 +30,16 @@ import {
 import { fetchSessionRole, locationPermissions, type Capabilities } from "@/lib/permissions";
 import { ApiError, apiJson } from "@/lib/api-json";
 import { useFieldValidation } from "@/hooks/use-field-validation";
+import { useTableSort } from "@/hooks/use-table-sort";
 import { validateNamed } from "@/lib/validation";
 
 type Location = { locationId: number; name: string };
+type LocationRow = { location: Location; nameMatch: Result | null };
+
+const SORT_ACCESSORS = {
+  id: ({ location }: LocationRow) => location.locationId,
+  name: ({ location }: LocationRow) => location.name,
+};
 
 const MIN_SCORE = 0.2;
 
@@ -113,6 +121,8 @@ export default function LocationsDemo() {
       }));
   }, [query, items]);
 
+  const { sorted, sort, toggle } = useTableSort(matches, SORT_ACCESSORS);
+
   return (
     <section>
       <div className="space-y-6">
@@ -187,13 +197,17 @@ export default function LocationsDemo() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-12">ID</TableHead>
-                      <TableHead>Name</TableHead>
+                      <SortableTableHead className="w-12" sortKey="id" sort={sort} onSort={toggle}>
+                        ID
+                      </SortableTableHead>
+                      <SortableTableHead sortKey="name" sort={sort} onSort={toggle}>
+                        Name
+                      </SortableTableHead>
                       <TableHead className="w-0 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {matches.map(({ location, nameMatch }) => (
+                    {sorted.map(({ location, nameMatch }) => (
                       <TableRow key={location.locationId}>
                         <TableCell className="text-xs text-muted-foreground tabular-nums">
                           {location.locationId}

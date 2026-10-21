@@ -1,7 +1,11 @@
 "use client";
 
 import * as React from "react";
+import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { SortState } from "@/lib/tableSort";
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
@@ -65,6 +69,40 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   );
 }
 
+/** A header cell that sorts its column on click; pair with `useTableSort`. */
+function SortableTableHead<K extends string>({
+  sortKey,
+  sort,
+  onSort,
+  children,
+  ...props
+}: Omit<React.ComponentProps<"th">, "onClick"> & {
+  sortKey: K;
+  sort: SortState<K>;
+  onSort: (key: K) => void;
+}) {
+  const direction = sort?.key === sortKey ? sort.direction : null;
+  const Icon =
+    direction === "asc" ? ArrowUpIcon : direction === "desc" ? ArrowDownIcon : ChevronsUpDownIcon;
+  return (
+    <TableHead
+      aria-sort={direction === "asc" ? "ascending" : direction === "desc" ? "descending" : "none"}
+      {...props}
+    >
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        className="-ml-2.5 font-medium"
+        onClick={() => onSort(sortKey)}
+      >
+        {children}
+        <Icon data-icon="inline-end" className={cn(!direction && "text-muted-foreground/60")} />
+      </Button>
+    </TableHead>
+  );
+}
+
 function TableCell({ className, ...props }: React.ComponentProps<"td">) {
   return (
     <td
@@ -85,4 +123,14 @@ function TableCaption({ className, ...props }: React.ComponentProps<"caption">) 
   );
 }
 
-export { Table, TableHeader, TableBody, TableFooter, TableHead, TableRow, TableCell, TableCaption };
+export {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableHead,
+  SortableTableHead,
+  TableRow,
+  TableCell,
+  TableCaption,
+};

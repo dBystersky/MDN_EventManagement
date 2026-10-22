@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { ChevronLeftIcon, ChevronRightIcon, CircleAlertIcon } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -288,13 +290,16 @@ export default function CalendarPage() {
                           </Badge>
                         </button>
                       ) : (
-                        <Badge
+                        <Link
                           key={`${item.type}-${item.id}`}
-                          variant="secondary"
-                          className="w-full justify-start truncate"
+                          href={`/tasks?task=${item.id}`}
+                          className="w-full"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          {item.name}
-                        </Badge>
+                          <Badge variant="secondary" className="w-full justify-start truncate">
+                            {item.name}
+                          </Badge>
+                        </Link>
                       ),
                     )}
                     {overflow > 0 && (
@@ -343,9 +348,12 @@ export default function CalendarPage() {
                           {content}
                         </button>
                       ) : (
-                        <div className="flex flex-wrap items-center gap-2 p-1 text-sm">
+                        <Link
+                          href={`/tasks?task=${item.id}`}
+                          className="flex w-full flex-wrap items-center gap-2 rounded-md p-1 text-sm hover:bg-muted"
+                        >
                           {content}
-                        </div>
+                        </Link>
                       )}
                     </li>
                   );
@@ -416,7 +424,12 @@ export default function CalendarPage() {
                           key={task.taskId}
                           className="flex items-center gap-2 text-muted-foreground"
                         >
-                          <span className="text-foreground">{task.name}</span>
+                          <Link
+                            href={`/tasks?task=${task.taskId}`}
+                            className="text-foreground hover:underline"
+                          >
+                            {task.name}
+                          </Link>
                           <span>· due {formatDateTime(task.deadline)}</span>
                         </li>
                       ))}
@@ -424,6 +437,12 @@ export default function CalendarPage() {
                   </div>
                 )}
               </div>
+
+              <DialogFooter>
+                <Link href={`/events?event=${previewEvent.eventId}`} className={buttonVariants()}>
+                  Open event
+                </Link>
+              </DialogFooter>
             </>
           )}
         </DialogContent>

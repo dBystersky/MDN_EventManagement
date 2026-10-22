@@ -1,24 +1,27 @@
 "use client";
 
+import { Fragment } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { canViewAuditLog } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { LogoutButton } from "./logout-button";
 
+/** `divider` draws a line above the link, splitting the sidebar into groups. */
 const LINKS = [
   { href: "/overview", label: "Overview" },
   { href: "/calendar", label: "Calendar" },
-  { href: "/events", label: "Events" },
+  { href: "/events", label: "Events", divider: true },
   { href: "/tasks", label: "Tasks" },
   { href: "/allocations", label: "Allocations" },
+  { href: "/resources", label: "Resources", divider: true },
   { href: "/locations", label: "Locations" },
-  { href: "/resources", label: "Resources" },
-  { href: "/members", label: "Members" },
+  { href: "/members", label: "Members", divider: true },
   { href: "/audit-log", label: "Audit log" },
 ];
 
@@ -79,21 +82,23 @@ export function CrudNav({ user }: CrudNavProps) {
         {links.map((l) => {
           const active = pathname === l.href || pathname.startsWith(`${l.href}/`);
           return (
-            <Link
-              key={l.href}
-              href={l.href}
-              className={cn(
-                buttonVariants({
-                  variant: "ghost",
-                  size: "lg",
-                }),
-                "justify-start rounded-full px-4 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground",
-                active &&
-                  "bg-primary-foreground text-primary hover:bg-primary-foreground hover:text-primary",
-              )}
-            >
-              {l.label}
-            </Link>
+            <Fragment key={l.href}>
+              {l.divider && <Separator className="my-1 hidden bg-primary-foreground/25 md:block" />}
+              <Link
+                href={l.href}
+                className={cn(
+                  buttonVariants({
+                    variant: "ghost",
+                    size: "lg",
+                  }),
+                  "justify-start rounded-full px-4 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground",
+                  active &&
+                    "bg-primary-foreground text-primary hover:bg-primary-foreground hover:text-primary",
+                )}
+              >
+                {l.label}
+              </Link>
+            </Fragment>
           );
         })}
         {user && (

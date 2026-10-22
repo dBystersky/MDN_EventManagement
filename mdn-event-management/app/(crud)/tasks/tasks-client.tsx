@@ -461,7 +461,18 @@ export default function TasksDemo() {
                             )}
                           </TableCell>
                           <TableCell className="text-sm">
-                            {eventName || <span className="text-muted-foreground">Unassigned</span>}
+                            {!eventName ? (
+                              <span className="text-muted-foreground">Unassigned</span>
+                            ) : task.eventId != null ? (
+                              <Link
+                                href={`/events?event=${task.eventId}`}
+                                className="hover:underline"
+                              >
+                                {eventName}
+                              </Link>
+                            ) : (
+                              eventName
+                            )}
                           </TableCell>
                           <TableCell>
                             {!rights.edit ? (
